@@ -7,10 +7,10 @@
     <p class="hero__kicker">Aloha / Backend & AI Full-Stack</p>
     <h1 class="hero__title">
       <span class="hero__line" style="--line-index: 0">Explore Deeply, </span>
-      <span class="hero__line" style="--line-index: 1">Build Deliberately.</span>
+      <span class="hero__line hero__line--emphasis" style="--line-index: 1">Build Deliberately.</span>
     </h1>
     <p class="hero__intro">
-      Notes on backend engineering, AI applications, and reflections along the way.
+      Notes on backend engineering, AI applications,<br />and reflections along the way.
     </p>
     <div class="hero__links">
       <a href="#posts">Writing <span aria-hidden="true">↓</span></a>
@@ -66,7 +66,7 @@
     inset: clamp(6px, 1.4vw, 18px);
     z-index: 2;
     overflow: hidden;
-    border: 1px solid var(--crt-line-strong);
+    border-inline: 1px solid var(--crt-line-strong);
     border-radius: clamp(24px, 4vw, 54px) / clamp(18px, 3vw, 42px);
     pointer-events: none;
     background:
@@ -93,8 +93,18 @@
     position: absolute;
     inset: 0;
     background:
+      linear-gradient(90deg, transparent 42%, var(--crt-sweep) 48%, rgba(255, 255, 255, 0.1) 50%, var(--crt-sweep) 52%, transparent 58%),
       linear-gradient(90deg, var(--crt-sweep), transparent 7%, transparent 93%, var(--crt-sweep)),
       linear-gradient(118deg, rgba(255, 255, 255, 0.08), transparent 18%, transparent 76%, rgba(249, 115, 22, 0.055));
+    background-position: -180% 0, 0 0, 0 0;
+    background-repeat: no-repeat;
+    background-size: 260% 100%, 100% 100%, 100% 100%;
+    animation: screen-sweep 8s linear infinite;
+  }
+
+  @keyframes screen-sweep {
+    0%, 84% { background-position: -180% 0, 0 0, 0 0; }
+    98%, 100% { background-position: 180% 0, 0 0, 0 0; }
   }
 
   .hero__screen::after {
@@ -124,6 +134,12 @@
     display: block;
     backface-visibility: hidden;
     transform: translateZ(0);
+  }
+
+  .hero__line--emphasis {
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: -0.045em;
   }
 
   .hero.is-title-entering .hero__line {
@@ -195,6 +211,11 @@
     font-size: 1.08rem;
   }
 
+  .hero__intro em {
+    color: var(--text);
+    font-weight: 600;
+  }
+
   .hero__links {
     display: flex;
     gap: var(--space-lg);
@@ -217,6 +238,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .hero__screen::before { animation: none; }
     .hero.is-title-entering .hero__line {
       animation: none;
       opacity: 1;
