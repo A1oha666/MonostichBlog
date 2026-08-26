@@ -4,15 +4,15 @@ const visibleProjects = projects.slice(0, 2);
 ---
 
 <section class="section container" id="projects">
-  <div class="section__head">
+  <div class="section__head" data-reveal>
     <h2>Selected work</h2>
     <a href="https://github.com/" target="_blank" rel="noopener">GitHub →</a>
   </div>
 
   <div class="work-list">
     {
-      visibleProjects.map((project) => (
-        <article class="work">
+      visibleProjects.map((project, index) => (
+        <article class="work" data-reveal style={`--reveal-delay: ${Math.min(index * 60, 240)}ms`}>
           <div>
             <h3>{project.name}</h3>
             <p>{project.desc}</p>
@@ -25,7 +25,7 @@ const visibleProjects = projects.slice(0, 2);
 </section>
 
 <style>
-  .section { padding-block: var(--space-4xl); }
+  .section { padding-block: var(--space-4xl); scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
   .section__head {
     display: flex;
     align-items: baseline;
@@ -42,14 +42,21 @@ const visibleProjects = projects.slice(0, 2);
     color: var(--text-muted);
     font-family: var(--mono);
     font-size: 12.5px;
+    transition: color var(--dur-fast) var(--ease-out);
   }
   .section__head a:hover { color: var(--accent); }
-  .work { 
+  .work {
     display: grid;
     grid-template-columns: 1fr auto;
     gap: var(--space-xl);
+    padding-inline: var(--space-sm);
+    margin-inline: calc(-1 * var(--space-sm));
     padding-block: var(--space-xl);
     border-bottom: 1px solid var(--border);
+    transition: background var(--dur-fast) var(--ease-out), border-radius var(--dur-fast) var(--ease-out);
+  }
+  @media (hover: hover) {
+    .work:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
   }
   .work h3 {
     font-family: var(--mono);

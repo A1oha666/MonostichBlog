@@ -12,14 +12,14 @@ const previewThinkings = (await getCollection("thinkings", ({ data }) => DRAFT_P
 
 <section class="home-writing container" aria-label="Writing">
   <section class="home-section" id="notes" aria-labelledby="notes-heading">
-    <div class="section__head">
+    <div class="section__head" data-reveal>
       <h2 id="notes-heading">Notes</h2>
       <a href="/notes">全部笔记 <span aria-hidden="true">→</span></a>
     </div>
     <ol class="notes-list">
       {
-        previewNotes.map((entry) => (
-          <li>
+        previewNotes.map((entry, index) => (
+          <li data-reveal style={`--reveal-delay: ${Math.min(index * 60, 240)}ms`}>
             <a href={`/notes/${entry.id}/`}>
               <time datetime={isoDate(entry.data.date)}>{dotDate(entry.data.date)}</time>
               <div>
@@ -35,14 +35,14 @@ const previewThinkings = (await getCollection("thinkings", ({ data }) => DRAFT_P
   </section>
 
   <section class="home-section" id="thinkings" aria-labelledby="thinkings-heading">
-    <div class="section__head">
+    <div class="section__head" data-reveal style="--reveal-delay: 80ms">
       <h2 id="thinkings-heading">Thinkings</h2>
       <a href="/thinkings">全部思考 <span aria-hidden="true">→</span></a>
     </div>
     <ol class="thinkings-list">
       {
-        previewThinkings.map((entry) => (
-          <li>
+        previewThinkings.map((entry, index) => (
+          <li data-reveal style={`--reveal-delay: ${80 + Math.min(index * 60, 240)}ms`}>
             <a href={`/thinkings/${entry.id}/`}>
               {entry.data.label && <p class="thinking-label">{entry.data.label}</p>}
               <h3>{entry.data.title}</h3>
@@ -58,18 +58,24 @@ const previewThinkings = (await getCollection("thinkings", ({ data }) => DRAFT_P
 
 <style>
   .home-writing { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4xl); padding-block: var(--space-4xl); }
+  /* anchor targets must clear the sticky nav after smooth-scroll */
+  .home-section { scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
   .section__head { display: flex; align-items: baseline; justify-content: space-between; padding-bottom: var(--space-lg); border-bottom: 1px solid var(--border-strong); }
   .section__head h2 { font-family: var(--mono); font-size: 1rem; font-weight: 500; }
-  .section__head a { color: var(--text-muted); font-family: var(--mono); font-size: 12.5px; }
-  .section__head a span { color: var(--accent); }
+  .section__head a { color: var(--text-muted); font-family: var(--mono); font-size: 12.5px; transition: color var(--dur-fast) var(--ease-out); }
+  .section__head a span { display: inline-block; color: var(--accent); transition: transform var(--dur-base) var(--ease-out); }
   .section__head a:hover { color: var(--accent); }
+  .section__head a:hover span { transform: translateX(3px); }
   .notes-list, .thinkings-list { margin: 0; padding: 0; list-style: none; }
-  .notes-list li, .thinkings-list li { border-bottom: 1px solid var(--border); }
+  .notes-list li, .thinkings-list li { border-bottom: 1px solid var(--border); transition: background var(--dur-fast) var(--ease-out); }
+  @media (hover: hover) {
+    .notes-list li:hover, .thinkings-list li:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+  }
   .notes-list a { display: grid; grid-template-columns: 78px minmax(0, 1fr) 16px; gap: var(--space-md); padding-block: var(--space-lg); }
   time { color: var(--text-faint); font-family: var(--mono); font-size: 11.5px; }
-  h3 { font-size: 1.05rem; font-weight: 500; transition: color 180ms ease; }
+  h3 { font-size: 1.05rem; font-weight: 500; transition: color var(--dur-fast) var(--ease-out); }
   .notes-list div > p, .thinkings-list a > p:not(.thinking-label) { margin-top: var(--space-xs); color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; }
-  .notes-list a > span { color: var(--text-faint); font-family: var(--mono); transition: color 180ms ease, transform 180ms ease; }
+  .notes-list a > span { color: var(--text-faint); font-family: var(--mono); transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-spring); }
   .notes-list a:hover h3, .notes-list a:hover > span { color: var(--accent); }
   .notes-list a:hover > span { transform: translate(2px, -2px); }
   .thinkings-list a { display: block; padding-block: var(--space-lg); }

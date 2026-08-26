@@ -1,13 +1,14 @@
 ---
 ---
 
-<nav class="nav" aria-label="Primary">
+<nav class="nav" aria-label="Primary" transition:persist="nav">
   <div class="nav__inner container">
     <a class="nav__brand" href="/">Aloha.</a>
     <div class="nav__links">
       <a href="/notes">Notes</a>
       <a href="/thinkings">Thinkings</a>
       <a href="/#projects">Work</a>
+      <a href="/search">Search</a>
       <button
         class="nav__theme"
         id="theme-toggle"
@@ -28,13 +29,20 @@
 </nav>
 
 <script>
-  const btn = document.getElementById("theme-toggle");
-  btn?.addEventListener("click", () => {
-    const root = document.documentElement;
-    const next = root.dataset.theme === "light" ? "dark" : "light";
-    root.dataset.theme = next;
-    try { localStorage.setItem("theme", next); } catch {}
-  });
+  // Re-bound on astro:page-load so the handler survives view-transition swaps.
+  function bindThemeToggle() {
+    const btn = document.getElementById("theme-toggle");
+    if (!btn || btn.dataset.themeBound) return;
+    btn.dataset.themeBound = "true";
+    btn.addEventListener("click", () => {
+      const root = document.documentElement;
+      const next = root.dataset.theme === "light" ? "dark" : "light";
+      root.dataset.theme = next;
+      try { localStorage.setItem("theme", next); } catch {}
+    });
+  }
+  document.addEventListener("astro:page-load", bindThemeToggle);
+  bindThemeToggle();
 </script>
 
 <style>
@@ -58,9 +66,29 @@
   }
   .nav__brand { color: var(--accent); font-weight: 700; }
   .nav__links { display: flex; align-items: center; gap: var(--space-lg); }
-  .nav__links a { color: var(--text-muted); transition: color 180ms ease; }
-  .nav__links a:hover { color: var(--accent); }
+  .nav__links a {
+    position: relative;
+    color: var(--text-muted);
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+  .nav__links a::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -7px;
+    height: 1px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--dur-base) var(--ease-out);
+  }
+  @media (hover: hover) {
+    .nav__links a:hover { color: var(--accent); }
+    .nav__links a:hover::after { transform: scaleX(1); }
+  }
   .nav__theme {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -72,10 +100,25 @@
     border-radius: 50%;
     color: var(--text-muted);
     cursor: pointer;
+    transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
   }
   .nav__theme:hover { color: var(--accent); border-color: var(--accent); }
-  .ic { width: 14px; height: 14px; }
-  .ic--moon { display: none; }
-  :global(html[data-theme="light"]) .ic--moon { display: block; }
-  :global(html[data-theme="light"]) .ic--sun { display: none; }
+  .nav__theme:active { transform: scale(0.92); }
+  /* extend the tap area to ~44px without enlarging the visible control */
+  .nav__theme::after {
+    content: "";
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+  }
+  .ic {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+  }
+  .ic--sun { opacity: 1; transform: none; }
+  .ic--moon { opacity: 0; transform: rotate(-90deg) scale(0.6); }
+  :global(html[data-theme="light"]) .ic--moon { opacity: 1; transform: none; }
+  :global(html[data-theme="light"]) .ic--sun { opacity: 0; transform: rotate(90deg) scale(0.6); }
 </style>

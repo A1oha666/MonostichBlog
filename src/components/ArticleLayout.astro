@@ -49,12 +49,12 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
 ---
 
 <article class="article">
-  <header class="article__header container">
-    <a class="back-link" href={collectionHref}><span aria-hidden="true">←</span> 返回{collectionLabel}</a>
-    <p class="article__eyebrow">/ {collectionLabel.toLowerCase()}</p>
-    <h1>{title}</h1>
-    <p class="article__summary">{summary}</p>
-    <div class="article__meta">
+  <header class="article__header container" data-pagefind-body>
+    <a class="back-link" href={collectionHref} data-reveal><span aria-hidden="true">←</span> 返回{collectionLabel}</a>
+    <p class="article__eyebrow" data-reveal style="--reveal-delay: 60ms">/ {collectionLabel.toLowerCase()}</p>
+    <h1 data-reveal style="--reveal-delay: 120ms">{title}</h1>
+    <p class="article__summary" data-reveal style="--reveal-delay: 200ms">{summary}</p>
+    <div class="article__meta" data-reveal style="--reveal-delay: 280ms">
       <time datetime={publishedDate.toISOString()}>{formatDate(publishedDate)}</time>
       <span>{readingTime}</span>
       {editedDate && <span>更新于 {formatDate(editedDate)}</span>}
@@ -76,7 +76,7 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
         </ol>
       </aside>
     )}
-    <div class="article__content">
+    <div class="article__content" data-pagefind-body>
       <slot />
     </div>
   </div>
@@ -87,11 +87,95 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
   </nav>
 </article>
 
+<script>
+  // 目录滚动追踪： IntersectionObserver 记录可见标题，
+  // 始终高亮文档顺序里最靠上的那个（Map 保持插入序）。
+  // 代码块复制按钮：把每个 pre 包进定位容器，点击后写剪贴板并短暂反馈。
+  // 视图过渡下 astro:page-load 在首次加载和每次客户端导航后触发，
+  // 幂等初始化保证 上一篇/下一篇 跳转后功能仍然可用。
+  function initArticleWidgets() {
+    // --- TOC scrollspy ---
+    const tocLinks = [...document.querySelectorAll<HTMLAnchorElement>(".article__toc a[href^='#']")];
+    const spyTargets = new Map<Element, HTMLAnchorElement>();
+    if (tocLinks.length > 0) {
+      for (const link of tocLinks) {
+        const target = document.getElementById(decodeURIComponent(link.hash.slice(1)));
+        if (target) spyTargets.set(target, link);
+      }
+    }
+
+    // --- code copy buttons (skip already-wrapped blocks) ---
+    document.querySelectorAll(".article__content pre").forEach((pre) => {
+      const parent = pre.parentElement;
+      if (!parent || parent.classList.contains("codeblock")) return;
+      const wrapper = document.createElement("div");
+      wrapper.className = "codeblock";
+      pre.replaceWith(wrapper);
+      wrapper.append(pre);
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "code-copy";
+      button.textContent = "复制";
+      button.setAttribute("aria-label", "复制代码");
+
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      button.addEventListener("click", async () => {
+        const text = pre.innerText.replace(/\n$/, "");
+        let copied = false;
+        try {
+          await navigator.clipboard.writeText(text);
+          copied = true;
+        } catch {
+          try {
+            const fallback = document.createElement("textarea");
+            fallback.value = text;
+            document.body.appendChild(fallback);
+            fallback.select();
+            copied = document.execCommand("copy");
+            fallback.remove();
+          } catch {}
+        }
+        button.textContent = copied ? "已复制" : "复制失败";
+        clearTimeout(timer);
+        timer = setTimeout(() => (button.textContent = "复制"), 1600);
+      });
+
+      wrapper.appendChild(button);
+    });
+
+    if (spyTargets.size === 0) return;
+
+    const visible = new Set<Element>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          entry.isIntersecting ? visible.add(entry.target) : visible.delete(entry.target);
+        }
+        let current: Element | null = null;
+        for (const [target] of spyTargets) {
+          if (visible.has(target)) {
+            current = target;
+            break;
+          }
+        }
+        spyTargets.forEach((link, target) => link.classList.toggle("is-active", target === current));
+      },
+      { rootMargin: "-72px 0px -68% 0px", threshold: 0 },
+    );
+    spyTargets.forEach((_, target) => observer.observe(target));
+  }
+  document.addEventListener("astro:page-load", initArticleWidgets);
+  initArticleWidgets();
+</script>
+
 <style>
   .article__header { max-width: 1080px; padding-top: var(--space-4xl); padding-bottom: var(--space-3xl); }
-  .back-link { display: inline-flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xl); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 7px 10px; color: var(--text-muted); font-family: var(--mono); font-size: 12px; transition: border-color 180ms ease, color 180ms ease; }
+  .back-link { display: inline-flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xl); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 7px 10px; color: var(--text-muted); font-family: var(--mono); font-size: 12px; transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
   .back-link span, .article__eyebrow { color: var(--accent); }
+  .back-link span { display: inline-block; transition: transform var(--dur-base) var(--ease-out); }
   .back-link:hover { border-color: var(--accent); color: var(--text); }
+  .back-link:hover span { transform: translateX(-3px); }
   .article__eyebrow { margin-bottom: var(--space-lg); font-family: var(--mono); font-size: 13px; }
   h1 { max-width: 14ch; font-size: clamp(2.5rem, 5.5vw, 5rem); font-weight: 500; line-height: 1.04; }
   .article__summary { max-width: 58ch; margin-top: var(--space-xl); color: var(--text-muted); font-size: 1.08rem; }
@@ -102,15 +186,19 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
   .article__toc { position: sticky; top: calc(var(--nav-height) + var(--space-lg)); align-self: start; border-left: 1px solid var(--border); padding-left: var(--space-md); font-family: var(--mono); font-size: 12px; }
   .article__toc > p { color: var(--text-faint); }
   .article__toc ol { display: grid; gap: var(--space-sm); margin: var(--space-md) 0 0; padding: 0; list-style: none; }
-  .article__toc a { color: var(--text-muted); line-height: 1.45; }
-  .article__toc a:hover { color: var(--accent); }
+  .article__toc a { color: var(--text-muted); line-height: 1.45; transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); }
+  .article__toc a:hover, .article__toc a.is-active { color: var(--accent); }
   .article__toc-item--nested { padding-left: var(--space-sm); }
   .article__content { min-width: 0; padding-bottom: var(--space-4xl); }
   .article__pagination { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xl); padding-top: var(--space-xl); padding-bottom: var(--space-4xl); border-top: 1px solid var(--border-strong); }
   .article__pagination a { display: grid; gap: var(--space-sm); color: var(--text-muted); }
   .article__pagination a:hover strong { color: var(--accent); }
   .article__pagination span { color: var(--text-faint); font-family: var(--mono); font-size: 11.5px; }
-  .article__pagination strong { font-size: 1.05rem; font-weight: 500; transition: color 180ms ease; }
+  .article__pagination strong { font-size: 1.05rem; font-weight: 500; transition: color var(--dur-fast) var(--ease-out); }
+  .article__pagination a { transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-out); }
+  @media (hover: hover) {
+    .article__pagination a:hover { transform: translateY(-2px); }
+  }
   .article__pagination-next { text-align: right; }
   :global(.article__content > :first-child) { margin-top: 0; }
   :global(.article__content h2) { margin-top: var(--space-3xl); font-size: clamp(1.6rem, 3vw, 2.25rem); font-weight: 500; scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
@@ -124,6 +212,25 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
   :global(.article__content :not(pre) > code) { border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; background: var(--accent-soft); font-size: 0.88em; }
   :global(.article__content img) { width: 100%; margin-top: var(--space-xl); border: 1px solid var(--border); border-radius: var(--radius-sm); }
   :global(.article__content hr) { margin: var(--space-3xl) 0; border: 0; border-top: 1px solid var(--border); }
+  :global(.codeblock) { position: relative; }
+  :global(.code-copy) {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1;
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    padding: 3px 8px;
+    background: var(--surface);
+    color: var(--text-faint);
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    opacity: 0.55;
+    transition: opacity var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+  }
+  :global(.codeblock:hover .code-copy) { opacity: 1; }
+  :global(.code-copy:hover), :global(.code-copy:focus-visible) { color: var(--accent); border-color: var(--accent); opacity: 1; }
   @media (max-width: 800px) {
     .article__header { padding-top: var(--space-3xl); }
     .article__layout { grid-template-columns: minmax(0, 720px); padding-top: var(--space-xl); }

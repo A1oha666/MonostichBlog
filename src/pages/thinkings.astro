@@ -10,16 +10,16 @@ const entries = (await getCollection("thinkings", ({ data }) => DRAFT_PREVIEW ||
 
 <BaseLayout title="Thinkings — Aloha" description="Aloha 的短思考。">
   <section class="page-head container">
-    <a class="back-home" href="/"><span aria-hidden="true">←</span> 返回主页</a>
-    <p class="eyebrow">/ thinkings</p>
-    <h1>Thinkings</h1>
-    <p>关于创造、学习，以及工作周围的系统的一些短思考。</p>
+    <a class="back-home" href="/" data-reveal><span aria-hidden="true">←</span> 返回主页</a>
+    <p class="eyebrow" data-reveal style="--reveal-delay: 60ms">/ thinkings</p>
+    <h1 data-reveal style="--reveal-delay: 120ms">Thinkings</h1>
+    <p data-reveal style="--reveal-delay: 200ms">关于创造、学习，以及工作周围的系统的一些短思考。</p>
   </section>
 
   <section class="thinking-list container" aria-label="Thinkings">
     {
       entries.map((entry, index) => (
-        <article class="thinking">
+        <article class="thinking" data-reveal style={`--reveal-delay: ${Math.min(index * 60, 300)}ms`}>
           <div class="thinking__meta">
             {entry.data.label && <p>{entry.data.label}</p>}
             <time datetime={isoDate(entry.data.date)}>{dotDate(entry.data.date)}</time>
@@ -40,23 +40,26 @@ const entries = (await getCollection("thinkings", ({ data }) => DRAFT_PREVIEW ||
 <style>
   .page-head { padding-top: var(--space-4xl); padding-bottom: var(--space-2xl); }
   .page-head .eyebrow { color: var(--accent); margin-bottom: var(--space-lg); }
-  .back-home { display: inline-flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xl); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 7px 10px; color: var(--text-muted); font-family: var(--mono); font-size: 12px; transition: border-color 180ms ease, color 180ms ease; }
+  .back-home { display: inline-flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xl); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 7px 10px; color: var(--text-muted); font-family: var(--mono); font-size: 12px; transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
   .back-home span { color: var(--accent); }
   .back-home:hover { border-color: var(--accent); color: var(--text); }
   h1 { font-size: clamp(3rem, 6vw, 5.5rem); font-weight: 400; font-style: italic; line-height: 1; }
   .page-head > p:last-child { max-width: 54ch; margin-top: var(--space-lg); color: var(--text-muted); }
   .thinking-list { border-top: 1px solid var(--border-strong); }
-  .thinking { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: var(--space-2xl); padding-block: var(--space-3xl); border-bottom: 1px solid var(--border); }
+  .thinking { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: var(--space-2xl); padding-block: var(--space-3xl); border-bottom: 1px solid var(--border); transition: background var(--dur-fast) var(--ease-out); }
+  @media (hover: hover) {
+    .thinking:hover { background: color-mix(in srgb, var(--accent) 3%, transparent); }
+  }
   .thinking__meta { padding-top: 7px; font-family: var(--mono); font-size: 12px; }
   .thinking__meta p { color: var(--accent); }
   time { display: block; margin-top: var(--space-sm); color: var(--text-faint); }
   .thinking__body { position: relative; max-width: 720px; }
   .thinking__number { position: absolute; top: 7px; right: 0; color: var(--text-faint); font-family: var(--mono); font-size: 12px; }
   h2 { max-width: 20ch; padding-right: var(--space-2xl); font-size: clamp(1.7rem, 3.5vw, 2.7rem); font-weight: 400; line-height: 1.08; }
-  h2 a { transition: color 180ms ease; }
+  h2 a { transition: color var(--dur-fast) var(--ease-out); }
   .thinking__body > p { max-width: 58ch; margin-top: var(--space-lg); color: var(--text-muted); }
   .thinking__read { display: inline-flex; gap: var(--space-sm); margin-top: var(--space-xl); color: var(--text); font-family: var(--mono); font-size: 12.5px; }
-  .thinking__read span { color: var(--accent); transition: transform 180ms ease; }
+  .thinking__read span { color: var(--accent); transition: transform var(--dur-base) var(--ease-spring); }
   .thinking:hover h2 a { color: var(--accent); }
   .thinking:hover .thinking__read span { transform: translateX(3px); }
   @media (max-width: 600px) {

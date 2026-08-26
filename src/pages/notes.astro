@@ -10,18 +10,18 @@ const entries = (await getCollection("notes", ({ data }) => DRAFT_PREVIEW || !da
 
 <BaseLayout title="Notes — Aloha" description="Aloha 的工程笔记。">
   <section class="page-head container">
-    <a class="back-home" href="/"><span aria-hidden="true">←</span> 返回主页</a>
-    <p class="eyebrow">/ notes</p>
-    <h1>Notes</h1>
-    <p>记录系统、软件，以及那些值得反复推敲的实现细节。</p>
+    <a class="back-home" href="/" data-reveal><span aria-hidden="true">←</span> 返回主页</a>
+    <p class="eyebrow" data-reveal style="--reveal-delay: 60ms">/ notes</p>
+    <h1 data-reveal style="--reveal-delay: 120ms">Notes</h1>
+    <p data-reveal style="--reveal-delay: 200ms">记录系统、软件，以及那些值得反复推敲的实现细节。</p>
   </section>
 
   <section class="notes container" aria-label="Notes">
-    <p class="notes__count">{entries.length} 篇笔记</p>
+    <p class="notes__count" data-reveal>{entries.length} 篇笔记</p>
     <ol class="notes__list">
       {
-        entries.map((entry) => (
-          <li>
+        entries.map((entry, index) => (
+          <li data-reveal style={`--reveal-delay: ${Math.min(index * 50, 300)}ms`}>
             <a class="note" href={`/notes/${entry.id}/`}>
               <time datetime={isoDate(entry.data.date)}>{dotDate(entry.data.date)}</time>
               <div class="note__body">
@@ -41,18 +41,21 @@ const entries = (await getCollection("notes", ({ data }) => DRAFT_PREVIEW || !da
 <style>
   .page-head { padding-top: var(--space-4xl); padding-bottom: var(--space-2xl); }
   .page-head .eyebrow { color: var(--accent); margin-bottom: var(--space-lg); }
-  .back-home { display: inline-flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xl); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 7px 10px; color: var(--text-muted); font-family: var(--mono); font-size: 12px; transition: border-color 180ms ease, color 180ms ease; }
+  .back-home { display: inline-flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xl); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 7px 10px; color: var(--text-muted); font-family: var(--mono); font-size: 12px; transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
   .back-home span { color: var(--accent); }
   .back-home:hover { border-color: var(--accent); color: var(--text); }
   h1 { font-size: clamp(3rem, 6vw, 5.5rem); font-weight: 500; line-height: 1; }
   .page-head > p:last-child { max-width: 54ch; margin-top: var(--space-lg); color: var(--text-muted); }
   .notes__count { padding-bottom: var(--space-md); border-bottom: 1px solid var(--border-strong); color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
   .notes__list { margin: 0; padding: 0; list-style: none; }
-  .notes__list > li { border-bottom: 1px solid var(--border); }
+  .notes__list > li { border-bottom: 1px solid var(--border); transition: background var(--dur-fast) var(--ease-out); }
+  @media (hover: hover) {
+    .notes__list > li:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+  }
   .note { display: grid; grid-template-columns: 112px minmax(0, 1fr) 20px; gap: var(--space-lg); padding-block: var(--space-xl); }
   time, .note__arrow { color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
-  .note__arrow { padding-top: 4px; transition: color 180ms ease, transform 180ms ease; }
-  h2 { font-size: clamp(1.3rem, 2.2vw, 1.65rem); font-weight: 500; transition: color 180ms ease; }
+  .note__arrow { padding-top: 4px; transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-spring); }
+  h2 { font-size: clamp(1.3rem, 2.2vw, 1.65rem); font-weight: 500; transition: color var(--dur-fast) var(--ease-out); }
   .note__body > p { max-width: 65ch; margin-top: var(--space-sm); color: var(--text-muted); font-size: 0.98rem; }
   .note:hover h2, .note:hover .note__arrow { color: var(--accent); }
   .note:hover .note__arrow { transform: translate(2px, -2px); }

@@ -4,15 +4,15 @@
 <header class="hero">
   <div class="hero__screen" aria-hidden="true"></div>
   <div class="hero__inner container">
-    <p class="hero__kicker">Aloha / Backend & AI Full-Stack</p>
+    <p class="hero__kicker" data-reveal>Aloha / Backend & AI Full-Stack</p>
     <h1 class="hero__title">
       <span class="hero__line" style="--line-index: 0">Explore Deeply, </span>
       <span class="hero__line hero__line--emphasis" style="--line-index: 1">Build Deliberately.</span>
     </h1>
-    <p class="hero__intro">
+    <p class="hero__intro" data-reveal style="--reveal-delay: 480ms">
       Notes on backend engineering, AI applications,<br />and reflections along the way.
     </p>
-    <div class="hero__links">
+    <div class="hero__links" data-reveal style="--reveal-delay: 620ms">
       <a href="#notes">Writing <span aria-hidden="true">↓</span></a>
       <a href="https://github.com/A1oha666" target="_blank" rel="noopener">GitHub ↗</a>
     </div>
@@ -20,10 +20,16 @@
 </header>
 
 <script>
-  const hero = document.querySelector<HTMLElement>(".hero");
-  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  // View-transition safe init: astro:page-load fires on first load and after
+  // every client-side navigation.
+  function initHero() {
+    const hero = document.querySelector<HTMLElement>(".hero");
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-  if (hero && !reducedMotion.matches && "IntersectionObserver" in window) {
+    if (!hero || reducedMotion.matches || !("IntersectionObserver" in window)) return;
+    if (hero.dataset.heroBound) return;
+    hero.dataset.heroBound = "true";
+
     if (hero.getBoundingClientRect().top < window.innerHeight) {
       hero.classList.add("is-title-entering");
     }
@@ -33,6 +39,7 @@
         if (entry.intersectionRatio >= 0.3) {
           hero.classList.add("is-title-entering");
         } else if (entry.intersectionRatio <= 0.05) {
+          // also pauses the decorative CRT sweep while off-screen
           hero.classList.remove("is-title-entering");
         }
       },
@@ -41,6 +48,8 @@
 
     observer.observe(hero);
   }
+  document.addEventListener("astro:page-load", initHero);
+  initHero();
 </script>
 
 <style>
@@ -101,6 +110,12 @@
     background-repeat: no-repeat;
     background-size: 260% 100%, 100% 100%, 100% 100%;
     animation: screen-sweep 8s linear infinite;
+  }
+
+  /* decorative loop only runs while the hero is on screen (JS available);
+     without JS it stays as-is so the CRT identity doesn't depend on scripts */
+  :global(html.js) .hero:not(.is-title-entering) .hero__screen::before {
+    animation-play-state: paused;
   }
 
   @keyframes screen-sweep {
@@ -227,10 +242,18 @@
 
   .hero__links a {
     color: var(--text-muted);
-    transition: color 180ms ease;
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+
+  .hero__links a span {
+    display: inline-block;
+    transition: transform var(--dur-base) var(--ease-spring);
   }
 
   .hero__links a:hover { color: var(--accent); }
+  /* ↗ drifts up-right, ↓ nudges down — motion matches each arrow's meaning */
+  .hero__links a:hover span[aria-hidden] { transform: translate(2px, -2px) scale(1.08); }
+  .hero__links a[href^="#"]:hover span { transform: translateY(2px); }
 
   @media (max-width: 600px) {
     .hero { padding-block: var(--space-xl) var(--space-2xl); }

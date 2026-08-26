@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
+    "postbuild": "pagefind --site dist",
     "preview": "astro preview",
     "build:preview": "astro build && astro preview",
     "astro": "astro",
@@ -14,11 +15,13 @@
     "smoke": "node scripts/smoke-attach-draft.mjs"
   },
   "dependencies": {
+    "@astrojs/rss": "^4.0.19",
     "@fontsource/fraunces": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
     "astro": "^5.18.2"
   },
   "devDependencies": {
-    "gray-matter": "^4.0.3"
+    "gray-matter": "^4.0.3",
+    "pagefind": "^1.5.2"
   }
 }
