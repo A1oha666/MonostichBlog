@@ -63,7 +63,7 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
 
   {cover && <div class="article__cover container"><img src={cover} alt="" /></div>}
 
-  <div class="article__layout container">
+  <div class:list={["article__layout container", tocHeadings.length === 0 && "article__layout--no-toc"]}>
     {tocHeadings.length > 0 && (
       <aside class="article__toc" aria-label="文章目录">
         <p>目录</p>
@@ -183,6 +183,8 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
   .article__meta span + span::before { content: "/"; margin-right: var(--space-md); color: var(--border-strong); }
   .article__cover img { width: 100%; max-height: 620px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); object-fit: cover; }
   .article__layout { display: grid; grid-template-columns: 172px minmax(0, 720px); justify-content: center; gap: var(--space-3xl); padding-top: var(--space-2xl); }
+  /* 无目录时收起预留的目录列，避免正文掉进 172px 的窄列 */
+  .article__layout--no-toc { grid-template-columns: minmax(0, 720px); }
   .article__toc { position: sticky; top: calc(var(--nav-height) + var(--space-lg)); align-self: start; border-left: 1px solid var(--border); padding-left: var(--space-md); font-family: var(--mono); font-size: 12px; }
   .article__toc > p { color: var(--text-faint); }
   .article__toc ol { display: grid; gap: var(--space-sm); margin: var(--space-md) 0 0; padding: 0; list-style: none; }
