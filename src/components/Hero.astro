@@ -1,0 +1,232 @@
+---
+---
+
+<header class="hero">
+  <div class="hero__screen" aria-hidden="true"></div>
+  <div class="hero__inner container">
+    <p class="hero__kicker">Aloha / Backend & AI Full-Stack</p>
+    <h1 class="hero__title">
+      <span class="hero__line" style="--line-index: 0">Explore Deeply, </span>
+      <span class="hero__line" style="--line-index: 1">Build Deliberately.</span>
+    </h1>
+    <p class="hero__intro">
+      Notes on backend engineering, AI applications, and reflections along the way.
+    </p>
+    <div class="hero__links">
+      <a href="#posts">Writing <span aria-hidden="true">↓</span></a>
+      <a href="https://github.com/A1oha666" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+  </div>
+</header>
+
+<script>
+  const hero = document.querySelector<HTMLElement>(".hero");
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  if (hero && !reducedMotion.matches && "IntersectionObserver" in window) {
+    if (hero.getBoundingClientRect().top < window.innerHeight) {
+      hero.classList.add("is-title-entering");
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.intersectionRatio >= 0.3) {
+          hero.classList.add("is-title-entering");
+        } else if (entry.intersectionRatio <= 0.05) {
+          hero.classList.remove("is-title-entering");
+        }
+      },
+      { threshold: [0, 0.05, 0.3] },
+    );
+
+    observer.observe(hero);
+  }
+</script>
+
+<style>
+  .hero {
+    min-height: calc(100vh - var(--nav-height));
+    min-height: calc(100svh - var(--nav-height));
+    position: relative;
+    isolation: isolate;
+    overflow: clip;
+    display: grid;
+    align-items: center;
+    padding-block: var(--space-3xl) var(--space-4xl);
+    contain: paint;
+  }
+
+  .hero__inner {
+    position: relative;
+    z-index: 1;
+  }
+
+  .hero__screen {
+    position: absolute;
+    inset: clamp(6px, 1.4vw, 18px);
+    z-index: 2;
+    overflow: hidden;
+    border: 1px solid var(--crt-line-strong);
+    border-radius: clamp(24px, 4vw, 54px) / clamp(18px, 3vw, 42px);
+    pointer-events: none;
+    background:
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 2px,
+        var(--crt-line-strong) 2px,
+        var(--crt-line-strong) 3px
+      ),
+      radial-gradient(ellipse at center, transparent 48%, var(--crt-vignette) 116%);
+    box-shadow:
+      inset 0 0 4px rgba(255, 255, 255, 0.18),
+      inset 18px 0 28px -22px var(--crt-glow),
+      inset -18px 0 28px -22px var(--crt-glow),
+      inset 0 0 90px var(--crt-vignette),
+      -2px 0 10px color-mix(in srgb, var(--accent) 58%, transparent),
+      2px 0 10px color-mix(in srgb, var(--accent) 58%, transparent);
+    opacity: 0.82;
+  }
+
+  .hero__screen::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(90deg, var(--crt-sweep), transparent 7%, transparent 93%, var(--crt-sweep)),
+      linear-gradient(118deg, rgba(255, 255, 255, 0.08), transparent 18%, transparent 76%, rgba(249, 115, 22, 0.055));
+  }
+
+  .hero__screen::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.65'/%3E%3C/svg%3E");
+    opacity: var(--crt-noise-opacity);
+  }
+
+  .hero__kicker {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    margin-bottom: var(--space-lg);
+  }
+
+  h1 {
+    max-width: 900px;
+    font-size: clamp(3.15rem, 7.6vw, 6.5rem);
+    font-weight: 500;
+    letter-spacing: -0.035em;
+    line-height: 0.98;
+  }
+
+  .hero__line {
+    display: block;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+  }
+
+  .hero.is-title-entering .hero__line {
+    animation: line-enter 1100ms linear both;
+    animation-delay: calc(var(--line-index) * 360ms);
+    will-change: opacity, filter, transform, text-shadow;
+  }
+
+  @keyframes line-enter {
+    0% {
+      opacity: 0;
+      filter: blur(12px);
+      transform: translate3d(-0.075em, 0.15em, 0) scale(1.02);
+      text-shadow:
+        -0.08em 0 var(--crt-red),
+        0.08em 0 var(--crt-cyan);
+    }
+
+    18% {
+      opacity: 0.34;
+      filter: blur(9px);
+      transform: translate3d(-0.05em, 0.105em, 0) scale(1.015);
+      text-shadow:
+        -0.064em 0 var(--crt-red),
+        0.064em 0 var(--crt-cyan);
+    }
+
+    42% {
+      opacity: 0.74;
+      filter: blur(5.4px);
+      transform: translate3d(-0.024em, 0.055em, 0) scale(1.009);
+      text-shadow:
+        -0.042em 0 var(--crt-red),
+        0.042em 0 var(--crt-cyan);
+    }
+
+    68% {
+      opacity: 0.94;
+      filter: blur(2.2px);
+      transform: translate3d(-0.008em, 0.018em, 0) scale(1.003);
+      text-shadow:
+        -0.021em 0 var(--crt-red),
+        0.021em 0 var(--crt-cyan);
+    }
+
+    86% {
+      opacity: 1;
+      filter: blur(0.7px);
+      transform: translate3d(-0.002em, 0.004em, 0) scale(1.001);
+      text-shadow:
+        -0.007em 0 color-mix(in srgb, var(--crt-red) 55%, transparent),
+        0.007em 0 color-mix(in srgb, var(--crt-cyan) 55%, transparent);
+    }
+
+    100% {
+      opacity: 1;
+      filter: blur(0);
+      transform: translate3d(0, 0, 0) scale(1);
+      text-shadow:
+        0 0 transparent,
+        0 0 transparent;
+    }
+  }
+
+  .hero__intro {
+    max-width: 48ch;
+    margin-top: var(--space-xl);
+    color: var(--text-muted);
+    font-size: 1.08rem;
+  }
+
+  .hero__links {
+    display: flex;
+    gap: var(--space-lg);
+    margin-top: var(--space-xl);
+    font-family: var(--mono);
+    font-size: 13.5px;
+  }
+
+  .hero__links a {
+    color: var(--text-muted);
+    transition: color 180ms ease;
+  }
+
+  .hero__links a:hover { color: var(--accent); }
+
+  @media (max-width: 600px) {
+    .hero { padding-block: var(--space-xl) var(--space-2xl); }
+    .hero__screen { inset: 4px; opacity: 0.66; }
+    h1 { font-size: clamp(2.85rem, 15vw, 4.7rem); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero.is-title-entering .hero__line {
+      animation: none;
+      opacity: 1;
+      filter: none;
+      transform: none;
+      text-shadow: none;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .hero__screen { display: none; }
+  }
+</style>

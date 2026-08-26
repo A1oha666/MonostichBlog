@@ -1,0 +1,89 @@
+---
+interface Line {
+  type: "cmd" | "out" | "cursor";
+  text?: string;
+}
+interface Props {
+  title?: string;
+  lines: Line[];
+  prompt?: string;
+}
+const { title = "aloha@blog: ~", lines, prompt = "~/blog $" } = Astro.props;
+
+// Astro renders {} expressions as plain text — HTML strings must use set:html
+const rendered = lines
+  .map((l) => {
+    if (l.type === "cmd")
+      return `<span class="term__prompt">${prompt}</span> <span class="term__cmd">${l.text ?? ""}</span>\n`;
+    if (l.type === "out")
+      return `<span class="term__out">${l.text ?? ""}</span>\n`;
+    if (l.type === "cursor")
+      return `<span class="term__prompt">${prompt}</span> <span class="term__cursor" aria-hidden="true"></span>\n`;
+    return "";
+  })
+  .join("");
+---
+
+<div class="term" role="img" aria-label="Terminal mock: whoami and current focus">
+  <div class="term__bar">
+    <span class="dot dot--r"></span>
+    <span class="dot dot--y"></span>
+    <span class="dot dot--g"></span>
+    <span class="term__title">{title}</span>
+  </div>
+  <pre class="term__body"><code><Fragment set:html={rendered} /></code></pre>
+</div>
+
+<style>
+  .term {
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+    font-family: var(--mono);
+  }
+  .term__bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+  }
+  .dot {
+    width: 11px; height: 11px; border-radius: 50%;
+    display: inline-block;
+  }
+  .dot--r { background: #f97316; }
+  .dot--y { background: #e0b36b; }
+  .dot--g { background: #9cbf9b; }
+  .term__title {
+    margin-left: 8px;
+    font-size: 12.5px;
+    color: var(--text-faint);
+  }
+  .term__body {
+    margin: 0;
+    padding: 18px 20px;
+    font-size: 14.5px;
+    line-height: 1.85;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text);
+  }
+  .term__prompt { color: var(--accent); font-weight: 700; }
+  .term__cmd { color: var(--text); }
+  .term__out { color: var(--text-muted); }
+  .term__cursor {
+    display: inline-block;
+    width: 9px; height: 1.05em;
+    background: var(--accent);
+    vertical-align: text-bottom;
+    animation: blink 1.1s step-end infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .term__cursor { animation: none; opacity: 1; }
+  }
+</style>

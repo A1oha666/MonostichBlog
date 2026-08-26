@@ -1,0 +1,65 @@
+---
+import Nav from "../components/Nav.astro";
+import "@fontsource/fraunces/400.css";
+import "@fontsource/fraunces/400-italic.css";
+import "@fontsource/fraunces/600.css";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/400-italic.css";
+import "@fontsource/jetbrains-mono/500.css";
+import "@fontsource/jetbrains-mono/700.css";
+import "../styles/global.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+  hideNav?: boolean;
+  pageStylesheet?: string;
+  bodyClass?: string;
+  lang?: string;
+}
+const {
+  title = "Aloha — backend & agent engineering",
+  description =
+    "Personal site & blog: backend development, distributed systems, and LLM agent applications.",
+  hideNav = false,
+  pageStylesheet,
+  bodyClass,
+  lang = "en",
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#000000" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    {pageStylesheet && <link rel="stylesheet" href={pageStylesheet} />}
+    <title>{title}</title>
+    <script is:inline>
+      (function () {
+        var t;
+        try {
+          t = localStorage.getItem("theme");
+        } catch (e) {}
+        if (t !== "light" && t !== "dark") {
+          t =
+            window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: light)").matches
+              ? "light"
+              : "dark";
+        }
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
+  </head>
+  <body class={bodyClass}>
+    <a class="skip-link" href="#main">Skip to main content</a>
+    {!hideNav && <Nav />}
+    <main id="main">
+      <slot />
+    </main>
+  </body>
+</html>

@@ -1,0 +1,279 @@
+/* =========================================================
+   Design tokens — orange / dark & light dual theme
+   ========================================================= */
+:root,
+:root[data-theme="dark"] {
+  --bg: #151009;
+  --bg-glow: #33200e;
+  --surface: #1f1811;
+  --surface-2: #292015;
+  --text: #f5efe6;
+  --text-muted: #b0a696;
+  --text-faint: #8f8577;
+  --accent: #f97316;          /* orange */
+  --accent-deep: #ea580c;
+  --accent-soft: rgba(249, 115, 22, 0.14);
+  --border: rgba(245, 239, 230, 0.09);
+  --border-strong: rgba(245, 239, 230, 0.18);
+  --code-green: #9cbf9b;
+  --code-str: #e0b36b;
+  --code-fn: #d7b9a6;
+  --on-accent: #1a0e05;
+  --nav-bg: rgba(21, 16, 9, 0.85);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.5);
+  --crt-line: rgba(245, 239, 230, 0.045);
+  --crt-line-strong: rgba(245, 239, 230, 0.085);
+  --crt-noise-opacity: 0.055;
+  --crt-vignette: rgba(0, 0, 0, 0.42);
+  --crt-sweep: rgba(249, 115, 22, 0.13);
+  --crt-red: rgba(255, 74, 45, 0.52);
+  --crt-cyan: rgba(61, 213, 232, 0.42);
+  --crt-glow: rgba(249, 115, 22, 0.72);
+
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg: #fcf8f2;
+  --bg-glow: #f6ebdc;
+  --surface: #ffffff;
+  --surface-2: #f6efe4;
+  --text: #241b12;
+  --text-muted: #6e6154;
+  --text-faint: #7e7466;
+  --accent: #c2410c;          /* deep orange for contrast on paper */
+  --accent-deep: #9a3412;
+  --accent-soft: rgba(194, 65, 12, 0.1);
+  --border: rgba(36, 27, 18, 0.1);
+  --border-strong: rgba(36, 27, 18, 0.22);
+  --code-green: #4e7a4e;
+  --code-str: #a0622d;
+  --code-fn: #8a5a3b;
+  --on-accent: #fff8f2;
+  --nav-bg: rgba(252, 248, 242, 0.85);
+  --shadow-sm: 0 1px 2px rgba(58, 42, 24, 0.1);
+  --shadow-md: 0 8px 24px rgba(58, 42, 24, 0.12);
+  --shadow-lg: 0 24px 60px rgba(58, 42, 24, 0.16);
+  --crt-line: rgba(88, 57, 30, 0.025);
+  --crt-line-strong: rgba(88, 57, 30, 0.055);
+  --crt-noise-opacity: 0.025;
+  --crt-vignette: rgba(92, 55, 24, 0.12);
+  --crt-sweep: rgba(194, 65, 12, 0.07);
+  --crt-red: rgba(194, 65, 12, 0.3);
+  --crt-cyan: rgba(0, 122, 140, 0.24);
+  --crt-glow: rgba(194, 65, 12, 0.42);
+
+  color-scheme: light;
+}
+
+/* =========================================================
+   Type — self-hosted via @fontsource; Chinese falls back
+   to STZhongsong (华文中宋) per user preference
+   ========================================================= */
+:root {
+  --serif: 'Fraunces', 'STZhongsong', '华文中宋', Georgia, 'Times New Roman', serif;
+  --serif-zh: 'STZhongsong', '华文中宋', 'Songti SC', SimSun, serif;
+  --mono: 'JetBrains Mono', 'Cascadia Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* spacing scale */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+  --space-4xl: 96px;
+
+  /* radius */
+  --radius-sm: 8px;
+  --radius: 14px;
+  --radius-lg: 20px;
+
+  /* layout */
+  --nav-height: 59px;
+  --maxw: 1080px;
+  --maxw-prose: 720px;
+}
+
+/* =========================================================
+   Reset & base
+   ========================================================= */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  background-image:
+    radial-gradient(900px 480px at 78% -8%, var(--bg-glow), transparent 60%);
+  background-attachment: fixed;
+  transition: background-color 250ms ease, color 250ms ease;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 3px,
+    var(--crt-line) 3px,
+    var(--crt-line) 4px
+  );
+}
+
+h1, h2, h3, h4 {
+  font-family: inherit;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  margin: 0;
+  text-wrap: balance;
+}
+
+p { margin: 0; }
+
+:lang(zh),
+:lang(zh-CN) {
+  font-family: var(--serif-zh);
+}
+
+a { color: inherit; text-decoration: none; }
+
+img, svg { display: block; max-width: 100%; }
+
+::selection {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* =========================================================
+   Layout helpers
+   ========================================================= */
+.container {
+  width: 100%;
+  max-width: var(--maxw);
+  margin-inline: auto;
+  padding-inline: var(--space-lg);
+}
+
+.prose { max-width: var(--maxw-prose); }
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+}
+
+/* =========================================================
+   Buttons (mono)
+   ========================================================= */
+.btn {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 11px 18px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  background: var(--surface);
+  transition: border-color 200ms ease, color 200ms ease, background 200ms ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+}
+.btn--primary:hover {
+  background: var(--accent-deep);
+  border-color: var(--accent-deep);
+  color: var(--on-accent);
+}
+
+/* =========================================================
+   Section divider — code comment style
+   ========================================================= */
+.divider {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text-faint);
+  letter-spacing: 0.04em;
+  border: 0;
+  margin: var(--space-4xl) 0 var(--space-2xl);
+}
+.divider::before { content: "/* ---- "; }
+.divider::after  { content: " ---- */"; }
+
+/* =========================================================
+   Tag (backtick / mono)
+   ========================================================= */
+.tag {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--text-muted);
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+.tag::before { content: "`"; color: var(--accent); }
+.tag::after  { content: "`"; color: var(--accent); }
+
+/* =========================================================
+   Skip link (a11y)
+   ========================================================= */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 10px 16px;
+  background: var(--accent);
+  color: var(--on-accent);
+  border-radius: 0 0 var(--radius-sm) 0;
+}
+.skip-link:focus { left: 0; }
+
+/* =========================================================
+   Responsive
+   ========================================================= */
+@media (max-width: 768px) {
+  body { font-size: 16px; }
+  .container { padding-inline: var(--space-md); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+@media (forced-colors: active) {
+  body::after { display: none; }
+}

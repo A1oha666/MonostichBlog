@@ -1,0 +1,80 @@
+---
+---
+
+<nav class="nav" aria-label="Primary">
+  <div class="nav__inner container">
+    <a class="nav__brand" href="/">Aloha.</a>
+    <div class="nav__links">
+      <a href="#posts">Writing</a>
+      <a href="#projects">Work</a>
+      <button
+        class="nav__theme"
+        id="theme-toggle"
+        type="button"
+        aria-label="Toggle light / dark theme"
+        title="Toggle theme"
+      >
+        <svg class="ic ic--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+        </svg>
+        <svg class="ic ic--moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<script>
+  const btn = document.getElementById("theme-toggle");
+  btn?.addEventListener("click", () => {
+    const root = document.documentElement;
+    const next = root.dataset.theme === "light" ? "dark" : "light";
+    root.dataset.theme = next;
+    try { localStorage.setItem("theme", next); } catch {}
+  });
+</script>
+
+<style>
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    border-bottom: 1px solid var(--border);
+    background: var(--nav-bg);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+  .nav__inner {
+    max-width: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: calc(var(--nav-height) - 1px);
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+  .nav__brand { color: var(--accent); font-weight: 700; }
+  .nav__links { display: flex; align-items: center; gap: var(--space-lg); }
+  .nav__links a { color: var(--text-muted); transition: color 180ms ease; }
+  .nav__links a:hover { color: var(--accent); }
+  .nav__theme {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    background: none;
+    border: 1px solid var(--border-strong);
+    border-radius: 50%;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+  .nav__theme:hover { color: var(--accent); border-color: var(--accent); }
+  .ic { width: 14px; height: 14px; }
+  .ic--moon { display: none; }
+  :global(html[data-theme="light"]) .ic--moon { display: block; }
+  :global(html[data-theme="light"]) .ic--sun { display: none; }
+</style>

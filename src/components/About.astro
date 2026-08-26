@@ -1,0 +1,78 @@
+---
+const meta = [
+  { k: "Languages", v: "Go · Java · SQL" },
+  { k: "Focus", v: "Agent toolchains · Distributed systems" },
+  { k: "Now", v: "Shipping LLM apps to production" },
+  { k: "Location", v: "Nanjing, CN" },
+];
+---
+
+<section class="about container" id="about">
+  <p class="divider" aria-hidden="true">About</p>
+  <div class="about__grid">
+    <div class="about__prose prose">
+      <h2>About</h2>
+      <p>
+        I'm a backend engineer focused on <strong>agents and LLM applications</strong> —
+        not training models, but wiring them into real request paths:
+        gateways, routing, rate limits, observability, and making them
+        <em>work reliably</em>.
+      </p>
+      <p>
+        This site collects system designs I've built, pitfalls I've hit,
+        and a few opinions about making AI genuinely useful in engineering.
+      </p>
+    </div>
+    <dl class="about__meta">
+      {
+        meta.map((s) => (
+          <div class="about__row">
+            <dt>{s.k}</dt>
+            <dd>{s.v}</dd>
+          </div>
+        ))
+      }
+    </dl>
+  </div>
+</section>
+
+<style>
+  .about__grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: var(--space-2xl);
+    margin-top: var(--space-lg);
+    align-items: start;
+  }
+  .about__prose h2 {
+    font-size: clamp(1.8rem, 4vw, 2.4rem);
+    margin-bottom: var(--space-md);
+  }
+  .about__prose p { color: var(--text-muted); margin-bottom: var(--space-md); }
+  .about__prose strong { color: var(--text); font-weight: 600; }
+  .about__prose em { color: var(--accent); font-style: italic; }
+
+  .about__meta {
+    margin: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    overflow: hidden;
+    font-family: var(--mono);
+  }
+  .about__row {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-md);
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13.5px;
+  }
+  .about__row:last-child { border-bottom: 0; }
+  .about__row dt { color: var(--text-faint); }
+  .about__row dd { margin: 0; color: var(--text); text-align: right; }
+
+  @media (max-width: 768px) {
+    .about__grid { grid-template-columns: 1fr; gap: var(--space-xl); }
+  }
+</style>

@@ -1,0 +1,62 @@
+---
+interface Props {
+  title?: string;
+  lang?: string;
+}
+const { title = "snippet.go", lang = "go" } = Astro.props;
+---
+
+<div class="cw">
+  <div class="cw__bar">
+    <span class="dot dot--r"></span>
+    <span class="dot dot--y"></span>
+    <span class="dot dot--g"></span>
+    <span class="cw__title">{title}</span>
+    <span class="cw__lang">{lang}</span>
+  </div>
+  <pre class="cw__body"><code><slot /></code></pre>
+</div>
+
+<style>
+  .cw {
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+    font-family: var(--mono);
+  }
+  .cw__bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+  }
+  .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+  .dot--r { background: #d97757; }
+  .dot--y { background: #c9a26b; }
+  .dot--g { background: #8fb39b; }
+  .cw__title { margin-left: 8px; font-size: 12.5px; color: var(--text-muted); }
+  .cw__lang {
+    margin-left: auto;
+    font-size: 11.5px;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .cw__body {
+    margin: 0;
+    padding: 18px 20px;
+    font-size: 13.5px;
+    line-height: 1.8;
+    overflow-x: auto;
+    color: var(--text);
+  }
+  .cw__body :global(.tok-kw)  { color: var(--accent); font-weight: 500; }
+  .cw__body :global(.tok-str) { color: var(--code-str); }
+  .cw__body :global(.tok-com) { color: var(--text-faint); font-style: italic; }
+  .cw__body :global(.tok-fn)  { color: #d7b9a6; }
+  .cw__body :global(.tok-num) { color: var(--code-green); }
+</style>

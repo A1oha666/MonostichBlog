@@ -1,0 +1,79 @@
+---
+import { posts } from "../data/posts.js";
+const visiblePosts = posts.slice(0, 3);
+---
+
+<section class="section container" id="posts">
+  <div class="section__head">
+    <h2>Writing</h2>
+    <a href="#">Archive →</a>
+  </div>
+
+  <ol class="post-list">
+    {
+      visiblePosts.map((post) => (
+        <li>
+          <a class="post" href={post.href}>
+            <time datetime={post.date.replaceAll(".", "-")}>{post.date}</time>
+            <h3>{post.title}</h3>
+            <span aria-hidden="true">↗</span>
+          </a>
+        </li>
+      ))
+    }
+  </ol>
+</section>
+
+<style>
+  .section { padding-block: var(--space-4xl); }
+  .section__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding-bottom: var(--space-lg);
+    border-bottom: 1px solid var(--border-strong);
+  }
+  .section__head h2 {
+    font-size: 1rem;
+    font-family: var(--mono);
+    font-weight: 500;
+  }
+  .section__head a {
+    color: var(--text-muted);
+    font-family: var(--mono);
+    font-size: 12.5px;
+  }
+  .section__head a:hover { color: var(--accent); }
+  .post-list { list-style: none; margin: 0; padding: 0; }
+  .post-list li { border-bottom: 1px solid var(--border); }
+  .post {
+    display: grid;
+    grid-template-columns: 112px 1fr 20px;
+    align-items: baseline;
+    gap: var(--space-lg);
+    padding-block: var(--space-lg);
+  }
+  .post time {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--text-faint);
+  }
+  .post h3 {
+    font-size: clamp(1.1rem, 2vw, 1.3rem);
+    font-weight: 500;
+    transition: color 180ms ease;
+  }
+  .post > span {
+    color: var(--text-faint);
+    font-family: var(--mono);
+    transition: color 180ms ease;
+  }
+  .post:hover h3,
+  .post:hover > span { color: var(--accent); }
+
+  @media (max-width: 600px) {
+    .section { padding-block: var(--space-3xl); }
+    .post { grid-template-columns: 1fr 20px; gap: var(--space-sm); }
+    .post time { grid-column: 1 / -1; }
+  }
+</style>
