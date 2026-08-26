@@ -5,6 +5,9 @@ on:
     branches:
       - main
   workflow_dispatch:
+  repository_dispatch:
+    types:
+      - content-published
 
 permissions:
   contents: read
@@ -32,6 +35,9 @@ jobs:
 
       - name: Build site
         run: npm run build
+        env:
+          # 构建时从线上 PocketBase 拉取 published 内容并物化附件
+          PB_BASE_URL: https://admin.monostich.cloud
 
       - name: Package build output
         run: tar -C dist -czf site.tar.gz .

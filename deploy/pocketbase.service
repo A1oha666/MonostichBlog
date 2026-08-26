@@ -1,0 +1,16 @@
+[Unit]
+Description=PocketBase (monostich.blog 内容后台)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/monostich/pb
+EnvironmentFile=/opt/monostich/pb/pb.env
+ExecStart=/opt/monostich/pb/pocketbase serve --http=127.0.0.1:8090
+Restart=always
+RestartSec=5
+
+# 数据都在 WorkingDirectory 下，重启后自动恢复
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,47 @@
+---
+import { getCollection, render } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import ArticleLayout from "../../components/ArticleLayout.astro";
+import SiteFooter from "../../components/SiteFooter.astro";
+import { readingTimeText, DRAFT_PREVIEW } from "../../lib/format";
+
+export async function getStaticPaths() {
+  const entries = (await getCollection("thinkings", ({ data }) => DRAFT_PREVIEW || !data.draft))
+    .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+  return entries.map((entry, index) => ({
+    params: { slug: entry.id },
+    props: {
+      entry,
+      previous: entries[index + 1],
+      next: entries[index - 1],
+    },
+  }));
+}
+
+const { entry, previous, next } = Astro.props;
+const { Content, headings } = await render(entry);
+const toArticle = (article) => article && ({
+  title: article.data.title,
+  href: `/thinkings/${article.id}/`,
+});
+---
+
+<BaseLayout title={`${entry.data.title} — Thinkings — Aloha`} description={entry.data.summary}>
+  <ArticleLayout
+    collectionLabel="Thinkings"
+    collectionHref="/thinkings/"
+    title={entry.data.title}
+    date={entry.data.date}
+    updated={entry.data.editedAt}
+    summary={entry.data.summary}
+    cover={entry.data.cover}
+    readingTime={readingTimeText(entry.body)}
+    headings={headings}
+    previous={toArticle(previous)}
+    next={toArticle(next)}
+  >
+    <Content />
+  </ArticleLayout>
+  <SiteFooter />
+</BaseLayout>

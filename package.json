@@ -7,11 +7,18 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "build:preview": "astro build && astro preview",
+    "astro": "astro",
+    "pb:setup": "node scripts/pb-setup.mjs",
+    "pb:import": "node scripts/import-content.mjs",
+    "smoke": "node scripts/smoke-attach-draft.mjs"
   },
   "dependencies": {
     "@fontsource/fraunces": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
-    "astro": "^4.16.0"
+    "astro": "^5.18.2"
+  },
+  "devDependencies": {
+    "gray-matter": "^4.0.3"
   }
 }

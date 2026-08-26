@@ -4,3 +4,12 @@ dist/
 .env
 .env.*
 !.env.example
+.DS_Store
+
+# PocketBase 本地实例与数据
+pb/pocketbase
+pb/pb_data/
+pb/.env.local
+
+# 构建时物化的 PocketBase 附件与缓存
+public/pb/

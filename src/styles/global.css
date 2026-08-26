@@ -94,6 +94,7 @@
 
   /* layout */
   --nav-height: 59px;
+  --page-gutter: clamp(20px, 4vw, 64px);
   --maxw: 1080px;
   --maxw-prose: 720px;
 }
@@ -173,7 +174,7 @@ img, svg { display: block; max-width: 100%; }
   width: 100%;
   max-width: var(--maxw);
   margin-inline: auto;
-  padding-inline: var(--space-lg);
+  padding-inline: var(--page-gutter);
 }
 
 .prose { max-width: var(--maxw-prose); }
@@ -267,7 +268,7 @@ img, svg { display: block; max-width: 100%; }
    ========================================================= */
 @media (max-width: 768px) {
   body { font-size: 16px; }
-  .container { padding-inline: var(--space-md); }
+  .container { padding-inline: var(--page-gutter); }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,79 +1,87 @@
 ---
-import { posts } from "../data/posts.js";
-const visiblePosts = posts.slice(0, 3);
+import { getCollection } from "astro:content";
+import { dotDate, isoDate, DRAFT_PREVIEW } from "../lib/format";
+
+const previewNotes = (await getCollection("notes", ({ data }) => DRAFT_PREVIEW || !data.draft))
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
+  .slice(0, 2);
+const previewThinkings = (await getCollection("thinkings", ({ data }) => DRAFT_PREVIEW || !data.draft))
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
+  .slice(0, 2);
 ---
 
-<section class="section container" id="posts">
-  <div class="section__head">
-    <h2>Writing</h2>
-    <a href="#">Archive →</a>
-  </div>
+<section class="home-writing container" aria-label="Writing">
+  <section class="home-section" id="notes" aria-labelledby="notes-heading">
+    <div class="section__head">
+      <h2 id="notes-heading">Notes</h2>
+      <a href="/notes">全部笔记 <span aria-hidden="true">→</span></a>
+    </div>
+    <ol class="notes-list">
+      {
+        previewNotes.map((entry) => (
+          <li>
+            <a href={`/notes/${entry.id}/`}>
+              <time datetime={isoDate(entry.data.date)}>{dotDate(entry.data.date)}</time>
+              <div>
+                <h3>{entry.data.title}</h3>
+                <p>{entry.data.summary}</p>
+              </div>
+              <span aria-hidden="true">↗</span>
+            </a>
+          </li>
+        ))
+      }
+    </ol>
+  </section>
 
-  <ol class="post-list">
-    {
-      visiblePosts.map((post) => (
-        <li>
-          <a class="post" href={post.href}>
-            <time datetime={post.date.replaceAll(".", "-")}>{post.date}</time>
-            <h3>{post.title}</h3>
-            <span aria-hidden="true">↗</span>
-          </a>
-        </li>
-      ))
-    }
-  </ol>
+  <section class="home-section" id="thinkings" aria-labelledby="thinkings-heading">
+    <div class="section__head">
+      <h2 id="thinkings-heading">Thinkings</h2>
+      <a href="/thinkings">全部思考 <span aria-hidden="true">→</span></a>
+    </div>
+    <ol class="thinkings-list">
+      {
+        previewThinkings.map((entry) => (
+          <li>
+            <a href={`/thinkings/${entry.id}/`}>
+              {entry.data.label && <p class="thinking-label">{entry.data.label}</p>}
+              <h3>{entry.data.title}</h3>
+              <p>{entry.data.summary}</p>
+              <time datetime={isoDate(entry.data.date)}>{dotDate(entry.data.date)}</time>
+            </a>
+          </li>
+        ))
+      }
+    </ol>
+  </section>
 </section>
 
 <style>
-  .section { padding-block: var(--space-4xl); }
-  .section__head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    padding-bottom: var(--space-lg);
-    border-bottom: 1px solid var(--border-strong);
-  }
-  .section__head h2 {
-    font-size: 1rem;
-    font-family: var(--mono);
-    font-weight: 500;
-  }
-  .section__head a {
-    color: var(--text-muted);
-    font-family: var(--mono);
-    font-size: 12.5px;
-  }
+  .home-writing { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4xl); padding-block: var(--space-4xl); }
+  .section__head { display: flex; align-items: baseline; justify-content: space-between; padding-bottom: var(--space-lg); border-bottom: 1px solid var(--border-strong); }
+  .section__head h2 { font-family: var(--mono); font-size: 1rem; font-weight: 500; }
+  .section__head a { color: var(--text-muted); font-family: var(--mono); font-size: 12.5px; }
+  .section__head a span { color: var(--accent); }
   .section__head a:hover { color: var(--accent); }
-  .post-list { list-style: none; margin: 0; padding: 0; }
-  .post-list li { border-bottom: 1px solid var(--border); }
-  .post {
-    display: grid;
-    grid-template-columns: 112px 1fr 20px;
-    align-items: baseline;
-    gap: var(--space-lg);
-    padding-block: var(--space-lg);
+  .notes-list, .thinkings-list { margin: 0; padding: 0; list-style: none; }
+  .notes-list li, .thinkings-list li { border-bottom: 1px solid var(--border); }
+  .notes-list a { display: grid; grid-template-columns: 78px minmax(0, 1fr) 16px; gap: var(--space-md); padding-block: var(--space-lg); }
+  time { color: var(--text-faint); font-family: var(--mono); font-size: 11.5px; }
+  h3 { font-size: 1.05rem; font-weight: 500; transition: color 180ms ease; }
+  .notes-list div > p, .thinkings-list a > p:not(.thinking-label) { margin-top: var(--space-xs); color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; }
+  .notes-list a > span { color: var(--text-faint); font-family: var(--mono); transition: color 180ms ease, transform 180ms ease; }
+  .notes-list a:hover h3, .notes-list a:hover > span { color: var(--accent); }
+  .notes-list a:hover > span { transform: translate(2px, -2px); }
+  .thinkings-list a { display: block; padding-block: var(--space-lg); }
+  .thinking-label { color: var(--accent); font-family: var(--mono); font-size: 11.5px; }
+  .thinkings-list h3 { margin-top: var(--space-sm); font-family: var(--serif); font-size: 1.2rem; font-weight: 400; line-height: 1.2; }
+  .thinkings-list time { display: block; margin-top: var(--space-md); }
+  .thinkings-list a:hover h3 { color: var(--accent); }
+  @media (max-width: 768px) {
+    .home-writing { grid-template-columns: 1fr; gap: var(--space-3xl); padding-block: var(--space-3xl); }
   }
-  .post time {
-    font-family: var(--mono);
-    font-size: 12.5px;
-    color: var(--text-faint);
-  }
-  .post h3 {
-    font-size: clamp(1.1rem, 2vw, 1.3rem);
-    font-weight: 500;
-    transition: color 180ms ease;
-  }
-  .post > span {
-    color: var(--text-faint);
-    font-family: var(--mono);
-    transition: color 180ms ease;
-  }
-  .post:hover h3,
-  .post:hover > span { color: var(--accent); }
-
-  @media (max-width: 600px) {
-    .section { padding-block: var(--space-3xl); }
-    .post { grid-template-columns: 1fr 20px; gap: var(--space-sm); }
-    .post time { grid-column: 1 / -1; }
+  @media (max-width: 420px) {
+    .notes-list a { grid-template-columns: minmax(0, 1fr) 16px; gap: var(--space-sm); }
+    .notes-list time { grid-column: 1 / -1; }
   }
 </style>

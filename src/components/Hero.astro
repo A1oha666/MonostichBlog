@@ -13,7 +13,7 @@
       Notes on backend engineering, AI applications,<br />and reflections along the way.
     </p>
     <div class="hero__links">
-      <a href="#posts">Writing <span aria-hidden="true">↓</span></a>
+      <a href="#notes">Writing <span aria-hidden="true">↓</span></a>
       <a href="https://github.com/A1oha666" target="_blank" rel="noopener">GitHub ↗</a>
     </div>
   </div>
@@ -63,7 +63,8 @@
 
   .hero__screen {
     position: absolute;
-    inset: clamp(6px, 1.4vw, 18px);
+    inset-block: clamp(6px, 1.4vw, 18px);
+    inset-inline: var(--page-gutter);
     z-index: 2;
     overflow: hidden;
     border-inline: 1px solid var(--crt-line-strong);
@@ -233,7 +234,11 @@
 
   @media (max-width: 600px) {
     .hero { padding-block: var(--space-xl) var(--space-2xl); }
-    .hero__screen { inset: 4px; opacity: 0.66; }
+    .hero__screen {
+      inset-block: 4px;
+      inset-inline: var(--page-gutter);
+      opacity: 0.66;
+    }
     h1 { font-size: clamp(2.85rem, 15vw, 4.7rem); }
   }
 
