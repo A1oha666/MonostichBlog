@@ -83,7 +83,10 @@ async function main() {
       { type: 'select', name: 'status', values: ['draft', 'published', 'archived'], maxSelect: 1, required: true },
       { type: 'text', name: 'label' },
       { type: 'text', name: 'summary' },
-      { type: 'text', name: 'content' },
+      // PocketBase v0.23+ 的 text 字段 max=0 不是不限长，而是默认 5000 上限，
+      // 必须显式设大数值，否则长文保存报 validation_max_text_constraint。
+      { type: 'text', name: 'content', max: 200000 },
+      { type: 'number', name: 'views' },
       { type: 'date', name: 'publishedAt' },
       { type: 'date', name: 'editedAt' },
       { type: 'file', name: 'cover', maxSelect: 1, mimeTypes: IMAGE_MIMES, thumbs: ['1200x0'] },
@@ -99,11 +102,17 @@ async function main() {
   };
 
   let articles;
+  let exists = true;
   try {
     articles = await api('GET', '/collections/articles', undefined, admin);
-    await api('PATCH', `/collections/articles`, articleSpec, admin);
-    console.log('~ 更新集合 articles（字段/索引/规则）');
   } catch {
+    exists = false;
+  }
+  if (exists) {
+    // PATCH 单独跑，失败时把真实校验错误抛出来，而不是被吞进“创建”分支
+    await api('PATCH', '/collections/articles', articleSpec, admin);
+    console.log('~ 更新集合 articles（字段/索引/规则）');
+  } else {
     articles = await api('POST', '/collections', articleSpec, admin);
     console.log('+ 创建集合 articles');
   }

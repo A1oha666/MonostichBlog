@@ -206,6 +206,8 @@ export function pocketBaseLoader(type: 'notes' | 'thinkings'): ContentLayerLoade
             summary: rec.summary ?? '',
             label: rec.label || undefined,
             cover,
+            // 构建时的浏览数快照；页面侧由 /api/monostich/views 实时自增
+            views: rec.views ?? 0,
             draft: rec.status !== 'published',
           },
           rendered: {

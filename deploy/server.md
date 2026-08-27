@@ -109,7 +109,7 @@ crontab -e
 ## 二、日常写作（全程浏览器，全自动发布）
 
 1. 打开 `https://admin.monostich.cloud/_/` 登录
-2. articles → 新建记录：title / slug（英文短横线）/ type / summary / content 粘贴 Markdown；
+2. articles → 新建记录：title / slug（英文短横线）/ type / summary / content 粘贴 Markdown；content 现在支持最多 **200,000 字符**；PocketBase 后台的 text 字段不要留默认 max=0（会按 5000 字符处理）。
    thinkings 可填 label（如「关于节奏」）；status 保持 **draft**
 3. 配图：图片拖进 attachments，正文按
    `![说明](https://admin.monostich.cloud/api/files/articles/<记录ID>/<文件名>)` 引用
@@ -117,9 +117,9 @@ crontab -e
 4. 发布：填 **publishedAt** 日期，status 改成 **published** → 保存
 5. 一分钟内网站自动更新，无需再碰任何构建按钮
 6. 从 published 改回 draft 或 archived 同样会自动触发重建（下架生效）
+7. 文章详情页会显示访问次数；每个浏览器会话对同一篇文章只计一次，计数接口为 `POST /api/monostich/views`，不会触发网站重建。
 
-> 已知怪癖：保存 published 记录时后台**可能弹一次红色错误提示**——保存本身和构建触发都已成功，
-> 是 PocketBase jsvm 钩子在请求路径上外发 HTTP 的已知行为，忽略即可。若嫌烦可升级 PocketBase 版本验证是否消除。
+> 保存时报红色错误的根因已修复：旧版钩子回调引用了序列化后不可见的顶层函数。现在共享逻辑通过 `require()` 模块加载；发布保存应返回正常成功响应。
 
 ## 三、本地开发
 
