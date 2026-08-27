@@ -9,6 +9,8 @@ const articleSchema = z.object({
   summary: z.string().default(""),
   label: z.string().optional(),
   cover: z.string().default(""),
+  // 构建时快照的访问次数（展示用），实际计数走 PocketBase 自定义路由
+  views: z.number().default(0),
   // 双保险字段：loader 默认已过滤草稿，页面再按此过滤一次，
   // 防止 INCLUDE_DRAFTS=1 的预览构建被误部署。
   draft: z.boolean().default(false),

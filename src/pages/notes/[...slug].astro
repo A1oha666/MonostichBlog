@@ -38,6 +38,9 @@ const toArticle = (article) => article && ({
     cover={entry.data.cover}
     readingTime={readingTimeText(entry.body)}
     headings={headings}
+    views={entry.data.views}
+    viewType="notes"
+    viewSlug={entry.id}
     previous={toArticle(previous)}
     next={toArticle(next)}
   >
