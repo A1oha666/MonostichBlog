@@ -19,4 +19,5 @@ const articleSchema = z.object({
 export const collections = {
   notes: defineCollection({ loader: pocketBaseLoader("notes"), schema: articleSchema }),
   thinkings: defineCollection({ loader: pocketBaseLoader("thinkings"), schema: articleSchema }),
+  moments: defineCollection({ loader: pocketBaseLoader("moments"), schema: articleSchema }),
 };

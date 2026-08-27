@@ -1,0 +1,61 @@
+---
+import { getCollection, render } from "astro:content";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import SiteFooter from "../components/SiteFooter.astro";
+import { dotDate, isoDate, DRAFT_PREVIEW } from "../lib/format";
+
+const entries = (await getCollection("moments", ({ data }) => DRAFT_PREVIEW || !data.draft))
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+const rendered = await Promise.all(entries.map(async (entry) => ({ entry, content: (await render(entry)).Content })));
+---
+
+<BaseLayout title="小记 — Aloha" description="Aloha 的随手感悟。">
+  <section class="page-head container">
+    <a class="back-home" href="/" data-reveal><span aria-hidden="true">←</span> 返回主页</a>
+    <p class="eyebrow" data-reveal style="--reveal-delay: 60ms">/ moments</p>
+    <h1 data-reveal style="--reveal-delay: 120ms">小记</h1>
+    <p data-reveal style="--reveal-delay: 200ms">一些随手记下的感受、片段与念头。</p>
+  </section>
+
+  <section class="moments container" aria-label="小记">
+    <p class="moments__count" data-reveal>{entries.length} 条小记</p>
+    <div class="moments__list">
+      {rendered.map(({ entry, content }, index) => (
+        <article class="moment" id={entry.id} data-reveal style={`--reveal-delay: ${Math.min(index * 50, 300)}ms`}>
+          <time datetime={isoDate(entry.data.date)}>{dotDate(entry.data.date)}</time>
+          <div class="moment__body">
+            <h2>{entry.data.title}</h2>
+            <div class="moment__content"><content /></div>
+          </div>
+        </article>
+      ))}
+    </div>
+  </section>
+  <SiteFooter />
+</BaseLayout>
+
+<style>
+  .page-head { padding-top: var(--space-4xl); padding-bottom: var(--space-2xl); }
+  .page-head .eyebrow { color: var(--accent); margin-bottom: var(--space-lg); }
+  .back-home { display: inline-flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xl); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 7px 10px; color: var(--text-muted); font-family: var(--mono); font-size: 12px; transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+  .back-home span { color: var(--accent); }
+  .back-home:hover { border-color: var(--accent); color: var(--text); }
+  h1 { font-size: clamp(3rem, 6vw, 5.5rem); font-weight: 500; line-height: 1; }
+  .page-head > p:last-child { max-width: 54ch; margin-top: var(--space-lg); color: var(--text-muted); }
+  .moments__count { padding-bottom: var(--space-md); border-bottom: 1px solid var(--border-strong); color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
+  .moments__list { display: grid; }
+  .moment { display: grid; grid-template-columns: 112px minmax(0, 720px); gap: var(--space-lg); padding-block: var(--space-2xl); border-bottom: 1px solid var(--border); }
+  .moment > time { color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
+  .moment__body { min-width: 0; }
+  h2 { font-size: clamp(1.35rem, 2.5vw, 1.85rem); font-weight: 500; line-height: 1.2; }
+  .moment__content { margin-top: var(--space-md); color: var(--text-muted); }
+  :global(.moment__content > :first-child) { margin-top: 0; }
+  :global(.moment__content p + p) { margin-top: var(--space-md); }
+  :global(.moment__content a) { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+  :global(.moment__content blockquote) { margin: var(--space-md) 0 0; border-left: 2px solid var(--accent); padding-left: var(--space-md); }
+  :global(.moment__content img) { width: 100%; height: auto; margin-top: var(--space-md); border-radius: var(--radius-sm); }
+  @media (max-width: 600px) {
+    .page-head { padding-top: var(--space-3xl); }
+    .moment { grid-template-columns: 1fr; gap: var(--space-sm); padding-block: var(--space-xl); }
+  }
+</style>

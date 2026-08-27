@@ -8,6 +8,9 @@ const previewNotes = (await getCollection("notes", ({ data }) => DRAFT_PREVIEW |
 const previewThinkings = (await getCollection("thinkings", ({ data }) => DRAFT_PREVIEW || !data.draft))
   .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
   .slice(0, 2);
+const previewMoments = (await getCollection("moments", ({ data }) => DRAFT_PREVIEW || !data.draft))
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
+  .slice(0, 2);
 ---
 
 <section class="home-writing container" aria-label="Writing">
@@ -54,7 +57,25 @@ const previewThinkings = (await getCollection("thinkings", ({ data }) => DRAFT_P
       }
     </ol>
   </section>
-</section>
+  <section class="home-section" id="moments" aria-labelledby="moments-heading">
+    <div class="section__head" data-reveal style="--reveal-delay: 160ms">
+      <h2 id="moments-heading">小记</h2>
+      <a href="/moments">全部小记 <span aria-hidden="true">→</span></a>
+    </div>
+    <ol class="thinkings-list">
+      {
+        previewMoments.map((entry, index) => (
+          <li data-reveal style={`--reveal-delay: ${160 + Math.min(index * 60, 240)}ms`}>
+            <a href={`/moments/#${entry.id}`}>
+              <h3>{entry.data.title}</h3>
+              <p>{entry.data.summary}</p>
+              <time datetime={isoDate(entry.data.date)}>{dotDate(entry.data.date)}</time>
+            </a>
+          </li>
+        ))
+      }
+    </ol>
+  </section>
 
 <style>
   .home-writing { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4xl); padding-block: var(--space-4xl); }
