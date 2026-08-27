@@ -4,15 +4,19 @@ import { getCollection } from "astro:content";
 export async function GET(context) {
   const notes = await getCollection("notes", ({ data }) => !data.draft);
   const thinkings = await getCollection("thinkings", ({ data }) => !data.draft);
+  const moments = await getCollection("moments", ({ data }) => !data.draft);
 
-  const items = [...notes, ...thinkings]
+  const labels = { notes: "Notes", thinkings: "Thinkings", moments: "小记" };
+  const items = [...notes, ...thinkings, ...moments]
     .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
     .map((entry) => ({
       title: entry.data.title,
       description: entry.data.summary,
       pubDate: entry.data.date,
-      categories: [entry.collection === "thinkings" ? "Thinkings" : "Notes"],
-      link: `/${entry.collection}/${entry.id}/`,
+      categories: [labels[entry.collection]],
+      link: entry.collection === "moments"
+        ? `/moments/#${entry.id}`
+        : `/${entry.collection}/${entry.id}/`,
     }));
 
   return rss({

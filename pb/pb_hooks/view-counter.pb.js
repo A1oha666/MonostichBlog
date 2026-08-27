@@ -1,4 +1,4 @@
-// 文章访问计数：POST /api/monostich/views {"type":"notes","slug":"..."}
+// 文章访问计数：POST /api/monostich/views {"type":"notes"|"thinkings"|"moments","slug":"..."}
 //
 // 供静态站文章页在浏览器端调用；计数直接用 SQL 自增，故意不走
 // record update（否则会命中 content-dispatch 钩子、每次浏览都触发重建）。
@@ -9,7 +9,7 @@ routerAdd("POST", "/api/monostich/views", (e) => {
     const type = body.type || "";
     const slug = body.slug || "";
 
-    if ((type !== "notes" && type !== "thinkings") || !slug) {
+    if (!(["notes", "thinkings", "moments"].includes(type)) || !slug) {
         return e.json(400, { message: "invalid type or slug" });
     }
 

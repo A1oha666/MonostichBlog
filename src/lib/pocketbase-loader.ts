@@ -1,6 +1,6 @@
 // PocketBase → Astro content layer loader。
 //
-// 构建时从 PocketBase 拉取某个分类（notes/thinkings）的文章：
+// 构建时从 PocketBase 拉取某个分类（notes/thinkings/moments）的文章：
 //   1. 通过 Astro 内置的 markdown 管线（@astrojs/markdown-remark，
 //      与本地内容集合完全同源）渲染正文，得到同样的标题锚点与代码高亮；
 //   2. 把正文中指向 PocketBase 文件的图片下载并物化到
@@ -140,7 +140,7 @@ async function materializeFile(
 
 let processorPromise: ReturnType<typeof createMarkdownProcessor> | undefined;
 
-export function pocketBaseLoader(type: 'notes' | 'thinkings'): ContentLayerLoader {
+export function pocketBaseLoader(type: 'notes' | 'thinkings' | 'moments'): ContentLayerLoader {
   return {
     name: `pocketbase-${type}`,
     async load({ store }: { store: AnyStore; logger?: any }) {

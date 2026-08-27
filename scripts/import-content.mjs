@@ -1,4 +1,4 @@
-// 把 src/content/{notes,thinkings}/*.md 的 frontmatter 文章导入/更新到 PocketBase。
+// 把 src/content/{notes,thinkings,moments}/*.md 的 frontmatter 文章导入/更新到 PocketBase。
 // 幂等：按 (type, slug) 查找已有记录，存在则更新，否则创建。
 // 用法：node scripts/import-content.mjs [--dry]
 // 凭据读取顺序：环境变量 > pb/.env.local。
@@ -45,7 +45,7 @@ async function main() {
   const admin = auth.token;
 
   const contentRoot = path.resolve('src/content');
-  const types = ['notes', 'thinkings'];
+  const types = ['notes', 'thinkings', 'moments'];
   let created = 0;
   let updated = 0;
 

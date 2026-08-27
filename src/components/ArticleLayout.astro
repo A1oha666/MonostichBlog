@@ -218,9 +218,9 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
 
 <style>
   .article {
-    width: auto;
+    width: calc(100% - 2 * var(--page-gutter));
     max-width: 1200px;
-    margin: var(--space-xl) var(--page-gutter) var(--space-3xl);
+    margin: var(--space-xl) auto var(--space-3xl);
     position: relative;
     z-index: 1001;
     overflow: hidden;

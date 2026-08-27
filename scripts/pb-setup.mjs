@@ -79,7 +79,7 @@ async function main() {
     fields: [
       { type: 'text', name: 'title', required: true },
       { type: 'text', name: 'slug', required: true },
-      { type: 'select', name: 'type', values: ['notes', 'thinkings'], maxSelect: 1, required: true },
+      { type: 'select', name: 'type', values: ['notes', 'thinkings', 'moments'], maxSelect: 1, required: true },,,
       { type: 'select', name: 'status', values: ['draft', 'published', 'archived'], maxSelect: 1, required: true },
       { type: 'text', name: 'label' },
       { type: 'text', name: 'summary' },
