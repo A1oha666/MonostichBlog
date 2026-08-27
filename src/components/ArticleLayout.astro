@@ -22,6 +22,9 @@ interface Props {
   headings: Heading[];
   previous?: AdjacentArticle;
   next?: AdjacentArticle;
+  views?: number;
+  viewType?: string;
+  viewSlug?: string;
 }
 
 const {
@@ -36,6 +39,9 @@ const {
   headings,
   previous,
   next,
+  views = 0,
+  viewType,
+  viewSlug,
 } = Astro.props;
 
 const publishedDate = date instanceof Date ? date : new Date(date);
@@ -57,6 +63,13 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
     <div class="article__meta" data-reveal style="--reveal-delay: 280ms">
       <time datetime={publishedDate.toISOString()}>{formatDate(publishedDate)}</time>
       <span>{readingTime}</span>
+      {viewType && viewSlug && (
+        <span
+          data-article-views
+          data-view-type={viewType}
+          data-view-slug={viewSlug}
+        >{views} 次浏览</span>
+      )}
       {editedDate && <span>更新于 {formatDate(editedDate)}</span>}
     </div>
   </header>
@@ -94,6 +107,40 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
   // 视图过渡下 astro:page-load 在首次加载和每次客户端导航后触发，
   // 幂等初始化保证 上一篇/下一篇 跳转后功能仍然可用。
   function initArticleWidgets() {
+    // --- view counter ---
+    // POST 到 PocketBase 自定义路由做自增；同一会话内同一篇文章只计一次
+    // （快照值来自构建时，命中后用服务端返回的最新值替换）。
+    const viewsEl = document.querySelector<HTMLElement>("[data-article-views]");
+    if (viewsEl && viewsEl.dataset.viewType && viewsEl.dataset.viewSlug) {
+      const { viewType, viewSlug } = viewsEl.dataset;
+      const seenKey = `viewed:${viewType}/${viewSlug}`;
+      let seen = false;
+      try {
+        seen = sessionStorage.getItem(seenKey) === "1";
+      } catch {}
+      if (!seen) {
+        const base = import.meta.env.PUBLIC_PB_BASE_URL
+          ?? (location.hostname === "localhost" || location.hostname === "127.0.0.1"
+            ? "http://127.0.0.1:8090"
+            : "https://admin.monostich.cloud");
+        fetch(`${base}/api/monostich/views`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: viewType, slug: viewSlug }),
+        })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (data && Number.isFinite(data.views)) {
+              viewsEl.textContent = `${data.views} 次浏览`;
+            }
+            try {
+              sessionStorage.setItem(seenKey, "1");
+            } catch {}
+          })
+          .catch(() => {});
+      }
+    }
+
     // --- TOC scrollspy ---
     const tocLinks = [...document.querySelectorAll<HTMLAnchorElement>(".article__toc a[href^='#']")];
     const spyTargets = new Map<Element, HTMLAnchorElement>();
@@ -170,6 +217,18 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
 </script>
 
 <style>
+  .article {
+    width: auto;
+    max-width: 1200px;
+    margin: var(--space-xl) var(--page-gutter) var(--space-3xl);
+    position: relative;
+    z-index: 1001;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-md);
+  }
   .article__header { max-width: 1080px; padding-top: var(--space-4xl); padding-bottom: var(--space-3xl); }
   .back-link { display: inline-flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xl); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 7px 10px; color: var(--text-muted); font-family: var(--mono); font-size: 12px; transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
   .back-link span, .article__eyebrow { color: var(--accent); }
@@ -181,7 +240,7 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
   .article__summary { max-width: 58ch; margin-top: var(--space-xl); color: var(--text-muted); font-size: 1.08rem; }
   .article__meta { display: flex; flex-wrap: wrap; gap: var(--space-md); margin-top: var(--space-xl); color: var(--text-faint); font-family: var(--mono); font-size: 12px; }
   .article__meta span + span::before { content: "/"; margin-right: var(--space-md); color: var(--border-strong); }
-  .article__cover img { width: 100%; max-height: 620px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); object-fit: cover; }
+  .article__cover img { width: 100%; height: auto; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); object-fit: contain; }
   .article__layout { display: grid; grid-template-columns: 172px minmax(0, 720px); justify-content: center; gap: var(--space-3xl); padding-top: var(--space-2xl); }
   /* 无目录时收起预留的目录列，避免正文掉进 172px 的窄列 */
   .article__layout--no-toc { grid-template-columns: minmax(0, 720px); }
@@ -192,7 +251,7 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
   .article__toc a:hover, .article__toc a.is-active { color: var(--accent); }
   .article__toc-item--nested { padding-left: var(--space-sm); }
   .article__content { min-width: 0; padding-bottom: var(--space-4xl); }
-  .article__pagination { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xl); padding-top: var(--space-xl); padding-bottom: var(--space-4xl); border-top: 1px solid var(--border-strong); }
+  .article__pagination { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xl); padding-top: var(--space-xl); padding-bottom: var(--space-4xl); }
   .article__pagination a { display: grid; gap: var(--space-sm); color: var(--text-muted); }
   .article__pagination a:hover strong { color: var(--accent); }
   .article__pagination span { color: var(--text-faint); font-family: var(--mono); font-size: 11.5px; }
@@ -212,8 +271,8 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
   :global(.article__content pre) { margin-top: var(--space-xl); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-lg); overflow-x: auto; background: var(--surface); font-family: var(--mono); font-size: 13px; line-height: 1.7; }
   :global(.article__content code) { font-family: var(--mono); }
   :global(.article__content :not(pre) > code) { border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; background: var(--accent-soft); font-size: 0.88em; }
-  :global(.article__content img) { width: 100%; margin-top: var(--space-xl); border: 1px solid var(--border); border-radius: var(--radius-sm); }
-  :global(.article__content hr) { margin: var(--space-3xl) 0; border: 0; border-top: 1px solid var(--border); }
+  :global(.article__content img) { width: 100%; height: auto; margin-top: var(--space-xl); border: 1px solid var(--border); border-radius: var(--radius-sm); object-fit: contain; }
+  :global(.article__content hr) { margin: var(--space-3xl) 0; border: 0; }
   :global(.codeblock) { position: relative; }
   :global(.code-copy) {
     position: absolute;
