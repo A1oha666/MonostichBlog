@@ -1,6 +1,8 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Hero from "../components/Hero.astro";
+// Now 横条暂不上线，保留代码（组件见 src/components/NowStrip.astro）
+// import NowStrip from "../components/NowStrip.astro";
 import Projects from "../components/Projects.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import { getCollection } from "astro:content";
@@ -13,35 +15,40 @@ const [notes, thinkings, moments] = await Promise.all([
   getCollection("moments", draftFilter),
 ]);
 
-// 首页只展示最近三篇（Notes 与 Thinkings 含小记混排），完整回溯走 /archive
+// 首页展示最近五篇（Notes 与 Thinkings 含小记混排），完整回溯走 /archive。
+// kind 是分类 chip 的固定文案映射：notes→笔记、thinkings→随想、moments→小记。
 const recent = [
   ...notes.map((entry) => ({
     date: new Date(entry.data.date),
     title: entry.data.title,
     href: `/notes/${entry.id}/`,
+    kind: "笔记",
   })),
   ...thinkings.map((entry) => ({
     date: new Date(entry.data.date),
     title: entry.data.title,
     href: `/thinkings/${entry.id}/`,
+    kind: "随想",
   })),
   ...moments.map((entry) => ({
     date: new Date(entry.data.date),
     // 小记可能没有标题，回退用摘要（loader 侧已用正文摘录兜底）
     title: entry.data.title || entry.data.summary,
     href: `/thinkings#${entry.id}`,
+    kind: "小记",
   })),
 ]
   .sort((a, b) => b.date.valueOf() - a.date.valueOf())
-  .slice(0, 3);
+  .slice(0, 5);
 ---
 
 <BaseLayout>
   <Hero />
-  <section class="home-archive container" id="archive" aria-labelledby="home-archive-heading">
+  {/* <NowStrip /> */}
+  <section class="section container" id="recent" aria-labelledby="home-recent-heading">
     <div class="section__head" data-reveal>
-      <h2 id="home-archive-heading">Recent</h2>
-      <a href="/archive" aria-label="进入归档"><span aria-hidden="true">→</span></a>
+      <h2 id="home-recent-heading" data-scramble>Recent</h2>
+      <a href="/archive">进入归档 →</a>
     </div>
     <ol class="recent-list">
       {
@@ -49,6 +56,7 @@ const recent = [
           <li data-reveal style={`--reveal-delay: ${Math.min(index * 60, 240)}ms`}>
             <a href={item.href}>
               <time datetime={isoDate(item.date)}>{dotDate(item.date)}</time>
+              <span class="chip">{item.kind}</span>
               <span class="recent-list__title">{item.title}</span>
               <span class="recent-list__arrow" aria-hidden="true">↗</span>
             </a>
@@ -63,40 +71,60 @@ const recent = [
 
 <style>
   /* anchor target must clear the sticky nav after smooth-scroll */
-  .home-archive { padding-block: var(--space-4xl); scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
-  .section__head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    padding-bottom: var(--space-lg);
-    border-bottom: 1px solid var(--border-strong);
-  }
-  .section__head h2 { font-size: 1rem; font-family: var(--mono); font-weight: 500; }
-  .section__head a { color: var(--text-muted); font-family: var(--mono); font-size: 12.5px; transition: color var(--dur-fast) var(--ease-out); }
-  .section__head a span { display: inline-block; color: var(--accent); transition: transform var(--dur-base) var(--ease-out); }
-  .section__head a:hover { color: var(--accent); }
-  .section__head a:hover span { transform: translateX(3px); }
+  /* 72px 与样例 .section padding-block 对齐 */
+  .section { padding-block: 72px; scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
 
+  /* ===== Recent（照搬 design-preview/index.html） ===== */
   .recent-list { margin: 0; padding: 0; list-style: none; }
-  .recent-list > li { border-bottom: 1px solid var(--border); transition: background var(--dur-fast) var(--ease-out); }
-  @media (hover: hover) {
-    .recent-list > li:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+  .recent-list > li { border-bottom: 1px solid var(--border-subtle); transition: background var(--dur-fast) var(--ease-out); }
+  /* Recent uses a softer arrival than the default reveal: less snap, more drift. */
+  html.js .recent-list > li[data-reveal] {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+    will-change: opacity, transform;
+  }
+  html.js .recent-list > li[data-reveal].is-revealed {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    transition:
+      opacity 700ms cubic-bezier(0.22, 0.61, 0.36, 1),
+      transform 700ms cubic-bezier(0.22, 0.61, 0.36, 1);
+    transition-delay: var(--reveal-delay, 0ms);
   }
   .recent-list a {
     display: grid;
-    grid-template-columns: 112px minmax(0, 1fr) 20px;
+    grid-template-columns: 108px 76px minmax(0, 1fr) 20px;
     align-items: baseline;
-    gap: var(--space-lg);
-    padding-block: var(--space-lg);
+    gap: 20px;
+    padding-block: 20px;
   }
-  .recent-list time, .recent-list__arrow { color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
-  .recent-list__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(1.02rem, 1.6vw, 1.15rem); font-weight: 500; transition: color var(--dur-fast) var(--ease-out); }
-  .recent-list__arrow { padding-top: 2px; transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-spring); }
-  .recent-list a:hover .recent-list__title, .recent-list a:hover .recent-list__arrow { color: var(--accent); }
-  .recent-list a:hover .recent-list__arrow { transform: translate(2px, -2px); }
+  .recent-list time { color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .recent-list__arrow { color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; transition: all var(--dur-base) var(--ease-spring); }
+  .chip {
+    justify-self: start;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--accent-soft);
+    border: 1px solid var(--border-subtle);
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+  .recent-list__title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--serif-zh);
+    font-size: 1.08rem;
+    font-weight: 500;
+    transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-out);
+  }
+  .recent-list > li:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+  .recent-list a:hover .recent-list__title { color: var(--accent); transform: translateX(3px); }
+  .recent-list a:hover .recent-list__arrow { color: var(--accent); transform: translate(2px, -2px); }
 
-  @media (max-width: 600px) {
-    .recent-list a { grid-template-columns: minmax(0, 1fr) 20px; row-gap: var(--space-xs); }
+  @media (max-width: 640px) {
+    .recent-list a { grid-template-columns: 76px minmax(0,1fr) 20px; row-gap: 4px; }
     .recent-list time { grid-column: 1 / -1; }
   }
 </style>

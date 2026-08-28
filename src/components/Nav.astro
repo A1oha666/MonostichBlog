@@ -1,15 +1,20 @@
 ---
+// 当前页判断：SSR 侧用 Astro.url.pathname 输出 aria-current；
+// transition:persist 让 nav 跨页面导航不重挂载，因此客户端导航后
+// 由下方脚本按 location.pathname 重新同步，避免高亮滞留。
+const pathname = Astro.url.pathname.replace(/\/$/, "") || "/";
+const isActive = (base: string) => pathname === base || pathname.startsWith(`${base}/`);
 ---
 
 <nav class="nav" aria-label="Primary" transition:persist="nav">
   <div class="nav__inner container">
     <a class="nav__brand" href="/">Aloha.</a>
     <div class="nav__links">
-      <a href="/archive">Archive</a>
-      <a href="/notes">Notes</a>
-      <a href="/thinkings">Thinkings</a>
+      <a href="/archive" data-nav-base="/archive" aria-current={isActive("/archive") ? "page" : undefined}>Archive</a>
+      <a href="/notes" data-nav-base="/notes" aria-current={isActive("/notes") ? "page" : undefined}>Notes</a>
+      <a href="/thinkings" data-nav-base="/thinkings" aria-current={isActive("/thinkings") ? "page" : undefined}>Thinkings</a>
       <a href="/#projects">Work</a>
-      <a href="/about">About</a>
+      <a href="/about" data-nav-base="/about" aria-current={isActive("/about") ? "page" : undefined}>About</a>
       <button
         class="nav__theme"
         id="theme-toggle"
@@ -42,8 +47,25 @@
       try { localStorage.setItem("theme", next); } catch {}
     });
   }
-  document.addEventListener("astro:page-load", bindThemeToggle);
+
+  // nav 被 transition:persist 保留，SSR 写入的 aria-current 不会随页面
+  // 换新；这里在每次客户端导航后按当前路径重算（Work 锚点链接除外）。
+  function syncCurrentPage() {
+    const path = location.pathname.replace(/\/$/, "") || "/";
+    document.querySelectorAll<HTMLAnchorElement>(".nav__links a[data-nav-base]").forEach((a) => {
+      const base = a.dataset.navBase ?? "";
+      const active = base !== "" && (path === base || path.startsWith(`${base}/`));
+      if (active) a.setAttribute("aria-current", "page");
+      else a.removeAttribute("aria-current");
+    });
+  }
+
+  document.addEventListener("astro:page-load", () => {
+    bindThemeToggle();
+    syncCurrentPage();
+  });
   bindThemeToggle();
+  syncCurrentPage();
 </script>
 
 <style>
@@ -51,13 +73,13 @@
     position: sticky;
     top: 0;
     z-index: 10;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--border-subtle);
     background: var(--nav-bg);
-    -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
   }
   .nav__inner {
-    max-width: none;
+    /* 与样例一致：品牌与链接都收进 1080px container，不做全宽铺开 */
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -66,12 +88,12 @@
     font-size: 13px;
   }
   .nav__brand { color: var(--accent); font-weight: 700; }
-  .nav__links { display: flex; align-items: center; gap: var(--space-lg); }
+  .nav__links { display: flex; align-items: center; gap: 26px; }
   @media (max-width: 520px) {
     .nav__links {
       gap: var(--space-md);
       font-size: 12px;
-      /* 7 个链接放不进窄屏单行：允许内部横向滑动；
+      /* 链接 + 搜索入口放不进窄屏单行：允许内部横向滑动；
          min-width:0 解除 flex 子项的 min-content 撑宽，溢出才不会顶破视口 */
       min-width: 0;
       overflow-x: auto;
@@ -91,7 +113,7 @@
     position: absolute;
     left: 0;
     right: 0;
-    bottom: -7px;
+    bottom: -8px;
     height: 1px;
     background: var(--accent);
     transform: scaleX(0);
@@ -102,6 +124,10 @@
     .nav__links a:hover { color: var(--accent); }
     .nav__links a:hover::after { transform: scaleX(1); }
   }
+  /* 当前页常驻态：下划线常驻、颜色提亮 */
+  .nav__links a[aria-current="page"] { color: var(--text); }
+  .nav__links a[aria-current="page"]::after { transform: scaleX(1); }
+
   .nav__theme {
     position: relative;
     display: inline-flex;

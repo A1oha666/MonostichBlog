@@ -55,6 +55,7 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
 ---
 
 <article class="article">
+  <div class="article__progress" aria-hidden="true"></div>
   <header class="article__header container" data-pagefind-body>
     <a class="back-link" href={collectionHref} data-reveal><span aria-hidden="true">←</span> 返回{collectionLabel}</a>
     <p class="article__eyebrow" data-reveal style="--reveal-delay: 60ms">/ {collectionLabel.toLowerCase()}</p>
@@ -101,12 +102,42 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
 </article>
 
 <script>
+  // --- reading progress bar（模块级，只注册一次滚动监听） ---
+  let progressEl: HTMLElement | null = null;
+  let progressQueued = false;
+  function updateProgress() {
+    if (!progressEl) return;
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    const ratio = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
+    progressEl.style.transform = `scaleX(${ratio})`;
+  }
+  // requestAnimationFrame 节流 + passive 监听，滚动开销可忽略
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (progressQueued) return;
+      progressQueued = true;
+      requestAnimationFrame(() => {
+        progressQueued = false;
+        updateProgress();
+      });
+    },
+    { passive: true },
+  );
+
   // 目录滚动追踪： IntersectionObserver 记录可见标题，
   // 始终高亮文档顺序里最靠上的那个（Map 保持插入序）。
   // 代码块复制按钮：把每个 pre 包进定位容器，点击后写剪贴板并短暂反馈。
   // 视图过渡下 astro:page-load 在首次加载和每次客户端导航后触发，
   // 幂等初始化保证 上一篇/下一篇 跳转后功能仍然可用。
   function initArticleWidgets() {
+    // --- reading progress ---
+    // 2px 进度条贴在 nav 下沿，按滚动比例 scaleX；纯位置映射非动画。
+    // 监听器在模块层只注册一次（视图过渡不会重复执行本模块），
+    // progressEl 则在每次 astro:page-load 后重新指向当前页的元素。
+    progressEl = document.querySelector<HTMLElement>(".article__progress");
+    if (progressEl) updateProgress();
+
     // --- view counter ---
     // POST 到 PocketBase 自定义路由做自增；同一会话内同一篇文章只计一次
     // （快照值来自构建时，命中后用服务端返回的最新值替换）。
@@ -152,11 +183,15 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
     }
 
     // --- code copy buttons (skip already-wrapped blocks) ---
+    // 包装时顺便从 code 的 language-* 类读出语言名写到 data-lang，
+    // .codeblock::before 用它渲染左上角的语言条（不新增静态 DOM）
     document.querySelectorAll(".article__content pre").forEach((pre) => {
       const parent = pre.parentElement;
       if (!parent || parent.classList.contains("codeblock")) return;
       const wrapper = document.createElement("div");
       wrapper.className = "codeblock";
+      const code = pre.querySelector("code");
+      wrapper.dataset.lang = code?.className.match(/language-([\w+-]+)/)?.[1] ?? "text";
       pre.replaceWith(wrapper);
       wrapper.append(pre);
 
@@ -217,26 +252,37 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
 </script>
 
 <style>
+  /* 阅读进度条：贴在 nav 下沿的 2px 橙线；无 JS 时元素不渲染（html.js 门控） */
+  .article__progress { display: none; }
+  :global(html.js) .article__progress {
+    display: block;
+    position: fixed;
+    top: calc(var(--nav-height) - 1px);
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    z-index: 20;
+    pointer-events: none;
+  }
+
+  /* 「屏幕外的那张纸」：内容直接落在 --bg 上，只有字，没有框 */
   .article {
-    width: calc(100% - 2 * var(--page-gutter));
     max-width: 1200px;
     margin: var(--space-xl) auto var(--space-3xl);
     position: relative;
-    z-index: 1001;
-    overflow: hidden;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface);
-    box-shadow: var(--shadow-md);
   }
-  .article__header { max-width: 1080px; padding-top: var(--space-4xl); padding-bottom: var(--space-3xl); }
+  .article__header { max-width: 1080px; padding-top: var(--space-4xl); padding-bottom: var(--space-3xl); border-bottom: 1px solid var(--border-subtle); }
   .back-link { display: inline-flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xl); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 7px 10px; color: var(--text-muted); font-family: var(--mono); font-size: 12px; transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
   .back-link span, .article__eyebrow { color: var(--accent); }
   .back-link span { display: inline-block; transition: transform var(--dur-base) var(--ease-out); }
   .back-link:hover { border-color: var(--accent); color: var(--text); }
   .back-link:hover span { transform: translateX(-3px); }
   .article__eyebrow { margin-bottom: var(--space-lg); font-family: var(--mono); font-size: 13px; }
-  h1 { max-width: 14ch; font-size: clamp(2.5rem, 5.5vw, 5rem); font-weight: 500; line-height: 1.04; }
+  /* 标题是中文时走衬线；英文标题自然落到栈首的 Fraunces（无需 JS 检测） */
+  h1 { max-width: 18ch; font-family: 'Fraunces', var(--serif-zh); font-size: clamp(2.5rem, 5.5vw, 5rem); font-weight: 500; line-height: 1.04; }
   .article__summary { max-width: 58ch; margin-top: var(--space-xl); color: var(--text-muted); font-size: 1.08rem; }
   .article__meta { display: flex; flex-wrap: wrap; gap: var(--space-md); margin-top: var(--space-xl); color: var(--text-faint); font-family: var(--mono); font-size: 12px; }
   .article__meta span + span::before { content: "/"; margin-right: var(--space-md); color: var(--border-strong); }
@@ -244,13 +290,23 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
   .article__layout { display: grid; grid-template-columns: 172px minmax(0, 720px); justify-content: center; gap: var(--space-3xl); padding-top: var(--space-2xl); }
   /* 无目录时收起预留的目录列，避免正文掉进 172px 的窄列 */
   .article__layout--no-toc { grid-template-columns: minmax(0, 720px); }
-  .article__toc { position: sticky; top: calc(var(--nav-height) + var(--space-lg)); align-self: start; border-left: 1px solid var(--border); padding-left: var(--space-md); font-family: var(--mono); font-size: 12px; }
+  .article__toc { position: sticky; top: calc(var(--nav-height) + var(--space-lg)); align-self: start; border-left: 1px solid var(--border-subtle); padding-left: var(--space-md); font-family: var(--mono); font-size: 12px; }
   .article__toc > p { color: var(--text-faint); }
   .article__toc ol { display: grid; gap: var(--space-sm); margin: var(--space-md) 0 0; padding: 0; list-style: none; }
-  .article__toc a { color: var(--text-muted); line-height: 1.45; transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); }
-  .article__toc a:hover, .article__toc a.is-active { color: var(--accent); }
+  .article__toc a { display: inline-block; color: var(--text-muted); line-height: 1.45; transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); }
+  .article__toc a:hover { color: var(--accent); }
+  /* 激活项：变橙 + 左侧 2px accent 竖线（box-shadow 不占布局，无位移） */
+  .article__toc a.is-active { color: var(--accent); box-shadow: -2px 0 0 var(--accent); }
   .article__toc-item--nested { padding-left: var(--space-sm); }
-  .article__content { min-width: 0; padding-bottom: var(--space-4xl); }
+  .article__content {
+    min-width: 0;
+    padding-bottom: var(--space-4xl);
+    /* 中文阅读区排版参数（与 .prose-zh 一致，正文容器整体生效） */
+    line-height: 1.85;
+    letter-spacing: 0.015em;
+    text-align: justify;
+    text-spacing-trim: space-all;
+  }
   .article__pagination { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xl); padding-top: var(--space-xl); padding-bottom: var(--space-4xl); }
   .article__pagination a { display: grid; gap: var(--space-sm); color: var(--text-muted); }
   .article__pagination a:hover strong { color: var(--accent); }
@@ -260,29 +316,41 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
   @media (hover: hover) {
     .article__pagination a:hover { transform: translateY(-2px); }
   }
-  .article__pagination-next { text-align: right; }
+  .article__pagination-next { text-align: right; border-left: 1px solid var(--border-subtle); padding-left: var(--space-xl); }
   :global(.article__content > :first-child) { margin-top: 0; }
-  :global(.article__content h2) { margin-top: var(--space-3xl); font-size: clamp(1.6rem, 3vw, 2.25rem); font-weight: 500; scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
-  :global(.article__content h3) { margin-top: var(--space-2xl); font-size: 1.3rem; font-weight: 500; scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
+  :global(.article__content h2) { margin-top: var(--space-3xl); font-family: 'Fraunces', var(--serif-zh); font-size: clamp(1.6rem, 3vw, 2.25rem); font-weight: 600; scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
+  :global(.article__content h3) { margin-top: var(--space-2xl); font-family: 'Fraunces', var(--serif-zh); font-size: 1.3rem; font-weight: 600; scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
   :global(.article__content p), :global(.article__content ul), :global(.article__content ol) { margin-top: var(--space-lg); }
   :global(.article__content li + li) { margin-top: var(--space-sm); }
   :global(.article__content a) { color: var(--accent); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent); text-underline-offset: 3px; }
   :global(.article__content blockquote) { margin: var(--space-xl) 0 0; border-left: 2px solid var(--accent); padding-left: var(--space-lg); color: var(--text-muted); }
-  :global(.article__content pre) { margin-top: var(--space-xl); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-lg); overflow-x: auto; background: var(--surface); font-family: var(--mono); font-size: 13px; line-height: 1.7; }
+  :global(.article__content pre) { margin-top: var(--space-xl); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-lg); overflow-x: auto; background: var(--code-bg); font-family: var(--mono); font-size: 13px; line-height: 1.7; }
   :global(.article__content code) { font-family: var(--mono); }
   :global(.article__content :not(pre) > code) { border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; background: var(--accent-soft); font-size: 0.88em; }
   :global(.article__content img) { width: 100%; height: auto; margin-top: var(--space-xl); border: 1px solid var(--border); border-radius: var(--radius-sm); object-fit: contain; }
   :global(.article__content hr) { margin: var(--space-3xl) 0; border: 0; }
   :global(.codeblock) { position: relative; }
+  /* 顶部语言条：JS 包装时把语言名写进 data-lang，这里直接读取渲染 */
+  :global(.codeblock pre) { padding-top: 48px; }
+  :global(.codeblock::before) {
+    content: attr(data-lang);
+    position: absolute;
+    top: 15px;
+    left: var(--space-lg);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    color: var(--text-faint);
+  }
   :global(.code-copy) {
     position: absolute;
-    top: 10px;
-    right: 10px;
+    top: 8px;
+    right: 8px;
     z-index: 1;
-    border: 1px solid var(--border-strong);
+    border: 1px solid transparent;
     border-radius: 4px;
     padding: 3px 8px;
-    background: var(--surface);
+    background: none;
     color: var(--text-faint);
     font-family: var(--mono);
     font-size: 11px;
@@ -291,16 +359,16 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
     transition: opacity var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
   }
   :global(.codeblock:hover .code-copy) { opacity: 1; }
-  :global(.code-copy:hover), :global(.code-copy:focus-visible) { color: var(--accent); border-color: var(--accent); opacity: 1; }
+  :global(.code-copy:hover), :global(.code-copy:focus-visible) { color: var(--accent); border-color: var(--border-strong); opacity: 1; }
   @media (max-width: 800px) {
     .article__header { padding-top: var(--space-3xl); }
     .article__layout { grid-template-columns: minmax(0, 720px); padding-top: var(--space-xl); }
-    .article__toc { position: static; border-left: 0; border-bottom: 1px solid var(--border); padding: 0 0 var(--space-lg); }
+    .article__toc { position: static; border-left: 0; border-bottom: 1px solid var(--border-subtle); padding: 0 0 var(--space-lg); }
     .article__toc ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 520px) {
     .article__pagination { grid-template-columns: 1fr; }
-    .article__pagination-next { text-align: left; }
+    .article__pagination-next { text-align: left; border-left: 0; padding-left: 0; }
     .article__toc ol { grid-template-columns: 1fr; }
   }
 </style>
