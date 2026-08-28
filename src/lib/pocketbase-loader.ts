@@ -196,14 +196,26 @@ export function pocketBaseLoader(type: 'notes' | 'thinkings' | 'moments'): Conte
           cover = `/${outDirRel}/${rec.cover}`;
         }
 
+        // 小记（moments）通常没有标题/摘要，只有十几个字的正文。
+        // 这里从渲染后的正文提取一段纯文本摘录，作为列表页兜底文案。
+        const plainExcerpt =
+          type === 'moments'
+            ? rendered.code
+                .replace(/<[^>]+>/g, ' ')
+                .replace(/&[a-z]+;/gi, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 80)
+            : '';
+
         store.set({
           id: rec.slug,
           body: rec.content ?? '',
           data: {
-            title: rec.title,
+            title: rec.title ?? '',
             date: rec.publishedAt ?? rec.created,
             editedAt: rec.editedAt ?? null,
-            summary: rec.summary ?? '',
+            summary: rec.summary || plainExcerpt,
             label: rec.label || undefined,
             cover,
             // 构建时的浏览数快照；页面侧由 /api/monostich/views 实时自增

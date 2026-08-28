@@ -2,7 +2,8 @@ import { defineCollection, z } from "astro:content";
 import { pocketBaseLoader } from "./lib/pocketbase-loader";
 
 const articleSchema = z.object({
-  title: z.string(),
+  // 小记（moments）允许无标题；loader 侧已兜底为 ""，这里保持宽容
+  title: z.string().catch(""),
   date: z.coerce.date(),
   // 语义上的修订时间；为空则不展示“更新于”
   editedAt: z.coerce.date().nullable().catch(null),

@@ -13,7 +13,12 @@ const [thinkings, moments] = await Promise.all([
 ]);
 
 const renderedMoments = await Promise.all(
-  moments.map(async (entry) => ({ entry, content: (await render(entry)).Content })),
+  moments.map(async (entry) => {
+    const { Content } = await render(entry);
+    // 正文可能为空（短句直接写在摘要字段里），此时卡片回退展示 summary
+    const hasBody = Boolean(entry.rendered?.html?.trim());
+    return { entry, content: hasBody ? Content : null };
+  }),
 );
 
 type Item = {
@@ -77,8 +82,10 @@ const momentContents = new Map(renderedMoments.map(({ entry, content }) => [entr
               </div>
             ) : (
               <div class="thinking__body thinking__body--moment">
-                <h2 class="thinking__moment-title">{item.title}</h2>
-                <div class="thinking__moment-content">{MomentContent && <MomentContent />}</div>
+                {item.title && <h2 class="thinking__moment-title">{item.title}</h2>}
+                <div class="thinking__moment-content">
+                  {MomentContent ? <MomentContent /> : item.summary && <p>{item.summary}</p>}
+                </div>
               </div>
             )}
           </article>

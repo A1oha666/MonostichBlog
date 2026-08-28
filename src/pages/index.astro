@@ -27,7 +27,8 @@ const recent = [
   })),
   ...moments.map((entry) => ({
     date: new Date(entry.data.date),
-    title: entry.data.title,
+    // 小记可能没有标题，回退用摘要（loader 侧已用正文摘录兜底）
+    title: entry.data.title || entry.data.summary,
     href: `/thinkings#${entry.id}`,
   })),
 ]

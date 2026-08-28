@@ -11,7 +11,8 @@ export async function GET(context) {
   const items = [...notes, ...thinkings, ...moments]
     .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
     .map((entry) => ({
-      title: entry.data.title,
+      // 小记可能没有标题，回退用摘要（loader 侧已用正文摘录兜底）
+      title: entry.data.title || entry.data.summary,
       description: entry.data.summary,
       pubDate: entry.data.date,
       categories: [labels[entry.collection]],
