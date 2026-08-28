@@ -1,53 +1,33 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import SiteFooter from "../components/SiteFooter.astro";
-
-const meta = [
-  { k: "Languages", v: "Go · Java · SQL" },
-  { k: "Focus", v: "Agent toolchains · Distributed systems" },
-  { k: "Now", v: "Shipping LLM apps to production" },
-  { k: "Location", v: "Nanjing, CN" },
-];
 ---
 
-<BaseLayout title="About — Aloha" description="关于 Aloha：backend & agent 工程师，以及这个站点。">
+<BaseLayout title="About — Aloha" description="Aloha — learning backend development.">
   <section class="page-head container">
     <a class="back-home" href="/" data-reveal><span aria-hidden="true">←</span> 返回主页</a>
     <p class="eyebrow" data-reveal style="--reveal-delay: 60ms">/ about</p>
-    <h1 data-reveal style="--reveal-delay: 120ms">About</h1>
-    <p data-reveal style="--reveal-delay: 200ms">关于我，以及这个站点。</p>
   </section>
 
   <section class="about container" aria-label="About">
-    <div class="about__grid">
-      <div class="about__prose" data-reveal>
-        <p>
-          I'm a backend engineer focused on <strong>agents and LLM applications</strong> —
-          not training models, but wiring them into real request paths:
-          gateways, routing, rate limits, observability, and making them
-          <em>work reliably</em>.
-        </p>
-        <p>
-          This site collects system designs I've built, pitfalls I've hit,
-          and a few opinions about making AI genuinely useful in engineering.
-        </p>
-        <p>
-          写作上分两个栏目：<a href="/notes">Notes</a> 是工程笔记，
-          <a href="/thinkings">Thinkings</a> 是偏思辨的长文，也收录随手记下的小记。
-          所有内容也可以在 <a href="/archive">Archive</a> 按年份回溯。
-        </p>
+    <h1 data-reveal style="--reveal-delay: 120ms">Aloha<span class="about__cursor" aria-hidden="true">_</span></h1>
+    <p class="about__line" data-reveal style="--reveal-delay: 200ms">learning backend development.</p>
+    <p class="about__line about__line--dim" data-reveal style="--reveal-delay: 280ms">somewhere between a request and a response.</p>
+
+    <dl class="about__facts" data-reveal style="--reveal-delay: 400ms">
+      <div class="about__fact">
+        <dt>email</dt>
+        <dd><a href="mailto:292081295@qq.com">292081295@qq.com</a></dd>
       </div>
-      <dl class="about__meta" data-reveal style="--reveal-delay: 120ms">
-        {
-          meta.map((s) => (
-            <div class="about__row">
-              <dt>{s.k}</dt>
-              <dd>{s.v}</dd>
-            </div>
-          ))
-        }
-      </dl>
-    </div>
+      <div class="about__fact">
+        <dt>github</dt>
+        <dd><a href="https://github.com/A1oha666" target="_blank" rel="noopener">@A1oha666</a></dd>
+      </div>
+      <div class="about__fact">
+        <dt>here</dt>
+        <dd>Here</dd>
+      </div>
+    </dl>
   </section>
   <SiteFooter />
 </BaseLayout>
@@ -58,42 +38,44 @@ const meta = [
   .back-home { display: inline-flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xl); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 7px 10px; color: var(--text-muted); font-family: var(--mono); font-size: 12px; transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
   .back-home span { color: var(--accent); }
   .back-home:hover { border-color: var(--accent); color: var(--text); }
-  h1 { font-size: clamp(3rem, 6vw, 5.5rem); font-weight: 500; line-height: 1; }
-  .page-head > p:last-child { max-width: 54ch; margin-top: var(--space-lg); color: var(--text-muted); }
 
-  .about__grid {
-    display: grid;
-    grid-template-columns: 1.4fr 1fr;
-    gap: var(--space-2xl);
-    align-items: start;
-  }
-  .about__prose p { color: var(--text-muted); margin-bottom: var(--space-md); max-width: 58ch; }
-  .about__prose p:last-child { margin-bottom: 0; }
-  .about__prose strong { color: var(--text); font-weight: 600; }
-  .about__prose em { color: var(--accent); font-style: italic; }
-  .about__prose a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
-
-  .about__meta {
-    margin: 0;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface);
-    overflow: hidden;
+  .about { padding-bottom: var(--space-4xl); }
+  h1 {
     font-family: var(--mono);
+    font-size: clamp(2.2rem, 5vw, 3.6rem);
+    font-weight: 500;
+    line-height: 1.1;
   }
-  .about__row {
-    display: flex;
-    justify-content: space-between;
-    gap: var(--space-md);
-    padding: 14px 18px;
-    border-bottom: 1px solid var(--border);
-    font-size: 13.5px;
+  /* 呼吸的光标：整个 About 只有一个地方在动 */
+  .about__cursor {
+    margin-left: 2px;
+    color: var(--accent);
+    animation: about-blink 1.6s steps(1) infinite;
   }
-  .about__row:last-child { border-bottom: 0; }
-  .about__row dt { color: var(--text-faint); }
-  .about__row dd { margin: 0; color: var(--text); text-align: right; }
+  @keyframes about-blink { 50% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .about__cursor { animation: none; }
+  }
 
-  @media (max-width: 768px) {
-    .about__grid { grid-template-columns: 1fr; gap: var(--space-xl); }
+  .about__line {
+    margin-top: var(--space-lg);
+    max-width: 46ch;
+    font-family: var(--mono);
+    font-size: 0.95rem;
+    color: var(--text);
   }
+  .about__line--dim { color: var(--text-faint); }
+
+  .about__facts {
+    margin: var(--space-3xl) 0 0;
+    display: grid;
+    gap: var(--space-md);
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+  .about__fact { display: flex; gap: var(--space-xl); align-items: baseline; }
+  .about__fact dt { width: 5.5ch; color: var(--text-faint); }
+  .about__fact dd { margin: 0; color: var(--text-muted); }
+  .about__fact a { color: var(--text); text-decoration: none; border-bottom: 1px solid var(--border-strong); transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); }
+  .about__fact a:hover { color: var(--accent); border-color: var(--accent); }
 </style>
