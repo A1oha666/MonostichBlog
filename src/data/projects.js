@@ -8,6 +8,13 @@ export const projects = [
     status: "developing",
   },
   {
+    name: "MonostichBlog",
+    desc: "基于 Astro 的极简风格个人博客",
+    tags: ["astro", "blog"],
+    repo: "https://github.com/A1oha666/MonostichBlog",
+    status: "active",
+  },
+  {
     name: "argus-gateway",
     desc: "LLM request gateway: unified auth, rate limiting, retries & fallback. Written in Go.",
     tags: ["go", "llm", "gateway"],
