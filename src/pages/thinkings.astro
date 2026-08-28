@@ -1,37 +1,89 @@
 ---
-import { getCollection } from "astro:content";
+import { getCollection, render } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import { dotDate, isoDate, DRAFT_PREVIEW } from "../lib/format";
 
-const entries = (await getCollection("thinkings", ({ data }) => DRAFT_PREVIEW || !data.draft))
-  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+// Thinkings 吸收原「小记」：两条流按时间倒序混排进同一个栏目。
+// thinking 走标题卡（详情页），moment 直接内联正文（无详情页）。
+const draftFilter = ({ data }) => DRAFT_PREVIEW || !data.draft;
+const [thinkings, moments] = await Promise.all([
+  getCollection("thinkings", draftFilter),
+  getCollection("moments", draftFilter),
+]);
+
+const renderedMoments = await Promise.all(
+  moments.map(async (entry) => ({ entry, content: (await render(entry)).Content })),
+);
+
+type Item = {
+  kind: "thinking" | "moment";
+  id: string;
+  date: Date;
+  title: string;
+  label: string;
+  summary: string;
+  href?: string;
+};
+
+const items: Item[] = [
+  ...thinkings.map((entry): Item => ({
+    kind: "thinking",
+    id: entry.id,
+    date: new Date(entry.data.date),
+    title: entry.data.title,
+    label: entry.data.label ?? "",
+    summary: entry.data.summary,
+    href: `/thinkings/${entry.id}/`,
+  })),
+  ...renderedMoments.map(({ entry }): Item => ({
+    kind: "moment",
+    id: entry.id,
+    date: new Date(entry.data.date),
+    title: entry.data.title,
+    label: "小记",
+    summary: entry.data.summary,
+  })),
+];
+items.sort((a, b) => b.date.valueOf() - a.date.valueOf());
+
+const momentContents = new Map(renderedMoments.map(({ entry, content }) => [entry.id, content]));
 ---
 
-<BaseLayout title="Thinkings — Aloha" description="Aloha 的短思考。">
+<BaseLayout title="Thinkings — Aloha" description="Aloha 的短思考与随手小记。">
   <section class="page-head container">
     <a class="back-home" href="/" data-reveal><span aria-hidden="true">←</span> 返回主页</a>
     <p class="eyebrow" data-reveal style="--reveal-delay: 60ms">/ thinkings</p>
     <h1 data-reveal style="--reveal-delay: 120ms">Thinkings</h1>
-    <p data-reveal style="--reveal-delay: 200ms">关于学习、创造，以及生活的一些思考。</p>
+    <p data-reveal style="--reveal-delay: 200ms">关于学习、创造与生活的思考，以及随手记下的小记。</p>
   </section>
 
   <section class="thinking-list container" aria-label="Thinkings">
     {
-      entries.map((entry, index) => (
-        <article class="thinking" data-reveal style={`--reveal-delay: ${Math.min(index * 60, 300)}ms`}>
-          <div class="thinking__meta">
-            {entry.data.label && <p>{entry.data.label}</p>}
-            <time datetime={isoDate(entry.data.date)}>{dotDate(entry.data.date)}</time>
-          </div>
-          <div class="thinking__body">
-            <span class="thinking__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
-            <h2><a href={`/thinkings/${entry.id}/`}>{entry.data.title}</a></h2>
-            <p>{entry.data.summary}</p>
-            <a class="thinking__read" href={`/thinkings/${entry.id}/`}>阅读全文 <span aria-hidden="true">→</span></a>
-          </div>
-        </article>
-      ))
+      items.map((item, index) => {
+        const MomentContent = item.kind === "moment" ? momentContents.get(item.id) : null;
+        return (
+          <article class="thinking" id={item.id} data-reveal style={`--reveal-delay: ${Math.min(index * 60, 300)}ms`}>
+            <div class="thinking__meta">
+              {item.kind === "moment" ? <p class="thinking__kind">小记</p> : item.label && <p>{item.label}</p>}
+              <time datetime={isoDate(item.date)}>{dotDate(item.date)}</time>
+            </div>
+            {item.kind === "thinking" ? (
+              <div class="thinking__body">
+                <span class="thinking__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+                <h2><a href={item.href}>{item.title}</a></h2>
+                <p>{item.summary}</p>
+                <a class="thinking__read" href={item.href}>阅读全文 <span aria-hidden="true">→</span></a>
+              </div>
+            ) : (
+              <div class="thinking__body thinking__body--moment">
+                <h2 class="thinking__moment-title">{item.title}</h2>
+                <div class="thinking__moment-content">{MomentContent && <MomentContent />}</div>
+              </div>
+            )}
+          </article>
+        );
+      })
     }
   </section>
   <SiteFooter />
@@ -46,12 +98,13 @@ const entries = (await getCollection("thinkings", ({ data }) => DRAFT_PREVIEW ||
   h1 { font-size: clamp(3rem, 6vw, 5.5rem); font-weight: 400; font-style: italic; line-height: 1; }
   .page-head > p:last-child { max-width: 54ch; margin-top: var(--space-lg); color: var(--text-muted); }
   .thinking-list { border-top: 1px solid var(--border-strong); }
-  .thinking { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: var(--space-2xl); padding-block: var(--space-3xl); border-bottom: 1px solid var(--border); transition: background var(--dur-fast) var(--ease-out); }
+  .thinking { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: var(--space-2xl); padding-block: var(--space-3xl); border-bottom: 1px solid var(--border); transition: background var(--dur-fast) var(--ease-out); scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
   @media (hover: hover) {
     .thinking:hover { background: color-mix(in srgb, var(--accent) 3%, transparent); }
   }
   .thinking__meta { padding-top: 7px; font-family: var(--mono); font-size: 12px; }
   .thinking__meta p { color: var(--accent); }
+  .thinking__kind { color: var(--text-muted) !important; }
   time { display: block; margin-top: var(--space-sm); color: var(--text-faint); }
   .thinking__body { position: relative; max-width: 720px; }
   .thinking__number { position: absolute; top: 7px; right: 0; color: var(--text-faint); font-family: var(--mono); font-size: 12px; }
@@ -62,6 +115,16 @@ const entries = (await getCollection("thinkings", ({ data }) => DRAFT_PREVIEW ||
   .thinking__read span { color: var(--accent); transition: transform var(--dur-base) var(--ease-spring); }
   .thinking:hover h2 a { color: var(--accent); }
   .thinking:hover .thinking__read span { transform: translateX(3px); }
+
+  /* 小记：无详情页，标题弱化为条目级、正文直接内联展示 */
+  .thinking__moment-title { padding-right: 0; font-size: clamp(1.35rem, 2.5vw, 1.85rem); font-weight: 500; line-height: 1.2; }
+  .thinking__moment-content { max-width: 65ch; margin-top: var(--space-md); color: var(--text-muted); }
+  .thinking__moment-content :global(> :first-child) { margin-top: 0; }
+  .thinking__moment-content :global(p + p) { margin-top: var(--space-md); }
+  .thinking__moment-content :global(a) { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+  .thinking__moment-content :global(blockquote) { margin: var(--space-md) 0 0; border-left: 2px solid var(--accent); padding-left: var(--space-md); }
+  .thinking__moment-content :global(img) { width: 100%; height: auto; margin-top: var(--space-md); border-radius: var(--radius-sm); }
+
   @media (max-width: 600px) {
     .page-head { padding-top: var(--space-3xl); }
     .thinking { grid-template-columns: 1fr; gap: var(--space-lg); padding-block: var(--space-2xl); }

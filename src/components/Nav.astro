@@ -5,9 +5,9 @@
   <div class="nav__inner container">
     <a class="nav__brand" href="/">Aloha.</a>
     <div class="nav__links">
+      <a href="/archive">Archive</a>
       <a href="/notes">Notes</a>
       <a href="/thinkings">Thinkings</a>
-      <a href="/moments">小记</a>
       <a href="/#projects">Work</a>
       <button
         class="nav__theme"
@@ -67,7 +67,18 @@
   .nav__brand { color: var(--accent); font-weight: 700; }
   .nav__links { display: flex; align-items: center; gap: var(--space-lg); }
   @media (max-width: 520px) {
-    .nav__links { gap: var(--space-md); font-size: 12px; }
+    .nav__links {
+      gap: var(--space-md);
+      font-size: 12px;
+      /* 6 个链接放不进窄屏单行：允许内部横向滑动；
+         min-width:0 解除 flex 子项的 min-content 撑宽，溢出才不会顶破视口 */
+      min-width: 0;
+      overflow-x: auto;
+      scrollbar-width: none;
+      margin-inline: calc(-1 * var(--space-md));
+      padding-inline: var(--space-md);
+    }
+    .nav__links::-webkit-scrollbar { display: none; }
   }
   .nav__links a {
     position: relative;

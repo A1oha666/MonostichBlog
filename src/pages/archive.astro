@@ -1,0 +1,237 @@
+---
+import { getCollection } from "astro:content";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import SiteFooter from "../components/SiteFooter.astro";
+import { dotDate, isoDate, DRAFT_PREVIEW } from "../lib/format";
+
+// 归档借鉴 WHITE 的栏目逻辑：全站内容按年份分组、可按栏目筛选。
+// 标签/分类不在本期范围（不改 PocketBase 数据模型），筛选维度即三个栏目本身。
+const draftFilter = ({ data }) => DRAFT_PREVIEW || !data.draft;
+
+const [notes, thinkings, moments] = await Promise.all([
+  getCollection("notes", draftFilter),
+  getCollection("thinkings", draftFilter),
+  getCollection("moments", draftFilter),
+]);
+
+const buckets = [
+  {
+    type: "notes",
+    label: "Notes",
+    entries: notes.map((entry) => ({
+      date: entry.data.date,
+      title: entry.data.title,
+      meta: entry.data.label ?? "",
+      href: `/notes/${entry.id}/`,
+    })),
+  },
+  {
+    // 小记已并入 Thinkings，归档里同样归入 Thinkings 筛选
+    type: "thinkings",
+    label: "Thinkings",
+    entries: [
+      ...thinkings.map((entry) => ({
+        date: entry.data.date,
+        title: entry.data.title,
+        meta: entry.data.label ?? "",
+        href: `/thinkings/${entry.id}/`,
+      })),
+      ...moments.map((entry) => ({
+        date: entry.data.date,
+        title: entry.data.title,
+        meta: "小记",
+        href: `/thinkings#${entry.id}`,
+      })),
+    ],
+  },
+];
+
+const total = buckets.reduce((sum, b) => sum + b.entries.length, 0);
+
+// 按年分组（倒序），年内再按日期倒序
+const years = new Map<number, Array<{ date: Date; title: string; meta: string; href: string; type: string; typeLabel: string }>>();
+for (const bucket of buckets) {
+  for (const item of bucket.entries) {
+    // content layer 传来的 date 可能是 Date 也可能是 ISO 字符串，统一转 Date 再取年份
+    const y = new Date(item.date).getFullYear();
+    if (!years.has(y)) years.set(y, []);
+    years.get(y).push({ ...item, type: bucket.type, typeLabel: bucket.label });
+  }
+}
+const yearGroups = [...years.entries()]
+  .sort((a, b) => b[0] - a[0])
+  .map(([year, items]) => ({ year, items: items.sort((a, b) => b.date.valueOf() - a.date.valueOf()) }));
+
+const typeCounts = Object.fromEntries(buckets.map((b) => [b.type, b.entries.length])) as Record<string, number>;
+const filters = [
+  { type: "all", label: "全部", count: total },
+  ...buckets.map((b) => ({ type: b.type, label: b.label, count: typeCounts[b.type] })),
+];
+---
+
+<BaseLayout title="Archive — Aloha" description="Aloha 的全部写作归档，按年份与栏目回溯。">
+  <section class="page-head container">
+    <a class="back-home" href="/" data-reveal><span aria-hidden="true">←</span> 返回主页</a>
+    <p class="eyebrow" data-reveal style="--reveal-delay: 60ms">/ archive</p>
+    <h1 data-reveal style="--reveal-delay: 120ms">Archive</h1>
+    <p data-reveal style="--reveal-delay: 200ms">全部内容按年份归档，可按栏目筛选回溯。</p>
+  </section>
+
+  <section class="archive container" aria-label="归档">
+    <div class="archive__filters" data-reveal role="group" aria-label="按栏目筛选">
+      {
+        filters.map((f) => (
+          <a
+            class="archive__filter"
+            href={f.type === "all" ? "/archive/" : `/archive/?type=${f.type}`}
+            data-type={f.type}
+          >
+            {f.label}
+            <span>{f.count}</span>
+          </a>
+        ))
+      }
+    </div>
+
+    <p class="archive__count" data-reveal data-count><span>{total}</span> 篇内容</p>
+
+    <div class="archive__groups">
+      {
+        yearGroups.map(({ year, items }) => (
+          <section class="archive__year" data-year={year}>
+            <h2 data-reveal>
+              {year}
+              <span class="archive__year-count">{items.length}</span>
+            </h2>
+            <ol class="archive__list">
+              {items.map((item, index) => (
+                <li data-reveal data-type={item.type} style={`--reveal-delay: ${Math.min(index * 40, 300)}ms`}>
+                  <a class="archive__row" href={item.href}>
+                    <time datetime={isoDate(item.date)}>{dotDate(item.date)}</time>
+                    <span class:list={["archive__type", `archive__type--${item.type}`]}>{item.typeLabel}</span>
+                    <span class="archive__title">{item.title}</span>
+                    <span class="archive__arrow" aria-hidden="true">↗</span>
+                  </a>
+                </li>
+              ))}
+            </ol>
+          </section>
+        ))
+      }
+    </div>
+  </section>
+  <SiteFooter />
+</BaseLayout>
+
+<script>
+  // 栏目筛选：读取 ?type= 参数后隐藏其余条目，URL 保持可分享/可回退。
+  function applyFilter() {
+    const type = new URLSearchParams(window.location.search).get("type") ?? "all";
+    const valid = ["all", "notes", "thinkings"];
+    const active = valid.includes(type) ? type : "all";
+
+    document.querySelectorAll(".archive__filter").forEach((el) => {
+      el.classList.toggle("is-active", (el as HTMLElement).dataset.type === active);
+      el.setAttribute("aria-pressed", String((el as HTMLElement).dataset.type === active));
+    });
+
+    let shown = 0;
+    document.querySelectorAll(".archive__list li").forEach((li) => {
+      const match = active === "all" || (li as HTMLElement).dataset.type === active;
+      li.toggleAttribute("hidden", !match);
+      if (match) shown++;
+    });
+    document.querySelectorAll(".archive__year").forEach((sec) => {
+      const visible = sec.querySelectorAll(".archive__list li:not([hidden])").length;
+      sec.toggleAttribute("hidden", visible === 0);
+      const count = sec.querySelector(".archive__year-count");
+      if (count) count.textContent = String(visible);
+    });
+    const counter = document.querySelector("[data-count] span");
+    if (counter) counter.textContent = String(shown);
+  }
+  document.addEventListener("astro:page-load", applyFilter);
+  applyFilter();
+</script>
+
+<style>
+  .page-head { padding-top: var(--space-4xl); padding-bottom: var(--space-2xl); }
+  .page-head .eyebrow { color: var(--accent); margin-bottom: var(--space-lg); }
+  .back-home { display: inline-flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xl); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 7px 10px; color: var(--text-muted); font-family: var(--mono); font-size: 12px; transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+  .back-home span { color: var(--accent); }
+  .back-home:hover { border-color: var(--accent); color: var(--text); }
+  h1 { font-size: clamp(3rem, 6vw, 5.5rem); font-weight: 500; line-height: 1; }
+  .page-head > p:last-child { max-width: 54ch; margin-top: var(--space-lg); color: var(--text-muted); }
+
+  .archive__filters { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+  .archive__filter {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 7px 12px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+  }
+  .archive__filter span { color: var(--text-faint); font-size: 11.5px; }
+  .archive__filter:hover { border-color: var(--accent); color: var(--text); }
+  .archive__filter.is-active { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+  .archive__filter.is-active span { color: var(--accent); }
+
+  .archive__count { padding-top: var(--space-xl); padding-bottom: var(--space-md); border-bottom: 1px solid var(--border-strong); color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
+
+  .archive__groups { display: grid; }
+  .archive__year h2 {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-md);
+    padding-top: var(--space-3xl);
+    padding-bottom: var(--space-md);
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    font-weight: 500;
+    font-family: var(--mono);
+    color: var(--text);
+  }
+  .archive__year-count { color: var(--text-faint); font-size: 13px; }
+
+  .archive__list { margin: 0; padding: 0; list-style: none; }
+  .archive__list > li { border-bottom: 1px solid var(--border); transition: background var(--dur-fast) var(--ease-out); }
+  @media (hover: hover) {
+    .archive__list > li:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+  }
+  .archive__row {
+    display: grid;
+    grid-template-columns: 112px auto minmax(0, 1fr) 20px;
+    align-items: baseline;
+    gap: var(--space-lg);
+    padding-block: var(--space-lg);
+  }
+  .archive__row time, .archive__arrow { color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
+  .archive__type {
+    justify-self: start;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    padding: 2px 9px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    font-size: 11px;
+    white-space: nowrap;
+    transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+  }
+  .archive__type--notes { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+  .archive__type--thinkings { color: var(--text); border-color: var(--border-strong); }
+  .archive__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(1.02rem, 1.6vw, 1.15rem); font-weight: 500; transition: color var(--dur-fast) var(--ease-out); }
+  .archive__arrow { padding-top: 2px; transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-spring); }
+  .archive__row:hover .archive__title, .archive__row:hover .archive__arrow, .archive__row:hover .archive__type { color: var(--accent); }
+  .archive__row:hover .archive__arrow { transform: translate(2px, -2px); }
+
+  @media (max-width: 600px) {
+    .page-head { padding-top: var(--space-3xl); }
+    .archive__row { grid-template-columns: minmax(0, 1fr) 20px; row-gap: var(--space-xs); }
+    .archive__row time { grid-column: 1 / -1; }
+    .archive__type { justify-self: start; grid-column: 1 / -1; width: fit-content; }
+  }
+</style>

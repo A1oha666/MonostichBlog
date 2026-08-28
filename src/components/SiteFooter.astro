@@ -5,7 +5,8 @@ const year = new Date().getFullYear();
 <footer class="footer container">
   <p>© {year} Aloha</p>
   <div>
-    <a href="mailto:hi@example.com">Email</a>
+    <a href="/archive">Archive</a>
+    <a href="/about">About</a>
     <a href="/rss.xml">RSS</a>
     <a href="https://admin.monostich.cloud/_/" title="内容后台">管理</a>
   </div>
@@ -14,6 +15,7 @@ const year = new Date().getFullYear();
 <style>
   .footer {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-lg);

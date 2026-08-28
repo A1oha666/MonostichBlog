@@ -1,14 +1,101 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Hero from "../components/Hero.astro";
-import Posts from "../components/Posts.astro";
 import Projects from "../components/Projects.astro";
 import SiteFooter from "../components/SiteFooter.astro";
+import { getCollection } from "astro:content";
+import { dotDate, isoDate, DRAFT_PREVIEW } from "../lib/format";
+
+const draftFilter = ({ data }) => DRAFT_PREVIEW || !data.draft;
+const [notes, thinkings, moments] = await Promise.all([
+  getCollection("notes", draftFilter),
+  getCollection("thinkings", draftFilter),
+  getCollection("moments", draftFilter),
+]);
+
+// 首页只展示最近三篇（Notes 与 Thinkings 含小记混排），完整回溯走 /archive
+const recent = [
+  ...notes.map((entry) => ({
+    date: new Date(entry.data.date),
+    title: entry.data.title,
+    href: `/notes/${entry.id}/`,
+  })),
+  ...thinkings.map((entry) => ({
+    date: new Date(entry.data.date),
+    title: entry.data.title,
+    href: `/thinkings/${entry.id}/`,
+  })),
+  ...moments.map((entry) => ({
+    date: new Date(entry.data.date),
+    title: entry.data.title,
+    href: `/thinkings#${entry.id}`,
+  })),
+]
+  .sort((a, b) => b.date.valueOf() - a.date.valueOf())
+  .slice(0, 3);
 ---
 
 <BaseLayout>
   <Hero />
-  <Posts />
+  <section class="home-archive container" id="archive" aria-labelledby="home-archive-heading">
+    <div class="section__head" data-reveal>
+      <h2 id="home-archive-heading">Archive</h2>
+      <a href="/archive">进入归档 <span aria-hidden="true">→</span></a>
+    </div>
+    <ol class="recent-list">
+      {
+        recent.map((item, index) => (
+          <li data-reveal style={`--reveal-delay: ${Math.min(index * 60, 240)}ms`}>
+            <a href={item.href}>
+              <time datetime={isoDate(item.date)}>{dotDate(item.date)}</time>
+              <span class="recent-list__title">{item.title}</span>
+              <span class="recent-list__arrow" aria-hidden="true">↗</span>
+            </a>
+          </li>
+        ))
+      }
+    </ol>
+  </section>
   <Projects />
   <SiteFooter />
 </BaseLayout>
+
+<style>
+  /* anchor target must clear the sticky nav after smooth-scroll */
+  .home-archive { padding-block: var(--space-4xl); scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
+  .section__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding-bottom: var(--space-lg);
+    border-bottom: 1px solid var(--border-strong);
+  }
+  .section__head h2 { font-size: 1rem; font-family: var(--mono); font-weight: 500; }
+  .section__head a { color: var(--text-muted); font-family: var(--mono); font-size: 12.5px; transition: color var(--dur-fast) var(--ease-out); }
+  .section__head a span { display: inline-block; color: var(--accent); transition: transform var(--dur-base) var(--ease-out); }
+  .section__head a:hover { color: var(--accent); }
+  .section__head a:hover span { transform: translateX(3px); }
+
+  .recent-list { margin: 0; padding: 0; list-style: none; }
+  .recent-list > li { border-bottom: 1px solid var(--border); transition: background var(--dur-fast) var(--ease-out); }
+  @media (hover: hover) {
+    .recent-list > li:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+  }
+  .recent-list a {
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr) 20px;
+    align-items: baseline;
+    gap: var(--space-lg);
+    padding-block: var(--space-lg);
+  }
+  .recent-list time, .recent-list__arrow { color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
+  .recent-list__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(1.02rem, 1.6vw, 1.15rem); font-weight: 500; transition: color var(--dur-fast) var(--ease-out); }
+  .recent-list__arrow { padding-top: 2px; transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-spring); }
+  .recent-list a:hover .recent-list__title, .recent-list a:hover .recent-list__arrow { color: var(--accent); }
+  .recent-list a:hover .recent-list__arrow { transform: translate(2px, -2px); }
+
+  @media (max-width: 600px) {
+    .recent-list a { grid-template-columns: minmax(0, 1fr) 20px; row-gap: var(--space-xs); }
+    .recent-list time { grid-column: 1 / -1; }
+  }
+</style>

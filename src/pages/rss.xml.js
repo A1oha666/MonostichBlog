@@ -6,7 +6,8 @@ export async function GET(context) {
   const thinkings = await getCollection("thinkings", ({ data }) => !data.draft);
   const moments = await getCollection("moments", ({ data }) => !data.draft);
 
-  const labels = { notes: "Notes", thinkings: "Thinkings", moments: "小记" };
+  // 小记已并入 Thinkings：moments 内容归入 Thinkings 分类，链接锚到合并后的列表页
+  const labels = { notes: "Notes", thinkings: "Thinkings", moments: "Thinkings" };
   const items = [...notes, ...thinkings, ...moments]
     .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
     .map((entry) => ({
@@ -15,7 +16,7 @@ export async function GET(context) {
       pubDate: entry.data.date,
       categories: [labels[entry.collection]],
       link: entry.collection === "moments"
-        ? `/moments/#${entry.id}`
+        ? `/thinkings/#${entry.id}`
         : `/${entry.collection}/${entry.id}/`,
     }));
 
