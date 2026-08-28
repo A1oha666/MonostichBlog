@@ -99,7 +99,7 @@ const filters = [
         yearGroups.map(({ year, items }) => (
           <section class="archive__year" data-year={year}>
             <h2 data-reveal>
-              {year}
+              <span data-scramble>{year}</span>
               <span class="archive__year-count">{items.length}</span>
             </h2>
             <ol class="archive__list">
@@ -107,7 +107,7 @@ const filters = [
                 <li data-reveal data-type={item.type} style={`--reveal-delay: ${Math.min(index * 40, 300)}ms`}>
                   <a class="archive__row" href={item.href}>
                     <time datetime={isoDate(item.date)}>{dotDate(item.date)}</time>
-                    <span class:list={["archive__type", `archive__type--${item.type}`]}>{item.typeLabel}</span>
+                    <span class="archive__type">{item.typeLabel}</span>
                     <span class="archive__title">{item.title}</span>
                     <span class="archive__arrow" aria-hidden="true">↗</span>
                   </a>
@@ -154,11 +154,7 @@ const filters = [
 </script>
 
 <style>
-  .page-head { padding-top: var(--space-4xl); padding-bottom: var(--space-2xl); }
-  .page-head .eyebrow { color: var(--accent); margin-bottom: var(--space-lg); }
-  .back-home { display: inline-flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xl); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 7px 10px; color: var(--text-muted); font-family: var(--mono); font-size: 12px; transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
-  .back-home span { color: var(--accent); }
-  .back-home:hover { border-color: var(--accent); color: var(--text); }
+  /* .page-head / .back-home / .eyebrow 样式在 global.css 统一维护 */
 
   .archive__filters { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
   .archive__filter {
@@ -175,7 +171,7 @@ const filters = [
   }
   .archive__filter span { color: var(--text-faint); font-size: 11.5px; }
   .archive__filter:hover { border-color: var(--accent); color: var(--text); }
-  .archive__filter.is-active { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+  .archive__filter.is-active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
   .archive__filter.is-active span { color: var(--accent); }
 
   .archive__count { padding-top: var(--space-xl); padding-bottom: var(--space-md); border-bottom: 1px solid var(--border-strong); color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
@@ -195,10 +191,7 @@ const filters = [
   .archive__year-count { color: var(--text-faint); font-size: 13px; }
 
   .archive__list { margin: 0; padding: 0; list-style: none; }
-  .archive__list > li { border-bottom: 1px solid var(--border); transition: background var(--dur-fast) var(--ease-out); }
-  @media (hover: hover) {
-    .archive__list > li:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
-  }
+  .archive__list > li { border-bottom: 1px solid var(--border-subtle); transition: background var(--dur-fast) var(--ease-out); }
   .archive__row {
     display: grid;
     grid-template-columns: 112px auto minmax(0, 1fr) 20px;
@@ -207,23 +200,25 @@ const filters = [
     padding-block: var(--space-lg);
   }
   .archive__row time, .archive__arrow { color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
+  /* 类型 chip 与首页 Recent 统一：accent-soft 底 + subtle 描边，不按类型分色 */
   .archive__type {
     justify-self: start;
-    border: 1px solid var(--border-strong);
+    background: var(--accent-soft);
+    border: 1px solid var(--border-subtle);
     border-radius: 999px;
-    padding: 2px 9px;
+    padding: 2px 8px;
     color: var(--text-muted);
     font-family: var(--mono);
     font-size: 11px;
     white-space: nowrap;
-    transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
   }
-  .archive__type--notes { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
-  .archive__type--thinkings { color: var(--text); border-color: var(--border-strong); }
-  .archive__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(1.02rem, 1.6vw, 1.15rem); font-weight: 500; transition: color var(--dur-fast) var(--ease-out); }
+  .archive__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(1.02rem, 1.6vw, 1.15rem); font-weight: 500; transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-out); }
   .archive__arrow { padding-top: 2px; transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-spring); }
-  .archive__row:hover .archive__title, .archive__row:hover .archive__arrow, .archive__row:hover .archive__type { color: var(--accent); }
-  .archive__row:hover .archive__arrow { transform: translate(2px, -2px); }
+  @media (hover: hover) {
+    .archive__list > li:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+    .archive__row:hover .archive__title { color: var(--accent); transform: translateX(3px); }
+    .archive__row:hover .archive__arrow { color: var(--accent); transform: translate(2px, -2px); }
+  }
 
   @media (max-width: 600px) {
     .page-head { padding-top: var(--space-3xl); }

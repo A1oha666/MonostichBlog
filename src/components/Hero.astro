@@ -4,16 +4,22 @@
 <header class="hero">
   <div class="hero__screen" aria-hidden="true"></div>
   <div class="hero__inner container">
-    <p class="hero__kicker" data-reveal>Aloha / Backend & AI Full-Stack</p>
+    <p class="hero__kicker">Aloha / Backend &amp; AI Full-Stack</p>
     <h1 class="hero__title">
       <span class="hero__line" style="--line-index: 0">Explore Deeply, </span>
-      <span class="hero__line hero__line--emphasis" style="--line-index: 1">Build Deliberately.</span>
+      <span class="hero__line hero__line--emphasis" style="--line-index: 1">Build Deliberately<span class="hero__cursor" aria-hidden="true"></span></span>
     </h1>
-    <p class="hero__intro" data-reveal style="--reveal-delay: 480ms">
+    <p class="hero__intro">
       Notes on backend engineering, AI applications,<br />and reflections along the way.
     </p>
-    <div class="hero__links" data-reveal style="--reveal-delay: 620ms">
-      <a href="#archive">Writing <span aria-hidden="true">↓</span></a>
+    <div class="hero__facts">
+      <span><b>nanjing, cn</b></span>
+      <span>backend · <b>agent engineering</b></span>
+      <span>class of <b>2028</b></span>
+      <span>open to <b>daily intern</b></span>
+    </div>
+    <div class="hero__links">
+      <a href="#recent">Writing <span aria-hidden="true">↓</span></a>
       <a href="https://github.com/A1oha666" target="_blank" rel="noopener">GitHub ↗</a>
     </div>
   </div>
@@ -39,7 +45,7 @@
         if (entry.intersectionRatio >= 0.3) {
           hero.classList.add("is-title-entering");
         } else if (entry.intersectionRatio <= 0.05) {
-          // also pauses the decorative CRT sweep while off-screen
+          // also pauses the CRT sweep + breathe while off-screen
           hero.classList.remove("is-title-entering");
         }
       },
@@ -54,14 +60,14 @@
 
 <style>
   .hero {
-    min-height: calc(100vh - var(--nav-height));
-    min-height: calc(100svh - var(--nav-height));
+    /* 样例定稿：非满屏的 74vh，内容垂直居中 */
+    min-height: 74vh;
     position: relative;
     isolation: isolate;
     overflow: clip;
     display: grid;
     align-items: center;
-    padding-block: var(--space-3xl) var(--space-4xl);
+    padding-block: 48px 72px;
     contain: paint;
   }
 
@@ -70,7 +76,11 @@
     z-index: 1;
   }
 
+  /* CRT 屏幕：扫描线/暗角/扫光/噪点全保留，外加 9s 呼吸。
+     --screen-base 是静态明度基准，呼吸关键帧按比例缩放，
+     让移动端的整体调暗不被动画覆盖 */
   .hero__screen {
+    --screen-base: 0.85;
     position: absolute;
     inset-block: clamp(6px, 1.4vw, 18px);
     inset-inline: var(--page-gutter);
@@ -95,7 +105,13 @@
       inset 0 0 90px var(--crt-vignette),
       -2px 0 10px color-mix(in srgb, var(--accent) 58%, transparent),
       2px 0 10px color-mix(in srgb, var(--accent) 58%, transparent);
-    opacity: 0.82;
+    opacity: var(--screen-base);
+    animation: breathe 9s ease-in-out infinite;
+  }
+
+  @keyframes breathe {
+    0%, 100% { opacity: calc(var(--screen-base, 0.85) * 0.94); }
+    50% { opacity: calc(var(--screen-base, 0.85) * 1.082); }
   }
 
   .hero__screen::before {
@@ -109,17 +125,20 @@
     background-position: -180% 0, 0 0, 0 0;
     background-repeat: no-repeat;
     background-size: 260% 100%, 100% 100%, 100% 100%;
-    animation: screen-sweep 8s linear infinite;
+    animation: screen-sweep 13s linear infinite;
   }
 
-  /* decorative loop only runs while the hero is on screen (JS available);
-     without JS it stays as-is so the CRT identity doesn't depend on scripts */
+  /* decorative loops only run while the hero is on screen (JS available);
+     without JS they stay as-is so the CRT identity doesn't depend on scripts */
+  :global(html.js) .hero:not(.is-title-entering) .hero__screen {
+    animation-play-state: paused;
+  }
   :global(html.js) .hero:not(.is-title-entering) .hero__screen::before {
     animation-play-state: paused;
   }
 
   @keyframes screen-sweep {
-    0%, 84% { background-position: -180% 0, 0 0, 0 0; }
+    0%, 86% { background-position: -180% 0, 0 0, 0 0; }
     98%, 100% { background-position: 180% 0, 0 0, 0 0; }
   }
 
@@ -140,16 +159,17 @@
 
   h1 {
     max-width: 900px;
-    font-size: clamp(3.15rem, 7.6vw, 6.5rem);
+    font-size: clamp(3rem, 7.4vw, 6.2rem);
     font-weight: 500;
     letter-spacing: -0.035em;
     line-height: 0.98;
+    /* 磷光余晖，不纯白；亮色主题回落正文色保证可读 */
+    color: #cfc9bf;
   }
+  :global(html[data-theme="light"]) h1 { color: var(--text); }
 
   .hero__line {
     display: block;
-    backface-visibility: hidden;
-    transform: translateZ(0);
   }
 
   .hero__line--emphasis {
@@ -158,62 +178,46 @@
     letter-spacing: -0.045em;
   }
 
+  /* 横线光标：终端式硬闪烁（steps 明灭），低伏亮线 */
+  .hero__cursor {
+    display: inline-block;
+    width: 0.62em;
+    height: 0.055em;
+    margin-left: 0.14em;
+    vertical-align: 0.02em;
+    background: var(--accent);
+    border-radius: 2px;
+    box-shadow: 0 0 14px var(--accent-glow), 0 0 40px var(--accent-glow);
+    animation: cursor-blink 2.6s steps(1) infinite;
+  }
+
+  /* v2 柔版进场：更慢更柔，无位移/缩放，只有模糊消散 + 色散余晖 */
   .hero.is-title-entering .hero__line {
-    animation: line-enter 1100ms linear both;
-    animation-delay: calc(var(--line-index) * 360ms);
-    will-change: opacity, filter, transform, text-shadow;
+    animation: line-enter 1300ms linear both;
+    animation-delay: calc(var(--line-index) * 420ms);
+    will-change: opacity, filter;
   }
 
   @keyframes line-enter {
     0% {
       opacity: 0;
       filter: blur(12px);
-      transform: translate3d(-0.075em, 0.15em, 0) scale(1.02);
       text-shadow:
-        -0.08em 0 var(--crt-red),
-        0.08em 0 var(--crt-cyan);
+        -0.07em 0 rgba(255, 74, 45, 0.4),
+        0.07em 0 rgba(61, 213, 232, 0.32);
     }
 
-    18% {
-      opacity: 0.34;
-      filter: blur(9px);
-      transform: translate3d(-0.05em, 0.105em, 0) scale(1.015);
+    45% {
+      opacity: 0.6;
+      filter: blur(5px);
       text-shadow:
-        -0.064em 0 var(--crt-red),
-        0.064em 0 var(--crt-cyan);
-    }
-
-    42% {
-      opacity: 0.74;
-      filter: blur(5.4px);
-      transform: translate3d(-0.024em, 0.055em, 0) scale(1.009);
-      text-shadow:
-        -0.042em 0 var(--crt-red),
-        0.042em 0 var(--crt-cyan);
-    }
-
-    68% {
-      opacity: 0.94;
-      filter: blur(2.2px);
-      transform: translate3d(-0.008em, 0.018em, 0) scale(1.003);
-      text-shadow:
-        -0.021em 0 var(--crt-red),
-        0.021em 0 var(--crt-cyan);
-    }
-
-    86% {
-      opacity: 1;
-      filter: blur(0.7px);
-      transform: translate3d(-0.002em, 0.004em, 0) scale(1.001);
-      text-shadow:
-        -0.007em 0 color-mix(in srgb, var(--crt-red) 55%, transparent),
-        0.007em 0 color-mix(in srgb, var(--crt-cyan) 55%, transparent);
+        -0.035em 0 rgba(255, 74, 45, 0.4),
+        0.035em 0 rgba(61, 213, 232, 0.32);
     }
 
     100% {
       opacity: 1;
       filter: blur(0);
-      transform: translate3d(0, 0, 0) scale(1);
       text-shadow:
         0 0 transparent,
         0 0 transparent;
@@ -222,7 +226,7 @@
 
   .hero__intro {
     max-width: 48ch;
-    margin-top: var(--space-xl);
+    margin-top: 28px;
     color: var(--text-muted);
     font-size: 1.08rem;
   }
@@ -232,10 +236,28 @@
     font-weight: 600;
   }
 
+  .hero__facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 26px;
+    margin-top: 26px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--text-faint);
+  }
+  .hero__facts span::before {
+    content: "▸ ";
+    color: var(--accent);
+  }
+  .hero__facts b {
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
   .hero__links {
     display: flex;
     gap: var(--space-lg);
-    margin-top: var(--space-xl);
+    margin-top: 30px;
     font-family: var(--mono);
     font-size: 13.5px;
   }
@@ -260,18 +282,20 @@
     .hero__screen {
       inset-block: 4px;
       inset-inline: var(--page-gutter);
-      opacity: 0.66;
+      --screen-base: 0.66;
     }
     h1 { font-size: clamp(2.85rem, 15vw, 4.7rem); }
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .hero__screen,
     .hero__screen::before { animation: none; }
+    .hero__screen { opacity: var(--screen-base); }
+    .hero__cursor { animation: none; }
     .hero.is-title-entering .hero__line {
       animation: none;
       opacity: 1;
       filter: none;
-      transform: none;
       text-shadow: none;
     }
   }

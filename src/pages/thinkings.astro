@@ -59,7 +59,7 @@ const momentContents = new Map(renderedMoments.map(({ entry, content }) => [entr
   <section class="page-head container">
     <a class="back-home" href="/" data-reveal><span aria-hidden="true">←</span> 返回主页</a>
     <p class="eyebrow" data-reveal style="--reveal-delay: 60ms">/ thinkings</p>
-    <h1 data-reveal style="--reveal-delay: 120ms">Thinkings</h1>
+    <h1 data-reveal style="--reveal-delay: 120ms" data-scramble>Thinkings</h1>
     <p data-reveal style="--reveal-delay: 200ms">思绪需要一些出口。</p>
   </section>
 
@@ -77,13 +77,13 @@ const momentContents = new Map(renderedMoments.map(({ entry, content }) => [entr
               <div class="thinking__body">
                 <span class="thinking__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
                 <h2><a href={item.href}>{item.title}</a></h2>
-                <p>{item.summary}</p>
+                <p class="prose-zh">{item.summary}</p>
                 <a class="thinking__read" href={item.href}>阅读全文 <span aria-hidden="true">→</span></a>
               </div>
             ) : (
               <div class="thinking__body thinking__body--moment">
                 {item.title && <h2 class="thinking__moment-title">{item.title}</h2>}
-                <div class="thinking__moment-content">
+                <div class="thinking__moment-content prose-zh">
                   {MomentContent ? <MomentContent /> : item.summary && <p>{item.summary}</p>}
                 </div>
               </div>
@@ -97,31 +97,28 @@ const momentContents = new Map(renderedMoments.map(({ entry, content }) => [entr
 </BaseLayout>
 
 <style>
-  .page-head { padding-top: var(--space-4xl); padding-bottom: var(--space-2xl); }
-  .page-head .eyebrow { color: var(--accent); margin-bottom: var(--space-lg); }
-  .back-home { display: inline-flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xl); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 7px 10px; color: var(--text-muted); font-family: var(--mono); font-size: 12px; transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
-  .back-home span { color: var(--accent); }
-  .back-home:hover { border-color: var(--accent); color: var(--text); }
-  h1 { font-size: clamp(3rem, 6vw, 5.5rem); font-weight: 400; font-style: italic; line-height: 1; }
-  .page-head > p:last-child { max-width: 54ch; margin-top: var(--space-lg); color: var(--text-muted); }
+  /* .page-head / .back-home / .eyebrow / h1 字号在 global.css 统一维护；
+     斜体是 Thinkings 栏目有意保留的性格差异 */
+  .page-head h1 { font-weight: 400; font-style: italic; }
   .thinking-list { border-top: 1px solid var(--border-strong); }
-  .thinking { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: var(--space-2xl); padding-block: var(--space-3xl); border-bottom: 1px solid var(--border); transition: background var(--dur-fast) var(--ease-out); scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
-  @media (hover: hover) {
-    .thinking:hover { background: color-mix(in srgb, var(--accent) 3%, transparent); }
-  }
+  .thinking { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: var(--space-2xl); padding-block: var(--space-3xl); border-bottom: 1px solid var(--border-subtle); transition: background var(--dur-fast) var(--ease-out); scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
   .thinking__meta { padding-top: 7px; font-family: var(--mono); font-size: 12px; }
   .thinking__meta p { color: var(--accent); }
-  .thinking__kind { color: var(--text-muted) !important; }
+  /* 「小记」比 thinking 的栏目标签再降半级，让位给正题 */
+  .thinking__kind { color: var(--text-faint) !important; }
   time { display: block; margin-top: var(--space-sm); color: var(--text-faint); }
   .thinking__body { position: relative; max-width: 720px; }
   .thinking__number { position: absolute; top: 7px; right: 0; color: var(--text-faint); font-family: var(--mono); font-size: 12px; }
-  h2 { max-width: 20ch; padding-right: var(--space-2xl); font-size: clamp(1.7rem, 3.5vw, 2.7rem); font-weight: 400; line-height: 1.08; }
-  h2 a { transition: color var(--dur-fast) var(--ease-out); }
+  h2 { max-width: 20ch; padding-right: var(--space-2xl); font-family: var(--serif-zh); font-size: clamp(1.7rem, 3.5vw, 2.7rem); font-weight: 400; line-height: 1.08; }
+  h2 a { display: inline-block; transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-out); }
   .thinking__body > p { max-width: 58ch; margin-top: var(--space-lg); color: var(--text-muted); }
   .thinking__read { display: inline-flex; gap: var(--space-sm); margin-top: var(--space-xl); color: var(--text); font-family: var(--mono); font-size: 12.5px; }
   .thinking__read span { color: var(--accent); transition: transform var(--dur-base) var(--ease-spring); }
-  .thinking:hover h2 a { color: var(--accent); }
-  .thinking:hover .thinking__read span { transform: translateX(3px); }
+  @media (hover: hover) {
+    .thinking:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+    .thinking:hover h2 a { color: var(--accent); transform: translateX(3px); }
+    .thinking:hover .thinking__read span { transform: translate(2px, -2px); }
+  }
 
   /* 小记：无详情页，标题弱化为条目级、正文直接内联展示 */
   .thinking__moment-title { padding-right: 0; font-size: clamp(1.35rem, 2.5vw, 1.85rem); font-weight: 500; line-height: 1.2; }

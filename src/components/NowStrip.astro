@@ -1,0 +1,44 @@
+---
+// 「now」横条：Hero 之后、Recent 之前的状态速览。
+// 数据先硬编码，后续可挪到 src/data/ 由 CMS 驱动。
+const items = [
+  "building <b>argus-gateway</b> — llm 网关的重试与降级",
+  "reading <b>《DDIA》</b> ch.7 事务",
+  "learning <b>golang 调度器</b>",
+];
+---
+
+<div class="now">
+  <div class="now__inner container">
+    <span class="now__label">now</span>
+    {items.map((html) => <span set:html={html} />)}
+  </div>
+</div>
+
+<style>
+  .now {
+    border-block: 1px solid var(--border-subtle);
+    background: var(--surface);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--text-muted);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .now::-webkit-scrollbar { display: none; }
+  .now__inner {
+    display: flex;
+    gap: 34px;
+    padding-block: 11px;
+    white-space: nowrap;
+  }
+  .now__label {
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+  .now__label::before { content: "❯ "; }
+  .now span b {
+    color: var(--text);
+    font-weight: 500;
+  }
+</style>

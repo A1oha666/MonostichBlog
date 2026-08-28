@@ -1,85 +1,103 @@
 ---
 import { projects } from "../data/projects.js";
-const visibleProjects = projects.slice(0, 2);
 ---
 
 <section class="section container" id="projects">
   <div class="section__head" data-reveal>
-    <h2>Selected work</h2>
+    <h2 data-scramble>Selected work</h2>
     <a href="https://github.com/" target="_blank" rel="noopener">GitHub →</a>
   </div>
 
-  <div class="work-list">
+  <div class="work-grid">
     {
-      visibleProjects.map((project, index) => (
-        <article class="work" data-reveal style={`--reveal-delay: ${Math.min(index * 60, 240)}ms`}>
-          <div>
+      projects.map((project, index) => (
+        <a class="work-card" href={project.repo} data-reveal style={`--reveal-delay: ${Math.min(index * 60, 180)}ms`}>
+          <div class="work-card__top">
             <h3>{project.name}</h3>
-            <p>{project.desc}</p>
+            {project.status && (
+              <span class:list={["work-card__status", { "work-card__status--live": project.status === "active" }]}>
+                {project.status}
+              </span>
+            )}
           </div>
-          <p class="work__stack">{project.tags.slice(0, 2).join(" / ")}</p>
-        </article>
+          <p>{project.desc}</p>
+          <div class="work-card__tags">
+            {project.tags.map((tag) => (
+              <span>{tag}</span>
+            ))}
+          </div>
+        </a>
       ))
     }
   </div>
 </section>
 
 <style>
-  .section { padding-block: var(--space-4xl); scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
-  .section__head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    padding-bottom: var(--space-lg);
-    border-bottom: 1px solid var(--border-strong);
-  }
-  .section__head h2 {
-    font-size: 1rem;
-    font-family: var(--mono);
-    font-weight: 500;
-  }
-  .section__head a {
-    color: var(--text-muted);
-    font-family: var(--mono);
-    font-size: 12.5px;
-    transition: color var(--dur-fast) var(--ease-out);
-  }
-  .section__head a:hover { color: var(--accent); }
-  .work {
+  /* 72px 与样例 .section padding-block 对齐 */
+  .section { padding-block: 72px; scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
+
+  /* ===== Work 卡片（照搬 design-preview/index.html） ===== */
+  .work-grid {
     display: grid;
-    grid-template-columns: 1fr auto;
-    gap: var(--space-xl);
-    padding-inline: var(--space-sm);
-    margin-inline: calc(-1 * var(--space-sm));
-    padding-block: var(--space-xl);
-    border-bottom: 1px solid var(--border);
-    transition: background var(--dur-fast) var(--ease-out), border-radius var(--dur-fast) var(--ease-out);
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    padding-top: 26px;
   }
-  @media (hover: hover) {
-    .work:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+  .work-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 24px 24px 20px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    transition: transform var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
   }
-  .work h3 {
+  .work-card:hover {
+    transform: translateY(-3px);
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+    box-shadow: 0 14px 34px rgba(0,0,0,0.42), 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+  .work-card__top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .work-card h3 { font-family: var(--mono); font-size: 1rem; font-weight: 500; color: var(--accent); }
+  .work-card__status {
     font-family: var(--mono);
-    font-size: 1rem;
-    font-weight: 500;
-    color: var(--accent);
-  }
-  .work p {
-    max-width: 62ch;
-    margin-top: var(--space-sm);
-    color: var(--text-muted);
-    font-size: 0.98rem;
-  }
-  .work .work__stack {
-    margin: 0;
-    font-family: var(--mono);
-    font-size: 12px;
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
     color: var(--text-faint);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 2px 9px;
     white-space: nowrap;
   }
+  .work-card__status--live { color: #86c98a; border-color: rgba(134, 201, 138, 0.3); }
+  .work-card__status--live::before { content: "● "; font-size: 8px; }
+  .work-card p { color: var(--text-muted); font-size: 0.95rem; line-height: 1.65; flex: 1; }
+  .work-card__tags { display: flex; flex-wrap: wrap; gap: 7px; }
+  .work-card__tags span {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    padding: 2px 7px;
+  }
+  .work-card::after {
+    content: "↗";
+    position: absolute;
+    right: 20px;
+    bottom: 16px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-faint);
+    opacity: 0;
+    transform: translate(-4px, 4px);
+    transition: all var(--dur-base) var(--ease-spring);
+  }
+  .work-card:hover::after { opacity: 1; transform: none; color: var(--accent); }
 
-  @media (max-width: 600px) {
-    .section { padding-block: var(--space-3xl); }
-    .work { grid-template-columns: 1fr; gap: var(--space-md); }
+  @media (max-width: 700px) {
+    .work-grid { grid-template-columns: 1fr; }
   }
 </style>

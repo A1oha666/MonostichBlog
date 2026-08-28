@@ -3,28 +3,32 @@
    ========================================================= */
 :root,
 :root[data-theme="dark"] {
-  --bg: #151009;
-  --bg-glow: #33200e;
-  --surface: #1f1811;
-  --surface-2: #292015;
-  --text: #f5efe6;
-  --text-muted: #b0a696;
-  --text-faint: #8f8577;
+  --bg: #131110;
+  --bg-glow: #241a10;
+  --surface: #1b1815;
+  --surface-2: #221e19;
+  --surface-3: #2b2620;
+  --text: #ece7df;
+  --text-muted: #a39a8d;
+  --text-faint: #7d766c;
   --accent: #f97316;          /* orange */
   --accent-deep: #ea580c;
-  --accent-soft: rgba(249, 115, 22, 0.14);
-  --border: rgba(245, 239, 230, 0.09);
-  --border-strong: rgba(245, 239, 230, 0.18);
+  --accent-soft: rgba(249, 115, 22, 0.12);
+  --accent-dim: rgba(249, 115, 22, 0.55);
+  --accent-glow: rgba(249, 115, 22, 0.42);
+  --border-subtle: rgba(236, 231, 223, 0.06);
+  --border: rgba(236, 231, 223, 0.10);
+  --border-strong: rgba(236, 231, 223, 0.18);
+  --code-bg: #17140f;
   --code-green: #9cbf9b;
   --code-str: #e0b36b;
   --code-fn: #d7b9a6;
   --on-accent: #1a0e05;
-  --nav-bg: rgba(21, 16, 9, 0.85);
+  --nav-bg: rgba(19, 17, 16, 0.82);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.5);
-  --crt-line: rgba(245, 239, 230, 0.045);
-  --crt-line-strong: rgba(245, 239, 230, 0.085);
+  --crt-line-strong: rgba(236, 231, 223, 0.085);
   --crt-noise-opacity: 0.055;
   --crt-vignette: rgba(0, 0, 0, 0.42);
   --crt-sweep: rgba(249, 115, 22, 0.13);
@@ -40,23 +44,27 @@
   --bg-glow: #f6ebdc;
   --surface: #ffffff;
   --surface-2: #f6efe4;
+  --surface-3: #ede3d3;
   --text: #241b12;
   --text-muted: #6e6154;
   --text-faint: #7e7466;
   --accent: #c2410c;          /* deep orange for contrast on paper */
   --accent-deep: #9a3412;
   --accent-soft: rgba(194, 65, 12, 0.1);
+  --accent-dim: rgba(194, 65, 12, 0.55);
+  --accent-glow: rgba(194, 65, 12, 0.3);
+  --border-subtle: rgba(36, 27, 18, 0.06);
   --border: rgba(36, 27, 18, 0.1);
   --border-strong: rgba(36, 27, 18, 0.22);
+  --code-bg: #f5efe4;
   --code-green: #4e7a4e;
   --code-str: #a0622d;
   --code-fn: #8a5a3b;
   --on-accent: #fff8f2;
-  --nav-bg: rgba(252, 248, 242, 0.85);
+  --nav-bg: rgba(252, 248, 242, 0.82);
   --shadow-sm: 0 1px 2px rgba(58, 42, 24, 0.1);
   --shadow-md: 0 8px 24px rgba(58, 42, 24, 0.12);
   --shadow-lg: 0 24px 60px rgba(58, 42, 24, 0.16);
-  --crt-line: rgba(88, 57, 30, 0.025);
   --crt-line-strong: rgba(88, 57, 30, 0.055);
   --crt-noise-opacity: 0.025;
   --crt-vignette: rgba(92, 55, 24, 0.12);
@@ -103,7 +111,7 @@
   --ease-spring: cubic-bezier(0.34, 1.3, 0.64, 1);
   --dur-fast: 150ms;
   --dur-base: 240ms;
-  --dur-reveal: 360ms;
+  --dur-reveal: 480ms;
 }
 
 /* =========================================================
@@ -126,21 +134,6 @@ body {
     radial-gradient(900px 480px at 78% -8%, var(--bg-glow), transparent 60%);
   background-attachment: fixed;
   transition: background-color var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
-}
-
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent 3px,
-    var(--crt-line) 3px,
-    var(--crt-line) 4px
-  );
 }
 
 h1, h2, h3, h4 {
@@ -186,11 +179,103 @@ img, svg { display: block; max-width: 100%; }
 
 .prose { max-width: var(--maxw-prose); }
 
+/* 中文阅读区：衬线 + 1.85 行高 + 两端对齐 + 中西文自动间距（Chromium，不支持则降级） */
+.prose-zh {
+  font-family: var(--serif-zh);
+  line-height: 1.85;
+  letter-spacing: 0.015em;
+  text-align: justify;
+  text-spacing-trim: space-all;
+}
+
 .eyebrow {
   font-family: var(--mono);
   font-size: 13px;
   letter-spacing: 0.02em;
   color: var(--text-muted);
+}
+
+/* =========================================================
+   Page head — 各列表/功能页共用的页头模式
+   （archive / notes / thinkings / about / search 共用，
+   页面内不再保留本地副本）
+   ========================================================= */
+.page-head {
+  padding-top: var(--space-4xl);
+  padding-bottom: var(--space-2xl);
+}
+.page-head .eyebrow {
+  color: var(--accent);
+  margin-bottom: var(--space-lg);
+}
+.back-home {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xl);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.back-home span { color: var(--accent); }
+.back-home:hover { border-color: var(--accent); color: var(--text); }
+.page-head h1 {
+  font-size: clamp(3rem, 6vw, 5.5rem);
+  font-weight: 500;
+  line-height: 1;
+}
+.page-head > p:last-child {
+  max-width: 54ch;
+  margin-top: var(--space-lg);
+  color: var(--text-muted);
+}
+
+/* =========================================================
+   Section head — 首页模块标题行（Recent / Selected work）
+   ========================================================= */
+.section__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--border-strong);
+}
+.section__head h2 {
+  font-size: 1rem;
+  font-family: var(--mono);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  min-height: 1.2em;
+}
+.section__head a {
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.section__head a span {
+  display: inline-block;
+  color: var(--accent);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+.section__head a:hover { color: var(--accent); }
+.section__head a:hover span { transform: translateX(3px); }
+
+/* =========================================================
+   乱码解码标题（data-scramble）— 字符从符号翻滚定稿，
+   未定稿字符染成暗橙，像信号解码
+   ========================================================= */
+[data-scramble] { min-height: 1.2em; }
+.scramble-glyph { color: var(--accent-dim); }
+
+/* 终端式硬闪烁光标（首页 Hero 横线光标 / About `_` 共用节奏） */
+@keyframes cursor-blink {
+  0%, 58% { opacity: 1; }
+  59%, 100% { opacity: 0; }
 }
 
 /* =========================================================
@@ -315,8 +400,4 @@ html.js [data-reveal].is-revealed {
 
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
-}
-
-@media (forced-colors: active) {
-  body::after { display: none; }
 }

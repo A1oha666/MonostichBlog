@@ -43,12 +43,18 @@ const {
     <ClientRouter />
     <script is:inline>
       (function () {
-        var t;
-        try {
-          t = localStorage.getItem("theme");
-        } catch (e) {}
-        if (t !== "light" && t !== "dark") t = "dark";
-        document.documentElement.dataset.theme = t;
+        var applyTheme = function () {
+          var t;
+          try {
+            t = localStorage.getItem("theme");
+          } catch (e) {}
+          if (t !== "light" && t !== "dark") t = "dark";
+          document.documentElement.dataset.theme = t;
+        };
+        applyTheme();
+        // 视图过渡会用新页面（服务端渲染、无 data-theme）的属性整体替换
+        // <html>，客户端导航后必须重新应用一次，否则浅色会被重置回深色
+        document.addEventListener("astro:after-swap", applyTheme);
       })();
       document.documentElement.classList.add("js");
     </script>
@@ -92,6 +98,67 @@ const {
       document.addEventListener("astro:page-load", setupReveal);
       // runs now too (module scripts are deferred); setupReveal is idempotent
       setupReveal();
+    </script>
+    <script>
+      // 乱码解码标题：[data-scramble] 元素进入视口后，字符从符号池随机
+      // 翻滚，从左到右逐个"定稿"为原字符；未定稿字符用 .scramble-glyph
+      // 染成暗橙（见 global.css）。与 reveal 同样监听 astro:page-load、
+      // 幂等，reduced-motion 下不注册 observer，直接显示原文。
+      function setupScramble() {
+        const items = document.querySelectorAll("[data-scramble]");
+        if (!items.length) return;
+        if (!("IntersectionObserver" in window)) return;
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+        const GLYPHS = "!<>-_\\/[]{}=+*^?#@%&";
+        const settleFrame = (i: number) => 8 + i * 3;
+
+        function scramble(el: HTMLElement) {
+          const original = el.textContent ?? "";
+          if (!original || el.dataset.scrambleDone === "1") return;
+          el.dataset.scrambleDone = "1";
+          const len = original.length;
+          const total = settleFrame(len - 1) + 6;
+          let frame = 0;
+          function tick() {
+            let out = "";
+            for (let i = 0; i < len; i++) {
+              if (frame >= settleFrame(i) || original[i] === " ") {
+                out += original[i];
+              } else {
+                const glyph = GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
+                out += `<span class="scramble-glyph">${glyph}</span>`;
+              }
+            }
+            el.innerHTML = out;
+            frame++;
+            if (frame <= total) {
+              requestAnimationFrame(tick);
+            } else {
+              el.textContent = original; // 全部定稿后清理 DOM
+            }
+          }
+          requestAnimationFrame(tick);
+        }
+
+        const observer = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (!entry.isIntersecting) continue;
+              observer.unobserve(entry.target);
+              scramble(entry.target as HTMLElement);
+            }
+          },
+          { threshold: 0.6 },
+        );
+        items.forEach((el) => {
+          if (el.dataset.scrambleBound === "1") return;
+          el.dataset.scrambleBound = "1";
+          observer.observe(el);
+        });
+      }
+      document.addEventListener("astro:page-load", setupScramble);
+      setupScramble();
     </script>
   </body>
 </html>

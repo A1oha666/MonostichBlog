@@ -10,21 +10,21 @@ import SiteFooter from "../components/SiteFooter.astro";
   </section>
 
   <section class="about container" aria-label="About">
-    <h1 data-reveal style="--reveal-delay: 120ms">Aloha<span class="about__cursor" aria-hidden="true">_</span></h1>
-    <p class="about__line" data-reveal style="--reveal-delay: 200ms">learning backend development.</p>
+    <h1 data-reveal style="--reveal-delay: 120ms"><span data-scramble>Aloha</span><span class="about__cursor" aria-hidden="true">_</span></h1>
+    <p class="about__line" data-reveal style="--reveal-delay: 200ms" data-scramble>learning backend development.</p>
 
     <dl class="about__facts" data-reveal style="--reveal-delay: 400ms">
       <div class="about__fact">
-        <dt>email</dt>
-        <dd><a href="mailto:292081295@qq.com">292081295@qq.com</a></dd>
+        <dt data-scramble>email</dt>
+        <dd><a href="mailto:292081295@qq.com" data-scramble>292081295@qq.com</a></dd>
       </div>
       <div class="about__fact">
-        <dt>github</dt>
-        <dd><a href="https://github.com/A1oha666" target="_blank" rel="noopener">@A1oha666</a></dd>
+        <dt data-scramble>github</dt>
+        <dd><a href="https://github.com/A1oha666" target="_blank" rel="noopener" data-scramble>@A1oha666</a></dd>
       </div>
       <div class="about__fact">
-        <dt>Location</dt>
-        <dd>Here</dd>
+        <dt data-scramble>Location</dt>
+        <dd data-scramble>Here</dd>
       </div>
     </dl>
   </section>
@@ -32,12 +32,7 @@ import SiteFooter from "../components/SiteFooter.astro";
 </BaseLayout>
 
 <style>
-  .page-head { padding-top: var(--space-4xl); padding-bottom: var(--space-2xl); }
-  .page-head .eyebrow { color: var(--accent); margin-bottom: var(--space-lg); }
-  .back-home { display: inline-flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xl); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 7px 10px; color: var(--text-muted); font-family: var(--mono); font-size: 12px; transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
-  .back-home span { color: var(--accent); }
-  .back-home:hover { border-color: var(--accent); color: var(--text); }
-
+  /* .page-head / .back-home / .eyebrow 样式在 global.css 统一维护 */
   .about { padding-bottom: var(--space-4xl); }
   h1 {
     font-family: var(--mono);
@@ -45,13 +40,12 @@ import SiteFooter from "../components/SiteFooter.astro";
     font-weight: 500;
     line-height: 1.1;
   }
-  /* 呼吸的光标 */
+  /* 终端式硬闪烁光标，节奏与首页 Hero 横线光标一致（2.6s steps(1)） */
   .about__cursor {
     margin-left: 2px;
     color: var(--accent);
-    animation: about-blink 1.6s steps(1) infinite;
+    animation: cursor-blink 2.6s steps(1) infinite;
   }
-  @keyframes about-blink { 50% { opacity: 0; } }
   @media (prefers-reduced-motion: reduce) {
     .about__cursor { animation: none; }
   }
@@ -73,7 +67,7 @@ import SiteFooter from "../components/SiteFooter.astro";
     font-size: 13px;
   }
   .about__fact { display: flex; gap: var(--space-xl); align-items: baseline; }
-  .about__fact dt { width: 5.5ch; color: var(--text-faint); }
+  .about__fact dt { width: 5.5ch; flex-shrink: 0; color: var(--text-faint); }
   .about__fact dd { margin: 0; color: var(--text-muted); }
   .about__fact a { color: var(--text); text-decoration: none; border-bottom: 1px solid var(--border-strong); transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); }
   .about__fact a:hover { color: var(--accent); border-color: var(--accent); }
