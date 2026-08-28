@@ -13,3 +13,6 @@ pb/.env.local
 
 # 构建时物化的 PocketBase 附件与缓存
 public/pb/
+
+# ZCode 会话目录
+.zcode/
