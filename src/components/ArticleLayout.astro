@@ -275,10 +275,13 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
     position: relative;
   }
   .article__header { max-width: 1080px; padding-top: var(--space-4xl); padding-bottom: var(--space-3xl); border-bottom: 1px solid var(--border-subtle); }
-  .back-link { display: inline-flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xl); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 7px 10px; color: var(--text-muted); font-family: var(--mono); font-size: 12px; transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+  /* 返回按钮：与 .back-home 同一制式 —— 无边框 [ … ]，hover 整行染琥珀 */
+  .back-link { display: inline-flex; align-items: center; gap: 6px; margin-bottom: var(--space-xl); padding: 4px 2px; color: var(--text-faint); font-family: var(--mono); font-size: 12px; transition: color var(--dur-fast) var(--ease-out); }
+  .back-link::before { content: "["; margin-right: 4px; color: var(--text-faint); transition: color var(--dur-fast) var(--ease-out); }
+  .back-link::after { content: "]"; margin-left: 4px; color: var(--text-faint); transition: color var(--dur-fast) var(--ease-out); }
   .back-link span, .article__eyebrow { color: var(--accent); }
   .back-link span { display: inline-block; transition: transform var(--dur-base) var(--ease-out); }
-  .back-link:hover { border-color: var(--accent); color: var(--text); }
+  .back-link:hover, .back-link:hover::before, .back-link:hover::after { color: var(--accent); }
   .back-link:hover span { transform: translateX(-3px); }
   .article__eyebrow { margin-bottom: var(--space-lg); font-family: var(--mono); font-size: 13px; }
   /* 标题是中文时走衬线；英文标题自然落到栈首的 Fraunces（无需 JS 检测） */

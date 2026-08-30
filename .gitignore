@@ -16,3 +16,6 @@ public/pb/
 
 # ZCode 会话目录
 .zcode/
+
+# WorkBuddy 本地工作记忆
+.workbuddy/

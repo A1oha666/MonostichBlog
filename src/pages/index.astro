@@ -58,7 +58,6 @@ const logPaths = [
   ...thinkings.map((entry) => ({ p: `/thinkings/${entry.id}`, w: 5 })),
   { p: "/notes", w: 3 },
   { p: "/thinkings", w: 3 },
-  { p: "/moments", w: 2 },
   { p: "/archive", w: 2 },
   { p: "/about", w: 2 },
   { p: "/rss.xml", w: 1.5 },
@@ -73,7 +72,7 @@ const logPaths = [
       <section class="oneline container" aria-labelledby="home-oneline-heading">
         <div class="module-head" data-reveal>
           <h2 id="home-oneline-heading"><span class="module-head__no">01</span> 一行</h2>
-          <a href="/moments">小记 →</a>
+          <a href="/thinkings">小记 →</a>
         </div>
         <figure class="oneline__figure" data-reveal style="--reveal-delay: 80ms">
           <blockquote lang="zh-CN">{latestMoment.text}</blockquote>

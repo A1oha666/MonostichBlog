@@ -179,6 +179,24 @@ const { paths } = Astro.props;
       return Math.max(3, Math.floor((H - CFG.topZone - 18) / CFG.lineHeight) - 1);
     }
 
+    /* 行与行之间保持左对齐（tail 的本来面目），但整个日志块按最长行的
+       宽度在空域里水平居中；窄屏放不下整块时退回左边距对齐 */
+    function computeLeftPad() {
+      var gutter = Math.max(20, Math.min(64, W * 0.04)); // 与 .container 一致
+      var longest = "/";
+      var pool = PATHS.map(function (x) { return x.p; }).concat(PROBES);
+      for (var i = 0; i < pool.length; i++) {
+        if (pool[i].length > longest.length) longest = pool[i];
+      }
+      // IP/耗时/方法名都取上界，保证任何随机行都不会超出块宽
+      var req = '"HEAD ' + longest + ' HTTP/1.1" 200 422ms';
+      var chars = W < CFG.compactWidth
+        ? req.length
+        : ("255.255.255.255 [00:00:00] " + req).length;
+      var blockW = chars * charW;
+      leftPad = blockW + gutter * 2 <= W ? Math.round((W - blockW) / 2) : gutter;
+    }
+
     function resize() {
       var dpr = Math.min(window.devicePixelRatio || 1, 2);
       W = canvas.clientWidth;
@@ -188,8 +206,7 @@ const { paths } = Astro.props;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       FONT = CFG.fontSize + 'px "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
       measureChar();
-      // 与 .container 的 clamp(20px, 4vw, 64px) 对齐
-      leftPad = Math.max(20, Math.min(64, W * 0.04));
+      computeLeftPad();
       if (reducedMotion || paused) drawStatic();
     }
 
@@ -272,9 +289,12 @@ const { paths } = Astro.props;
       attributes: true,
       attributeFilter: ["data-theme"]
     });
-    // 字体加载完成后重测字符宽，避免首屏用回退字体度量
+    // 字体加载完成后重测字符宽并重新居中，避免首屏用回退字体度量
     if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(function () { measureChar(); });
+      document.fonts.ready.then(function () {
+        measureChar();
+        computeLeftPad();
+      });
     }
 
     /* ---------- 启动：预播几行，页面打开就不是空屏 ---------- */
