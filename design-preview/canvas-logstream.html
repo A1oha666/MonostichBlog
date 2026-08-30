@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Canvas 背景预览 — Access Log / monostich</title>
+<style>
+  /* ============================================
+     Tokens — 与站点 global.css 保持一致
+     ============================================ */
+  :root,
+  :root[data-theme="dark"] {
+    --bg: #0b0c0e;
+    --text: #e6e7ea;
+    --text-muted: #9a9ba2;
+    --text-faint: #71727b;
+    --accent: #ffb224;
+    --accent-dim: rgba(255, 178, 36, 0.55);
+    --status-bad: #ff4a2d;
+    --border-subtle: rgba(230, 231, 234, 0.06);
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --serif-zh: 'STZhongsong', '华文中宋', 'Songti SC', SimSun, serif;
+    --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+    color-scheme: dark;
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f3ee;
+    --text: #202126;
+    --text-muted: #5d5e66;
+    --text-faint: #7b7c83;
+    --accent: #b45309;
+    --accent-dim: rgba(180, 83, 9, 0.55);
+    --status-bad: #c2410c;
+    --border-subtle: rgba(32, 33, 38, 0.06);
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--serif-zh);
+    transition: background-color 240ms var(--ease-out), color 240ms var(--ease-out);
+    overflow-x: hidden;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 1080px;
+    margin-inline: auto;
+    padding-inline: clamp(20px, 4vw, 64px);
+  }
+
+  /* ============================================
+     模拟首页 Hero（与站点 Hero.astro 同结构）
+     ============================================ */
+  .hero {
+    min-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* 日志瀑布 canvas：只占据 Hero 上半空域，随滚动离场 */
+  #logstream {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 62%;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .hero__colophon,
+  .hero__inner { position: relative; z-index: 1; }
+
+  .hero__colophon {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 32px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-faint);
+  }
+  .hero__prompt { color: var(--text-muted); }
+  .hero__dollar { color: var(--accent); margin-left: 8px; }
+  .hero__led {
+    display: inline-block;
+    width: 7px; height: 7px;
+    margin-right: 9px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent-dim), 0 0 14px var(--accent-dim);
+    animation: led-blink 2.1s steps(1) infinite;
+  }
+  @keyframes led-blink {
+    0%, 64% { opacity: 1; }
+    65%, 100% { opacity: 0.12; }
+  }
+  .hero__inner { margin-top: auto; padding-bottom: 13vh; }
+  .hero__title {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: clamp(2.3rem, 6vw, 4.9rem);
+    letter-spacing: -0.02em;
+    line-height: 1.18;
+    color: var(--text);
+    margin: 0;
+  }
+  .hero__cursor {
+    color: var(--accent);
+    margin-left: 0.08em;
+    animation: cursor-blink 1.6s steps(1) infinite;
+  }
+  @keyframes cursor-blink {
+    0%, 58% { opacity: 1; }
+    59%, 100% { opacity: 0; }
+  }
+  .hero__intro {
+    margin-top: 32px;
+    color: var(--text-muted);
+    font-size: 1.02rem;
+  }
+  .hero__intro::before {
+    content: "//";
+    font-family: var(--mono);
+    color: var(--text-faint);
+  }
+
+  /* 模拟一屏内容，验证日志区只活在 Hero、滚动后即离场 */
+  .ghost { padding-block: 84px; }
+  .ghost h2 {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    color: var(--text-faint);
+    margin: 0 0 8px;
+  }
+  .ghost h2::before { content: "//"; color: var(--accent-dim); margin-right: 10px; }
+  .ghost__row {
+    display: grid;
+    grid-template-columns: 56px 1fr auto;
+    gap: 0 20px;
+    align-items: center;
+    padding-block: 22px;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 1.05rem;
+  }
+  .ghost__no {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+    padding-right: 18px;
+    border-right: 1px solid var(--border-subtle);
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  .ghost__date { font-family: var(--mono); font-size: 11.5px; color: var(--text-faint); }
+
+  /* ============================================
+     预览控制条（仅预览页有，正式集成时去掉）
+     ============================================ */
+  .preview-bar {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 10;
+    display: flex;
+    gap: 8px;
+    font-family: var(--mono);
+  }
+  .preview-bar button {
+    font: inherit;
+    font-size: 12px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--text-faint);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: border-color 150ms, color 150ms;
+  }
+  .preview-bar button:hover { border-color: var(--accent); color: var(--accent); }
+  .preview-note {
+    position: fixed;
+    left: 16px;
+    bottom: 16px;
+    z-index: 10;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <canvas id="logstream" aria-hidden="true"></canvas>
+  <div class="hero__colophon container">
+    <p style="margin:0">
+      <span class="hero__prompt">aloha@monostich</span>:~<span class="hero__dollar">$</span>
+    </p>
+    <p style="margin:0"><span class="hero__led" aria-hidden="true"></span>monostich.cloud</p>
+  </div>
+  <div class="hero__inner container">
+    <h1 class="hero__title">explore and build.<span class="hero__cursor" aria-hidden="true">_</span></h1>
+    <p class="hero__intro">记录一些想法与实践。</p>
+  </div>
+</header>
+
+<section class="ghost container">
+  <h2>02 · 目录（占位，验证滚动后日志区离场）</h2>
+  <div class="ghost__row"><span class="ghost__no">1</span><span>示例条目：占位文字占位文字</span><span class="ghost__date">2026.08.30</span></div>
+  <div class="ghost__row"><span class="ghost__no">2</span><span>示例条目：占位文字占位文字占位</span><span class="ghost__date">2026.08.22</span></div>
+  <div class="ghost__row"><span class="ghost__no">3</span><span>示例条目：占位文字</span><span class="ghost__date">2026.08.15</span></div>
+  <div class="ghost__row"><span class="ghost__no">4</span><span>示例条目：占位文字占位文字占位文字</span><span class="ghost__date">2026.08.02</span></div>
+</section>
+
+<div class="preview-note">canvas preview — access log · 不改动站点代码</div>
+<div class="preview-bar">
+  <button id="btn-theme" type="button">切换亮/暗</button>
+  <button id="btn-burst" type="button">触发一波访问</button>
+  <button id="btn-motion" type="button">暂停动效</button>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ========================================================
+     Access Log —— 访问日志瀑布
+     Hero 上半空域里 tail -f 风格的日志逐行浮现：
+     · 路径是真的（取自站点构建产物 dist/ 的真实路由）
+     · 时间是真的（本机时钟，逐行打戳）
+     · IP 和耗时是虚构的
+     · 偶尔混进一条 wp-admin 探测的 404 —— 真假掺半
+     性能预算：每帧 ≤ 十余次 fillText，无阴影无渐变。
+     ======================================================== */
+
+  var CFG = {
+    fontSize: 11.5,
+    lineHeight: 21,
+    topZone: 56,               // 给 colophon 让位，日志不进入这一带
+    spawnGap: [900, 3400],     // 两条日志的间隔 ms [min, max]
+    burstChance: 0.16,         // 一波连续访问（爬虫/读者翻页）的概率
+    probeChance: 0.05,         // 混进一条恶意探测 404 的概率
+    ease: 9,                   // 位置/透明度指数缓动系数，越大越跟手
+    alphaMeta: 0.55,           // IP / 时间戳
+    alphaReq: 0.88,            // 请求行主体
+    alphaOk: 0.95              // 状态码（200 染琥珀）
+  };
+
+  /* 真实路径 —— 来自 dist/ 构建产物，权重模拟访问热度 */
+  var PATHS = [
+    { p: "/", w: 10 },
+    { p: "/notes/agent-tool-contracts", w: 6 },
+    { p: "/notes/retry-budgets", w: 6 },
+    { p: "/thinkings/tools-and-judgment", w: 5 },
+    { p: "/thinkings/second-thought", w: 4 },
+    { p: "/notes", w: 3 },
+    { p: "/thinkings", w: 3 },
+    { p: "/moments", w: 2 },
+    { p: "/archive", w: 2 },
+    { p: "/about", w: 2 },
+    { p: "/rss.xml", w: 1.5 }
+  ];
+  /* 互联网上永远存在的背景噪声：探测流量，注定 404 */
+  var PROBES = ["/wp-admin", "/wp-login.php", "/xmlrpc.php", "/.env"];
+
+  var canvas = document.getElementById("logstream");
+  var ctx = canvas.getContext("2d");
+  var reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---------- 主题色 ---------- */
+  var C = { faint: "113,114,123", muted: "154,155,162", accent: "255,178,36", bad: "255,74,45" };
+  function hexRgb(v) {
+    var m = v.trim().replace("#", "");
+    if (m.length === 3) m = m[0]+m[0]+m[1]+m[1]+m[2]+m[2];
+    var n = parseInt(m, 16);
+    return isNaN(n) ? null : ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255);
+  }
+  function readColors() {
+    var cs = getComputedStyle(document.documentElement);
+    C.faint  = hexRgb(cs.getPropertyValue("--text-faint"))  || C.faint;
+    C.muted  = hexRgb(cs.getPropertyValue("--text-muted"))  || C.muted;
+    C.accent = hexRgb(cs.getPropertyValue("--accent"))      || C.accent;
+    C.bad    = hexRgb(cs.getPropertyValue("--status-bad"))  || C.bad;
+  }
+
+  /* ---------- 虚构数据生成器 ---------- */
+  function fakeIp() {
+    return (11 + ~~(Math.random() * 200)) + "." + ~~(Math.random() * 256) + "." +
+           ~~(Math.random() * 256) + "." + (1 + ~~(Math.random() * 254));
+  }
+  function fakeLatency(probe) {
+    if (probe) return 1 + ~~(Math.random() * 3);
+    return 2 + ~~(Math.pow(Math.random(), 2.4) * 420); // 大量小耗时，偶发大耗时
+  }
+  function nowStamp() {
+    var d = new Date();
+    return [d.getHours(), d.getMinutes(), d.getSeconds()]
+      .map(function (n) { return String(n).padStart(2, "0"); }).join(":");
+  }
+  function pickWeighted() {
+    var total = PATHS.reduce(function (s, x) { return s + x.w; }, 0);
+    var r = Math.random() * total;
+    for (var i = 0; i < PATHS.length; i++) {
+      r -= PATHS[i].w;
+      if (r <= 0) return PATHS[i].p;
+    }
+    return "/";
+  }
+
+  /* ---------- 日志行 ---------- */
+  var lines = [];       // { segs, y, alpha, dying }
+  var FONT = "";
+
+  function makeLine(forcedPath) {
+    var probe = !forcedPath && Math.random() < CFG.probeChance;
+    var path = forcedPath || (probe
+      ? PROBES[~~(Math.random() * PROBES.length)]
+      : pickWeighted());
+    var method = Math.random() < 0.08 ? "HEAD" : "GET";
+    var status = probe ? 404
+      : (path === "/rss.xml" && Math.random() < 0.4) ? 304
+      : 200;
+    var statusColor = status === 200 ? C.accent : status === 304 ? C.faint : C.bad;
+
+    var segs = [
+      { t: fakeIp(), rgb: C.faint, a: CFG.alphaMeta },
+      { t: " [" + nowStamp() + "] ", rgb: C.faint, a: CFG.alphaMeta * 0.8 },
+      { t: '"' + method + " " + path + ' HTTP/1.1"', rgb: C.muted, a: CFG.alphaReq },
+      { t: " " + status, rgb: statusColor, a: status === 200 ? CFG.alphaOk : 0.9 },
+      { t: " " + fakeLatency(probe) + "ms", rgb: C.faint, a: CFG.alphaMeta }
+    ];
+    ctx.font = FONT;
+    var x = 0;
+    for (var i = 0; i < segs.length; i++) {
+      segs[i].w = ctx.measureText(segs[i].t).width;
+      x += segs[i].w;
+    }
+    return { segs: segs, y: 0, alpha: 0, dying: false };
+  }
+
+  /* 一波连续访问：首页 → 一篇文章 → 也许再来一篇 */
+  function queueBurst() {
+    var seq = ["/", pickWeighted()];
+    if (Math.random() < 0.5) seq.push(pickWeighted());
+    seq.forEach(function (p, i) {
+      setTimeout(function () { spawn(p); }, 350 + i * (300 + Math.random() * 450));
+    });
+  }
+
+  function spawn(forcedPath) {
+    var line = makeLine(forcedPath);
+    // 出生位置：最新行的槽位略偏下，缓动升上来
+    line.y = bottomY() + CFG.lineHeight * 0.7;
+    lines.push(line);
+    if (Math.random() < CFG.burstChance) queueBurst();
+  }
+
+  /* ---------- 布局 ---------- */
+  var W = 0, H = 0, leftPad = 20;
+  function bottomY() { return H - 18; }
+  function maxVisible() {
+    return Math.max(3, Math.floor((H - CFG.topZone - 18) / CFG.lineHeight) - 1);
+  }
+
+  function resize() {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = canvas.clientWidth;
+    H = canvas.clientHeight;
+    canvas.width = Math.floor(W * dpr);
+    canvas.height = Math.floor(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    FONT = CFG.fontSize + 'px "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+    // 与 .container 的 clamp(20px, 4vw, 64px) 对齐
+    leftPad = Math.max(20, Math.min(64, W * 0.04));
+    if (reducedMotion || paused) drawStatic();
+  }
+
+  /* ---------- 渲染 ---------- */
+  function drawLine(line, ty) {
+    var x = leftPad;
+    ctx.font = FONT;
+    ctx.textBaseline = "alphabetic";
+    for (var i = 0; i < line.segs.length; i++) {
+      var s = line.segs[i];
+      ctx.fillStyle = "rgba(" + s.rgb + "," + (s.a * line.alpha).toFixed(3) + ")";
+      ctx.fillText(s.t, x, ty);
+      x += s.w;
+    }
+  }
+
+  function drawStatic() {
+    ctx.clearRect(0, 0, W, H);
+    for (var i = 0; i < lines.length; i++) {
+      var slot = lines.length - 1 - i;
+      drawLine(lines[i], Math.round(bottomY() - slot * CFG.lineHeight));
+    }
+  }
+
+  /* ---------- 主循环 ---------- */
+  var paused = false;
+  var rafId = 0;
+  var lastNow = 0;
+  var nextSpawnAt = 0;
+
+  function loop(now) {
+    var dt = Math.min((now - lastNow) / 1000, 0.1);
+    lastNow = now;
+
+    if (now >= nextSpawnAt) {
+      spawn();
+      nextSpawnAt = now + CFG.spawnGap[0] + Math.random() * (CFG.spawnGap[1] - CFG.spawnGap[0]);
+    }
+
+    var k = 1 - Math.exp(-dt * CFG.ease); // 帧率无关的指数缓动
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      var slot = lines.length - 1 - i;
+      var targetY = bottomY() - slot * CFG.lineHeight;
+      line.y += (targetY - line.y) * k;
+      // 入场淡入；被顶到顶部区域的行淡出
+      var targetAlpha = slot > maxVisible() - 1 ? 0 : 1;
+      line.alpha += (targetAlpha - line.alpha) * k;
+      if (slot > maxVisible() && line.alpha < 0.02) line.dying = true;
+    }
+    // 从最老的一端移除
+    while (lines.length && lines[0].dying) lines.shift();
+
+    ctx.clearRect(0, 0, W, H);
+    for (i = 0; i < lines.length; i++) {
+      drawLine(lines[i], Math.round(lines[i].y));
+    }
+    rafId = requestAnimationFrame(loop);
+  }
+  function start() {
+    if (rafId || reducedMotion) return;
+    lastNow = performance.now();
+    nextSpawnAt = lastNow + 600;
+    rafId = requestAnimationFrame(loop);
+  }
+  function stop() {
+    cancelAnimationFrame(rafId);
+    rafId = 0;
+  }
+
+  /* ---------- 事件 ---------- */
+  window.addEventListener("resize", resize);
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) stop();
+    else if (!paused) start();
+  });
+  new MutationObserver(readColors).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme"]
+  });
+
+  /* ---------- 预览控制条（仅预览用） ---------- */
+  document.getElementById("btn-theme").addEventListener("click", function () {
+    var el = document.documentElement;
+    el.dataset.theme = el.dataset.theme === "dark" ? "light" : "dark";
+    if (reducedMotion || paused) drawStatic();
+  });
+  document.getElementById("btn-burst").addEventListener("click", function () {
+    queueBurst();
+  });
+  document.getElementById("btn-motion").addEventListener("click", function (e) {
+    paused = !paused;
+    e.target.textContent = paused ? "继续动效" : "暂停动效";
+    if (paused) stop();
+    else start();
+  });
+
+  /* ---------- 启动：预播几行，页面打开就不是空屏 ---------- */
+  readColors();
+  resize();
+  for (var i = 0; i < 4; i++) {
+    var line = makeLine();
+    line.alpha = reducedMotion ? 1 : 0;
+    line.y = bottomY() - (3 - i) * CFG.lineHeight;
+    lines.push(line);
+  }
+  if (reducedMotion) {
+    drawStatic(); // 静帧：几行静止日志
+  } else {
+    start();
+  }
+})();
+</script>
+</body>
+</html>

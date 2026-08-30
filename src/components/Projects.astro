@@ -2,102 +2,120 @@
 import { projects } from "../data/projects.js";
 ---
 
-<section class="section container" id="projects">
-  <div class="section__head" data-reveal>
-    <h2 data-scramble>Selected work</h2>
-    <a href="https://github.com/" target="_blank" rel="noopener">GitHub →</a>
+<section class="section container" id="projects" aria-labelledby="work-heading">
+  <div class="module-head" data-reveal>
+    <h2 id="work-heading"><span class="module-head__no">03</span> 造物</h2>
+    <a href="https://github.com/A1oha666" target="_blank" rel="noopener">GitHub ↗</a>
   </div>
 
-  <div class="work-grid">
+  <ol class="work-list">
     {
-      projects.map((project, index) => (
-        <a class="work-card" href={project.repo} data-reveal style={`--reveal-delay: ${Math.min(index * 60, 180)}ms`}>
-          <div class="work-card__top">
-            <h3>{project.name}</h3>
-            {project.status && (
-              <span class:list={["work-card__status", { "work-card__status--live": project.status === "active" }]}>
-                {project.status}
-              </span>
+      projects.map((project, index) => {
+        // 尚无公开仓库（repo 为 "#"）时渲染静态行，避免假链接
+        const linked = project.repo && project.repo !== "#";
+        const reveal = `--reveal-delay: ${Math.min(index * 60, 180)}ms`;
+        const inner = (
+          <>
+            <span class="work-row__name">{project.name}</span>
+            <span class="work-row__desc">{project.desc}</span>
+            <span class:list={["work-row__status", { "work-row__status--live": project.status === "active" }]}>
+              [{project.status}]
+            </span>
+          </>
+        );
+        return (
+          <li data-reveal style={reveal}>
+            {linked ? (
+              <a class="work-row" href={project.repo} target="_blank" rel="noopener">
+                {inner}
+              </a>
+            ) : (
+              <div class="work-row work-row--static">{inner}</div>
             )}
-          </div>
-          <p>{project.desc}</p>
-          <div class="work-card__tags">
-            {project.tags.map((tag) => (
-              <span>{tag}</span>
-            ))}
-          </div>
-        </a>
-      ))
+          </li>
+        );
+      })
     }
-  </div>
+  </ol>
 </section>
 
 <style>
-  /* 72px 与样例 .section padding-block 对齐 */
-  .section { padding-block: 72px; scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
+  .section { padding-block: 84px; scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
 
-  /* ===== Work 卡片（照搬 design-preview/index.html） ===== */
-  .work-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 18px;
-    padding-top: 26px;
-  }
-  .work-card {
-    position: relative;
+  /* ===== 模块头：与首页 index.astro 同一制式（组件样式互不可见，此处各留一份） ===== */
+  .module-head {
     display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 24px 24px 20px;
-    background: var(--surface-2);
-    border: 1px solid var(--border-subtle);
-    border-radius: 14px;
-    transition: transform var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-md);
+    margin-bottom: var(--space-sm);
   }
-  .work-card:hover {
-    transform: translateY(-3px);
-    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
-    box-shadow: 0 14px 34px rgba(0,0,0,0.42), 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
-  }
-  .work-card__top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-  .work-card h3 { font-family: var(--mono); font-size: 1rem; font-weight: 500; color: var(--accent); }
-  .work-card__status {
+  .module-head h2 {
     font-family: var(--mono);
-    font-size: 10.5px;
-    letter-spacing: 0.04em;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
     color: var(--text-faint);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 2px 9px;
+  }
+  .module-head h2::before {
+    content: "//";
+    color: var(--accent-dim);
+    margin-right: 10px;
+  }
+  .module-head__no { margin-right: 10px; }
+  .module-head a {
+    color: var(--text-faint);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+  .module-head a:hover { color: var(--accent); }
+
+  /* ===== 造物：无卡片，三栏一行 —— 名 / 述 / 状态 ===== */
+  .work-list { margin: 0; padding: 0; list-style: none; }
+  .work-list > li { border-bottom: 1px solid var(--border-subtle); }
+  .work-row {
+    display: grid;
+    grid-template-columns: 190px minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 24px;
+    padding-block: 22px;
+  }
+  .work-row__name {
+    font-family: var(--mono);
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text);
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+  .work-row__desc {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .work-card__status--live { color: #86c98a; border-color: rgba(134, 201, 138, 0.3); }
-  .work-card__status--live::before { content: "● "; font-size: 8px; }
-  .work-card p { color: var(--text-muted); font-size: 0.95rem; line-height: 1.65; flex: 1; }
-  .work-card__tags { display: flex; flex-wrap: wrap; gap: 7px; }
-  .work-card__tags span {
+  .work-row__status {
     font-family: var(--mono);
     font-size: 11px;
+    letter-spacing: 0.08em;
     color: var(--text-faint);
-    border: 1px solid var(--border-subtle);
-    border-radius: 6px;
-    padding: 2px 7px;
+    white-space: nowrap;
   }
-  .work-card::after {
-    content: "↗";
-    position: absolute;
-    right: 20px;
-    bottom: 16px;
-    font-family: var(--mono);
-    font-size: 13px;
-    color: var(--text-faint);
-    opacity: 0;
-    transform: translate(-4px, 4px);
-    transition: all var(--dur-base) var(--ease-spring);
+  /* 进行中的项目：不点灯、不描边，只换一点磷光 */
+  .work-row__status--live { color: var(--accent); }
+
+  .work-row--static { cursor: default; }
+  @media (hover: hover) {
+    a.work-row:hover .work-row__name { color: var(--accent); }
   }
-  .work-card:hover::after { opacity: 1; transform: none; color: var(--accent); }
+  a.work-row:focus-visible .work-row__name { color: var(--accent); }
 
   @media (max-width: 700px) {
-    .work-grid { grid-template-columns: 1fr; }
+    .section { padding-block: 64px; }
+    .work-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; padding-block: 18px; }
+    .work-row__desc { grid-column: 1 / -1; white-space: normal; }
   }
 </style>

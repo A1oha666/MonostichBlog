@@ -3,7 +3,7 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 ---
 
-<BaseLayout title="About — Aloha" description="Aloha — learning backend development.">
+<BaseLayout lang="zh-CN" title="About — Aloha" description="Aloha — learning backend development.">
   <section class="page-head container">
     <a class="back-home" href="/" data-reveal><span aria-hidden="true">←</span> 返回主页</a>
     <p class="eyebrow" data-reveal style="--reveal-delay: 60ms">/ about</p>
@@ -67,6 +67,9 @@ import SiteFooter from "../components/SiteFooter.astro";
     font-size: 13px;
   }
   .about__fact { display: flex; gap: var(--space-xl); align-items: baseline; }
+  /* mono 在 .about__facts 上声明；但 :lang(zh) 会直接命中包括中间 div 在内的
+     每个元素，inherit 会解析到被污染的父级，因此这里必须显式声明 mono */
+  .about__fact dt, .about__fact dd, .about__fact a { font-family: var(--mono); }
   .about__fact dt { width: 5.5ch; flex-shrink: 0; color: var(--text-faint); }
   .about__fact dd { margin: 0; color: var(--text-muted); }
   .about__fact a { color: var(--text); text-decoration: none; border-bottom: 1px solid var(--border-strong); transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); }

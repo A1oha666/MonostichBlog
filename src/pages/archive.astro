@@ -53,10 +53,12 @@ const total = buckets.reduce((sum, b) => sum + b.entries.length, 0);
 const years = new Map<number, Array<{ date: Date; title: string; meta: string; href: string; type: string; typeLabel: string }>>();
 for (const bucket of buckets) {
   for (const item of bucket.entries) {
-    // content layer 传来的 date 可能是 Date 也可能是 ISO 字符串，统一转 Date 再取年份
-    const y = new Date(item.date).getFullYear();
+    // content layer 传来的 date 可能是 Date 也可能是 ISO 字符串，统一转 Date
+    // —— 取年份和后续排序都依赖它（字符串调 valueOf() 减法会得 NaN，比较器静默失效）
+    const date = new Date(item.date);
+    const y = date.getFullYear();
     if (!years.has(y)) years.set(y, []);
-    years.get(y).push({ ...item, type: bucket.type, typeLabel: bucket.label });
+    years.get(y).push({ ...item, date, type: bucket.type, typeLabel: bucket.label });
   }
 }
 const yearGroups = [...years.entries()]
@@ -70,7 +72,7 @@ const filters = [
 ];
 ---
 
-<BaseLayout title="Archive — Aloha" description="Aloha 的全部写作归档，按年份与栏目回溯。">
+<BaseLayout lang="zh-CN" title="Archive — Aloha" description="Aloha 的全部写作归档，按年份与栏目回溯。">
   <section class="page-head container">
     <a class="back-home" href="/" data-reveal><span aria-hidden="true">←</span> 返回主页</a>
     <p class="eyebrow" data-reveal style="--reveal-delay: 60ms">/ archive</p>
@@ -79,15 +81,17 @@ const filters = [
   <section class="archive container" aria-label="归档">
     <div class="archive__filters" data-reveal role="group" aria-label="按栏目筛选">
       {
-        filters.map((f) => (
-          <a
-            class="archive__filter"
-            href={f.type === "all" ? "/archive/" : `/archive/?type=${f.type}`}
-            data-type={f.type}
-          >
-            {f.label}
-            <span>{f.count}</span>
-          </a>
+        filters.map((f, i) => (
+          <>
+            {i > 0 && <span class="archive__filter-sep" aria-hidden="true">/</span>}
+            <a
+              class="archive__filter"
+              href={f.type === "all" ? "/archive/" : `/archive/?type=${f.type}`}
+              data-type={f.type}
+            >
+              {f.label}<span>{f.count}</span>
+            </a>
+          </>
         ))
       }
     </div>
@@ -131,7 +135,9 @@ const filters = [
 
     document.querySelectorAll(".archive__filter").forEach((el) => {
       el.classList.toggle("is-active", (el as HTMLElement).dataset.type === active);
-      el.setAttribute("aria-pressed", String((el as HTMLElement).dataset.type === active));
+      // 筛选项是会改变 URL 的链接，用 aria-current 而非 aria-pressed（后者只适用于 toggle button）
+      if ((el as HTMLElement).dataset.type === active) el.setAttribute("aria-current", "page");
+      else el.removeAttribute("aria-current");
     });
 
     let shown = 0;
@@ -156,23 +162,26 @@ const filters = [
 <style>
   /* .page-head / .back-home / .eyebrow 样式在 global.css 统一维护 */
 
-  .archive__filters { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
-  .archive__filter {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-sm);
-    border: 1px solid var(--border-strong);
-    border-radius: var(--radius-sm);
-    padding: 7px 12px;
-    color: var(--text-muted);
+  /* 斜杠路径式筛选：全部/Notes/Thinkings —— 无框无底色，激活项染琥珀 */
+  .archive__filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 10px;
     font-family: var(--mono);
     font-size: 12.5px;
-    transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
   }
-  .archive__filter span { color: var(--text-faint); font-size: 11.5px; }
-  .archive__filter:hover { border-color: var(--accent); color: var(--text); }
-  .archive__filter.is-active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
-  .archive__filter.is-active span { color: var(--accent); }
+  .archive__filter {
+    color: var(--text-muted);
+    /* :lang(zh-CN) 直接命中链接元素，mono 必须显式声明而非依赖继承 */
+    font-family: var(--mono);
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+  .archive__filter span { margin-left: 4px; color: var(--text-faint); font-size: 11px; }
+  .archive__filter:hover { color: var(--text); }
+  .archive__filter.is-active { color: var(--accent); }
+  .archive__filter.is-active span { color: var(--accent-dim); }
+  .archive__filter-sep { color: var(--border-strong); user-select: none; }
 
   .archive__count { padding-top: var(--space-xl); padding-bottom: var(--space-md); border-bottom: 1px solid var(--border-strong); color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
 
@@ -200,14 +209,10 @@ const filters = [
     padding-block: var(--space-lg);
   }
   .archive__row time, .archive__arrow { color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
-  /* 类型 chip 与首页 Recent 统一：accent-soft 底 + subtle 描边，不按类型分色 */
+  /* 类型标注：与筛选行同一制式 —— 纯文本无框无底，不占视觉重量 */
   .archive__type {
     justify-self: start;
-    background: var(--accent-soft);
-    border: 1px solid var(--border-subtle);
-    border-radius: 999px;
-    padding: 2px 8px;
-    color: var(--text-muted);
+    color: var(--text-faint);
     font-family: var(--mono);
     font-size: 11px;
     white-space: nowrap;

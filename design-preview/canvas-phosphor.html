@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Canvas 背景预览 — Phosphor Dust / monostich</title>
+<style>
+  /* ============================================
+     Tokens — 与站点 global.css 保持一致
+     ============================================ */
+  :root,
+  :root[data-theme="dark"] {
+    --bg: #0b0c0e;
+    --text: #e6e7ea;
+    --text-muted: #9a9ba2;
+    --text-faint: #71727b;
+    --accent: #ffb224;
+    --accent-dim: rgba(255, 178, 36, 0.55);
+    --border-subtle: rgba(230, 231, 234, 0.06);
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --serif-zh: 'STZhongsong', '华文中宋', 'Songti SC', SimSun, serif;
+    --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+    color-scheme: dark;
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f3ee;
+    --text: #202126;
+    --text-muted: #5d5e66;
+    --text-faint: #7b7c83;
+    --accent: #b45309;
+    --accent-dim: rgba(180, 83, 9, 0.55);
+    --border-subtle: rgba(32, 33, 38, 0.06);
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--serif-zh);
+    transition: background-color 240ms var(--ease-out), color 240ms var(--ease-out);
+    overflow-x: hidden;
+  }
+
+  /* ============================================
+     Canvas：全屏固定在最底层，不拦截任何事件
+     ============================================ */
+  #phosphor {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 1080px;
+    margin-inline: auto;
+    padding-inline: clamp(20px, 4vw, 64px);
+  }
+
+  /* ============================================
+     模拟首页 Hero（与站点 Hero.astro 同结构）
+     ============================================ */
+  .hero {
+    min-height: 88vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .hero__colophon {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 32px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-faint);
+  }
+  .hero__prompt { color: var(--text-muted); }
+  .hero__dollar { color: var(--accent); margin-left: 8px; }
+  .hero__led {
+    display: inline-block;
+    width: 7px; height: 7px;
+    margin-right: 9px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent-dim), 0 0 14px var(--accent-dim);
+    animation: led-blink 2.1s steps(1) infinite;
+  }
+  @keyframes led-blink {
+    0%, 64% { opacity: 1; }
+    65%, 100% { opacity: 0.12; }
+  }
+  .hero__inner { margin-top: auto; padding-bottom: 13vh; }
+  .hero__title {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: clamp(2.3rem, 6vw, 4.9rem);
+    letter-spacing: -0.02em;
+    line-height: 1.18;
+    color: var(--text);
+    margin: 0;
+  }
+  .hero__cursor {
+    color: var(--accent);
+    margin-left: 0.08em;
+    animation: cursor-blink 1.6s steps(1) infinite;
+  }
+  @keyframes cursor-blink {
+    0%, 58% { opacity: 1; }
+    59%, 100% { opacity: 0; }
+  }
+  .hero__intro {
+    margin-top: 32px;
+    color: var(--text-muted);
+    font-size: 1.02rem;
+  }
+  .hero__intro::before {
+    content: "//";
+    font-family: var(--mono);
+    color: var(--text-faint);
+  }
+
+  /* 模拟一屏内容，验证滚动时背景表现 */
+  .ghost { padding-block: 84px; }
+  .ghost h2 {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    color: var(--text-faint);
+    margin: 0 0 8px;
+  }
+  .ghost h2::before { content: "//"; color: var(--accent-dim); margin-right: 10px; }
+  .ghost__row {
+    display: grid;
+    grid-template-columns: 56px 1fr auto;
+    gap: 0 20px;
+    align-items: center;
+    padding-block: 22px;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 1.05rem;
+  }
+  .ghost__no {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+    text-align: right;
+    padding-right: 18px;
+    border-right: 1px solid var(--border-subtle);
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  .ghost__date { font-family: var(--mono); font-size: 11.5px; color: var(--text-faint); }
+
+  /* ============================================
+     预览控制条（仅预览页有，正式集成时去掉）
+     ============================================ */
+  .preview-bar {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 10;
+    display: flex;
+    gap: 8px;
+    font-family: var(--mono);
+  }
+  .preview-bar button {
+    font: inherit;
+    font-size: 12px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--text-faint);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: border-color 150ms, color 150ms;
+  }
+  .preview-bar button:hover { border-color: var(--accent); color: var(--accent); }
+  .preview-note {
+    position: fixed;
+    left: 16px;
+    bottom: 16px;
+    z-index: 10;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="phosphor" aria-hidden="true"></canvas>
+
+<header class="hero">
+  <div class="hero__colophon container">
+    <p style="margin:0">
+      <span class="hero__prompt">aloha@monostich</span>:~<span class="hero__dollar">$</span>
+    </p>
+    <p style="margin:0"><span class="hero__led" aria-hidden="true"></span>monostich.cloud</p>
+  </div>
+  <div class="hero__inner container">
+    <h1 class="hero__title">explore and build.<span class="hero__cursor" aria-hidden="true">_</span></h1>
+    <p class="hero__intro">记录一些想法与实践。</p>
+  </div>
+</header>
+
+<section class="ghost container">
+  <h2>02 · 目录（占位，验证滚动与阅读）</h2>
+  <div class="ghost__row"><span class="ghost__no">1</span><span>示例条目：占位文字占位文字</span><span class="ghost__date">2026.08.30</span></div>
+  <div class="ghost__row"><span class="ghost__no">2</span><span>示例条目：占位文字占位文字占位</span><span class="ghost__date">2026.08.22</span></div>
+  <div class="ghost__row"><span class="ghost__no">3</span><span>示例条目：占位文字</span><span class="ghost__date">2026.08.15</span></div>
+  <div class="ghost__row"><span class="ghost__no">4</span><span>示例条目：占位文字占位文字占位文字</span><span class="ghost__date">2026.08.02</span></div>
+</section>
+
+<div class="preview-note">canvas preview — phosphor dust · 不改动站点代码</div>
+<div class="preview-bar">
+  <button id="btn-theme" type="button">切换亮/暗</button>
+  <button id="btn-motion" type="button">暂停动效</button>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ========================================================
+     Phosphor Dust —— 磷光尘埃
+     为 monostich 定制的全屏 canvas 背景：
+     · 缓慢的琥珀色微粒漂移，各自带磷光式明灭（呼应 LED）
+     · 近距离微粒之间连极细的"星座线"
+     · 指针靠近时微粒被温柔推开，并牵出淡淡的连线
+     · 极低概率出现一条缓慢下扫的扫描线（呼应 CRT sweep）
+     原则：存在感低、绝不打扰阅读；亮色主题自动换深琥珀。
+     ======================================================== */
+
+  var canvas = document.getElementById("phosphor");
+  var ctx = canvas.getContext("2d");
+
+  var reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* 主题配色：从 CSS 变量读，切主题时重读 */
+  var palette = { bg: "#0b0c0e", dot: "255,178,36", line: "255,178,36" };
+  function readPalette() {
+    var cs = getComputedStyle(document.documentElement);
+    var accent = cs.getPropertyValue("--accent").trim() || "#ffb224";
+    var rgb = hexToRgb(accent);
+    palette.dot = rgb;
+    palette.line = rgb;
+  }
+  function hexToRgb(hex) {
+    var m = hex.replace("#", "");
+    if (m.length === 3) m = m[0]+m[0]+m[1]+m[1]+m[2]+m[2];
+    var n = parseInt(m, 16);
+    return ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255);
+  }
+
+  /* ---------- 尺寸与密度 ---------- */
+  var W = 0, H = 0, DPR = 1;
+  var particles = [];
+  var DENSITY = 1 / 26000;      // 每 26000px² 一粒 —— 稀疏才高级
+  var LINK_DIST = 110;          // 星座线最大距离
+  var MOUSE_DIST = 150;         // 指针影响半径
+
+  var mouse = { x: -9999, y: -9999, active: false };
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W + "px";
+    canvas.style.height = H + "px";
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    seed();
+    if (reducedMotion || paused) drawFrame(0); // 静帧兜底
+  }
+
+  /* ---------- 粒子 ---------- */
+  function seed() {
+    var count = Math.round((W * H) * DENSITY);
+    particles = [];
+    for (var i = 0; i < count; i++) {
+      particles.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: 0.6 + Math.random() * 1.3,          // 0.6 ~ 1.9px
+        vx: (Math.random() - 0.5) * 0.12,      // 极慢漂移
+        vy: (Math.random() - 0.5) * 0.12 - 0.03, // 轻微上浮
+        phase: Math.random() * Math.PI * 2,    // 明灭相位
+        flicker: 0.4 + Math.random() * 0.6,    // 明灭速度
+        base: 0.25 + Math.random() * 0.45      // 基础亮度
+      });
+    }
+  }
+
+  /* ---------- 扫描线（稀有事件） ---------- */
+  var sweep = { y: -1, speed: 0.55, nextAt: performance.now() + 9000 };
+
+  function maybeSweep(now) {
+    if (sweep.y < 0 && now >= sweep.nextAt) sweep.y = -40;
+    if (sweep.y >= 0) {
+      sweep.y += sweep.speed;
+      if (sweep.y > H + 40) {
+        sweep.y = -1;
+        sweep.nextAt = now + 12000 + Math.random() * 10000; // 12~22s 后再次
+      }
+    }
+  }
+
+  /* ---------- 渲染 ---------- */
+  function drawFrame(now) {
+    ctx.clearRect(0, 0, W, H);
+
+    var i, j, p, q, dx, dy, d2, alpha;
+
+    // 星座线：先画线再画点，点压在线头上更干净
+    ctx.lineWidth = 1;
+    for (i = 0; i < particles.length; i++) {
+      p = particles[i];
+      for (j = i + 1; j < particles.length; j++) {
+        q = particles[j];
+        dx = p.x - q.x;
+        if (dx > LINK_DIST || dx < -LINK_DIST) continue;
+        dy = p.y - q.y;
+        if (dy > LINK_DIST || dy < -LINK_DIST) continue;
+        d2 = dx * dx + dy * dy;
+        if (d2 > LINK_DIST * LINK_DIST) continue;
+        alpha = (1 - Math.sqrt(d2) / LINK_DIST) * 0.10; // 极淡
+        ctx.strokeStyle = "rgba(" + palette.line + "," + alpha.toFixed(3) + ")";
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(q.x, q.y);
+        ctx.stroke();
+      }
+    }
+
+    // 指针连线：比星座线略亮，仍克制
+    if (mouse.active) {
+      for (i = 0; i < particles.length; i++) {
+        p = particles[i];
+        dx = p.x - mouse.x;
+        dy = p.y - mouse.y;
+        d2 = dx * dx + dy * dy;
+        if (d2 > MOUSE_DIST * MOUSE_DIST) continue;
+        alpha = (1 - Math.sqrt(d2) / MOUSE_DIST) * 0.22;
+        ctx.strokeStyle = "rgba(" + palette.line + "," + alpha.toFixed(3) + ")";
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(mouse.x, mouse.y);
+        ctx.stroke();
+      }
+    }
+
+    // 微粒本体：磷光式明灭
+    for (i = 0; i < particles.length; i++) {
+      p = particles[i];
+      var glow = p.base * (0.65 + 0.35 * Math.sin(now * 0.001 * p.flicker + p.phase));
+      ctx.fillStyle = "rgba(" + palette.dot + "," + glow.toFixed(3) + ")";
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 扫描线：一条极淡的横带缓缓下扫
+    if (sweep.y >= 0) {
+      var grad = ctx.createLinearGradient(0, sweep.y - 30, 0, sweep.y + 30);
+      grad.addColorStop(0, "rgba(" + palette.line + ",0)");
+      grad.addColorStop(0.5, "rgba(" + palette.line + ",0.045)");
+      grad.addColorStop(1, "rgba(" + palette.line + ",0)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, sweep.y - 30, W, 60);
+    }
+  }
+
+  /* ---------- 物理步进 ---------- */
+  function step() {
+    for (var i = 0; i < particles.length; i++) {
+      var p = particles[i];
+
+      // 指针温柔推斥
+      if (mouse.active) {
+        var dx = p.x - mouse.x;
+        var dy = p.y - mouse.y;
+        var d2 = dx * dx + dy * dy;
+        if (d2 < MOUSE_DIST * MOUSE_DIST && d2 > 0.01) {
+          var d = Math.sqrt(d2);
+          var force = (1 - d / MOUSE_DIST) * 0.06;
+          p.vx += (dx / d) * force;
+          p.vy += (dy / d) * force;
+        }
+      }
+
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // 速度缓慢衰减回漂移基准，避免被指针"打飞"
+      p.vx *= 0.985;
+      p.vy *= 0.985;
+
+      // 环绕边界
+      if (p.x < -20) p.x = W + 20;
+      if (p.x > W + 20) p.x = -20;
+      if (p.y < -20) p.y = H + 20;
+      if (p.y > H + 20) p.y = -20;
+    }
+  }
+
+  /* ---------- 主循环 ---------- */
+  var paused = false;
+  var rafId = 0;
+  function loop(now) {
+    maybeSweep(now);
+    step();
+    drawFrame(now);
+    rafId = requestAnimationFrame(loop);
+  }
+  function start() {
+    if (rafId || reducedMotion) return;
+    rafId = requestAnimationFrame(loop);
+  }
+  function stop() {
+    cancelAnimationFrame(rafId);
+    rafId = 0;
+  }
+
+  /* ---------- 事件 ---------- */
+  window.addEventListener("resize", resize);
+  window.addEventListener("pointermove", function (e) {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+    mouse.active = true;
+  });
+  window.addEventListener("pointerleave", function () { mouse.active = false; });
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) stop();
+    else if (!paused) start();
+  });
+
+  /* 主题切换时重读配色（亮/暗按钮 + 系统级变化都覆盖） */
+  new MutationObserver(readPalette).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme"]
+  });
+
+  /* ---------- 预览控制条（仅预览用） ---------- */
+  document.getElementById("btn-theme").addEventListener("click", function () {
+    var el = document.documentElement;
+    el.dataset.theme = el.dataset.theme === "dark" ? "light" : "dark";
+  });
+  document.getElementById("btn-motion").addEventListener("click", function (e) {
+    paused = !paused;
+    e.target.textContent = paused ? "继续动效" : "暂停动效";
+    if (paused) stop();
+    else start();
+  });
+
+  /* ---------- 启动 ---------- */
+  readPalette();
+  resize();
+  if (reducedMotion) {
+    drawFrame(0); // 静帧：reduced-motion 用户看到一幅静止星尘
+  } else {
+    start();
+  }
+})();
+</script>
+</body>
+</html>

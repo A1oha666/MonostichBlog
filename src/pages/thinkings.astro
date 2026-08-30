@@ -55,7 +55,7 @@ items.sort((a, b) => b.date.valueOf() - a.date.valueOf());
 const momentContents = new Map(renderedMoments.map(({ entry, content }) => [entry.id, content]));
 ---
 
-<BaseLayout title="Thinkings — Aloha" description="Aloha 的短思考与随手小记。">
+<BaseLayout lang="zh-CN" title="Thinkings — Aloha" description="Aloha 的短思考与随手小记。">
   <section class="page-head container">
     <a class="back-home" href="/" data-reveal><span aria-hidden="true">←</span> 返回主页</a>
     <p class="eyebrow" data-reveal style="--reveal-delay: 60ms">/ thinkings</p>
@@ -106,7 +106,7 @@ const momentContents = new Map(renderedMoments.map(({ entry, content }) => [entr
   .thinking__meta p { color: var(--accent); }
   /* 「小记」比 thinking 的栏目标签再降半级，让位给正题 */
   .thinking__kind { color: var(--text-faint) !important; }
-  time { display: block; margin-top: var(--space-sm); color: var(--text-faint); }
+  time { display: block; margin-top: var(--space-sm); color: var(--text-faint); font-family: var(--mono); }
   .thinking__body { position: relative; max-width: 720px; }
   .thinking__number { position: absolute; top: 7px; right: 0; color: var(--text-faint); font-family: var(--mono); font-size: 12px; }
   h2 { max-width: 20ch; padding-right: var(--space-2xl); font-family: var(--serif-zh); font-size: clamp(1.7rem, 3.5vw, 2.7rem); font-weight: 400; line-height: 1.08; }

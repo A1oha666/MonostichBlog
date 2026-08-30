@@ -1,0 +1,315 @@
+---
+/**
+ * LogStream —— 访问日志瀑布
+ * Hero 上半空域的 canvas 背景：tail -f 风格的日志逐行浮现。
+ * 路径为真（由 index.astro 从 content collection 生成后传入），
+ * 时间戳为真（本机时钟），IP 与耗时为虚构。
+ *
+ * 性能预算：每帧 ≤ 十余次 fillText，无阴影无渐变；
+ * reduced-motion 下只画一次静帧；切后台自动暂停。
+ */
+interface PathWeight {
+  p: string;
+  w: number;
+}
+interface Props {
+  paths: PathWeight[];
+}
+const { paths } = Astro.props;
+---
+
+<canvas class="logstream" data-paths={JSON.stringify(paths)} aria-hidden="true"></canvas>
+
+<style>
+  .logstream {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    /* 只占 Hero 上半空域：下方标题区保持纯粹的暗 */
+    height: 62%;
+    z-index: 0;
+    pointer-events: none;
+  }
+</style>
+
+<script>
+  // 视图过渡下 DOM 会被整体替换：监听 astro:page-load 幂等初始化，
+  // astro:before-swap 时清理 rAF / observer / 全局监听，避免泄漏叠加。
+  let teardownLogStream: (() => void) | null = null;
+
+  function setupLogStream() {
+    const canvas = document.querySelector<HTMLCanvasElement>("canvas.logstream");
+    if (!canvas) return;
+    if (canvas.dataset.bound === "1") return;
+    canvas.dataset.bound = "1";
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    var CFG = {
+      fontSize: 11.5,
+      lineHeight: 21,
+      topZone: 56,               // 给 colophon 让位，日志不进入这一带
+      spawnGap: [900, 3400],     // 两条日志的间隔 ms [min, max]
+      burstChance: 0.16,         // 一波连续访问（读者翻页）的概率
+      probeChance: 0.05,         // 混进一条探测流量 404 的概率
+      ease: 9,                   // 位置/透明度指数缓动系数
+      alphaMeta: 0.55,           // IP / 时间戳
+      alphaReq: 0.88,            // 请求行主体
+      alphaOk: 0.95,             // 状态码（200 染琥珀）
+      compactWidth: 640          // 窄屏换紧凑格式（去掉 IP/时间戳）
+    };
+
+    /* 路径池由 data-paths 注入（真实 slug + 权重） */
+    var PATHS: { p: string; w: number }[] = [];
+    try {
+      PATHS = JSON.parse(canvas.dataset.paths || "[]");
+    } catch (e) {}
+    if (!PATHS.length) PATHS = [{ p: "/", w: 1 }];
+    var pathTotal = PATHS.reduce(function (s, x) { return s + x.w; }, 0);
+
+    /* 互联网上永远存在的背景噪声：探测流量，注定 404 */
+    var PROBES = ["/wp-admin", "/wp-login.php", "/xmlrpc.php", "/.env"];
+
+    var reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    /* ---------- 主题色：读 CSS 变量，切主题时重读 ---------- */
+    var C = { faint: "113,114,123", muted: "154,155,162", accent: "255,178,36", bad: "255,74,45" };
+    function hexRgb(v: string): string | null {
+      var m = v.trim().replace("#", "");
+      if (m.length === 3) m = m[0]+m[0]+m[1]+m[1]+m[2]+m[2];
+      var n = parseInt(m, 16);
+      return isNaN(n) ? null : ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255);
+    }
+    function readColors() {
+      var cs = getComputedStyle(document.documentElement);
+      C.faint  = hexRgb(cs.getPropertyValue("--text-faint"))  || C.faint;
+      C.muted  = hexRgb(cs.getPropertyValue("--text-muted"))  || C.muted;
+      C.accent = hexRgb(cs.getPropertyValue("--accent"))      || C.accent;
+      // global.css 没有 --status-bad token，按主题各给一个定值
+      var light = document.documentElement.dataset.theme === "light";
+      C.bad = light ? "194,65,12" : "255,74,45";
+    }
+
+    /* ---------- 虚构数据生成器 ---------- */
+    function fakeIp() {
+      return (11 + ~~(Math.random() * 200)) + "." + ~~(Math.random() * 256) + "." +
+             ~~(Math.random() * 256) + "." + (1 + ~~(Math.random() * 254));
+    }
+    function fakeLatency(probe: boolean) {
+      if (probe) return 1 + ~~(Math.random() * 3);
+      return 2 + ~~(Math.pow(Math.random(), 2.4) * 420); // 大量小耗时，偶发大耗时
+    }
+    function nowStamp() {
+      var d = new Date();
+      return [d.getHours(), d.getMinutes(), d.getSeconds()]
+        .map(function (n) { return String(n).padStart(2, "0"); }).join(":");
+    }
+    function pickWeighted() {
+      var r = Math.random() * pathTotal;
+      for (var i = 0; i < PATHS.length; i++) {
+        r -= PATHS[i].w;
+        if (r <= 0) return PATHS[i].p;
+      }
+      return "/";
+    }
+
+    /* ---------- 日志行 ---------- */
+    interface Seg { t: string; rgb: string; a: number }
+    interface LogLine { segs: Seg[]; y: number; alpha: number; dying: boolean }
+    var lines: LogLine[] = [];
+    var FONT = "";
+    var charW = 7; // 等宽字体单字符宽，measureText 一次后复用
+
+    function measureChar() {
+      ctx.font = FONT;
+      charW = ctx.measureText("0").width;
+    }
+
+    function makeLine(forcedPath?: string): LogLine {
+      var probe = !forcedPath && Math.random() < CFG.probeChance;
+      var path = forcedPath || (probe
+        ? PROBES[~~(Math.random() * PROBES.length)]
+        : pickWeighted());
+      var method = Math.random() < 0.08 ? "HEAD" : "GET";
+      var status = probe ? 404
+        : (path === "/rss.xml" && Math.random() < 0.4) ? 304
+        : 200;
+      var statusColor = status === 200 ? C.accent : status === 304 ? C.faint : C.bad;
+      var compact = W < CFG.compactWidth;
+
+      var segs: Seg[] = compact
+        ? [
+            { t: '"' + method + " " + path + ' HTTP/1.1"', rgb: C.muted, a: CFG.alphaReq },
+            { t: " " + status, rgb: statusColor, a: status === 200 ? CFG.alphaOk : 0.9 },
+            { t: " " + fakeLatency(probe) + "ms", rgb: C.faint, a: CFG.alphaMeta }
+          ]
+        : [
+            { t: fakeIp(), rgb: C.faint, a: CFG.alphaMeta },
+            { t: " [" + nowStamp() + "] ", rgb: C.faint, a: CFG.alphaMeta * 0.8 },
+            { t: '"' + method + " " + path + ' HTTP/1.1"', rgb: C.muted, a: CFG.alphaReq },
+            { t: " " + status, rgb: statusColor, a: status === 200 ? CFG.alphaOk : 0.9 },
+            { t: " " + fakeLatency(probe) + "ms", rgb: C.faint, a: CFG.alphaMeta }
+          ];
+      return { segs: segs, y: 0, alpha: 0, dying: false };
+    }
+
+    /* 一波连续访问：首页 → 一篇文章 → 也许再来一篇 */
+    var burstTimers: number[] = [];
+    function queueBurst() {
+      var seq = ["/", pickWeighted()];
+      if (Math.random() < 0.5) seq.push(pickWeighted());
+      seq.forEach(function (p, i) {
+        burstTimers.push(window.setTimeout(function () { spawn(p); }, 350 + i * (300 + Math.random() * 450)));
+      });
+    }
+
+    function spawn(forcedPath?: string) {
+      var line = makeLine(forcedPath);
+      line.y = bottomY() + CFG.lineHeight * 0.7; // 出生在槽位略偏下，缓动升上来
+      lines.push(line);
+      if (Math.random() < CFG.burstChance) queueBurst();
+    }
+
+    /* ---------- 布局 ---------- */
+    var W = 0, H = 0, leftPad = 20;
+    function bottomY() { return H - 18; }
+    function maxVisible() {
+      return Math.max(3, Math.floor((H - CFG.topZone - 18) / CFG.lineHeight) - 1);
+    }
+
+    function resize() {
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = canvas.clientWidth;
+      H = canvas.clientHeight;
+      canvas.width = Math.floor(W * dpr);
+      canvas.height = Math.floor(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      FONT = CFG.fontSize + 'px "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+      measureChar();
+      // 与 .container 的 clamp(20px, 4vw, 64px) 对齐
+      leftPad = Math.max(20, Math.min(64, W * 0.04));
+      if (reducedMotion || paused) drawStatic();
+    }
+
+    /* ---------- 渲染 ---------- */
+    function drawLine(line: LogLine, ty: number) {
+      var x = leftPad;
+      ctx.font = FONT;
+      ctx.textBaseline = "alphabetic";
+      for (var i = 0; i < line.segs.length; i++) {
+        var s = line.segs[i];
+        ctx.fillStyle = "rgba(" + s.rgb + "," + (s.a * line.alpha).toFixed(3) + ")";
+        ctx.fillText(s.t, x, ty);
+        x += s.t.length * charW; // 日志内容全 ASCII，等宽字体可直接乘
+      }
+    }
+
+    function drawStatic() {
+      ctx.clearRect(0, 0, W, H);
+      for (var i = 0; i < lines.length; i++) {
+        var slot = lines.length - 1 - i;
+        drawLine(lines[i], Math.round(bottomY() - slot * CFG.lineHeight));
+      }
+    }
+
+    /* ---------- 主循环 ---------- */
+    var paused = false;
+    var rafId = 0;
+    var lastNow = 0;
+    var nextSpawnAt = 0;
+
+    function loop(now: number) {
+      var dt = Math.min((now - lastNow) / 1000, 0.1); // 切后台回来不跳变
+      lastNow = now;
+
+      if (now >= nextSpawnAt) {
+        spawn();
+        nextSpawnAt = now + CFG.spawnGap[0] + Math.random() * (CFG.spawnGap[1] - CFG.spawnGap[0]);
+      }
+
+      var k = 1 - Math.exp(-dt * CFG.ease); // 帧率无关的指数缓动
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i];
+        var slot = lines.length - 1 - i;
+        var targetY = bottomY() - slot * CFG.lineHeight;
+        line.y += (targetY - line.y) * k;
+        // 入场淡入；被顶到顶部区域的行淡出
+        var targetAlpha = slot > maxVisible() - 1 ? 0 : 1;
+        line.alpha += (targetAlpha - line.alpha) * k;
+        if (slot > maxVisible() && line.alpha < 0.02) line.dying = true;
+      }
+      while (lines.length && lines[0].dying) lines.shift();
+
+      ctx.clearRect(0, 0, W, H);
+      for (i = 0; i < lines.length; i++) {
+        drawLine(lines[i], Math.round(lines[i].y));
+      }
+      rafId = requestAnimationFrame(loop);
+    }
+    function start() {
+      if (rafId || reducedMotion) return;
+      lastNow = performance.now();
+      nextSpawnAt = lastNow + 600;
+      rafId = requestAnimationFrame(loop);
+    }
+    function stop() {
+      cancelAnimationFrame(rafId);
+      rafId = 0;
+    }
+
+    /* ---------- 事件 ---------- */
+    function onResize() { resize(); }
+    function onVisibility() {
+      if (document.hidden) stop();
+      else if (!paused) start();
+    }
+    window.addEventListener("resize", onResize);
+    document.addEventListener("visibilitychange", onVisibility);
+    var themeObserver = new MutationObserver(readColors);
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"]
+    });
+    // 字体加载完成后重测字符宽，避免首屏用回退字体度量
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(function () { measureChar(); });
+    }
+
+    /* ---------- 启动：预播几行，页面打开就不是空屏 ---------- */
+    readColors();
+    resize();
+    for (var i = 0; i < 4; i++) {
+      var line = makeLine();
+      line.alpha = reducedMotion ? 1 : 0;
+      line.y = bottomY() - (3 - i) * CFG.lineHeight;
+      lines.push(line);
+    }
+    if (reducedMotion) {
+      drawStatic(); // 静帧：几行静止日志
+    } else {
+      start();
+    }
+
+    /* ---------- 清理（astro:before-swap） ---------- */
+    teardownLogStream = function () {
+      stop();
+      themeObserver.disconnect();
+      window.removeEventListener("resize", onResize);
+      document.removeEventListener("visibilitychange", onVisibility);
+      burstTimers.forEach(clearTimeout);
+      burstTimers = [];
+      delete canvas.dataset.bound;
+    };
+  }
+
+  document.addEventListener("astro:page-load", setupLogStream);
+  document.addEventListener("astro:before-swap", function () {
+    if (teardownLogStream) {
+      teardownLogStream();
+      teardownLogStream = null;
+    }
+  });
+  setupLogStream(); // 模块脚本 deferred，此时 DOM 已就绪
+</script>

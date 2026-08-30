@@ -1,30 +1,30 @@
 /* =========================================================
-   Design tokens — orange / dark & light dual theme
+   Design tokens — phosphor amber / dark & light dual theme
    ========================================================= */
 :root,
 :root[data-theme="dark"] {
-  --bg: #131110;
-  --bg-glow: #241a10;
-  --surface: #1b1815;
-  --surface-2: #221e19;
-  --surface-3: #2b2620;
-  --text: #ece7df;
-  --text-muted: #a39a8d;
-  --text-faint: #7d766c;
-  --accent: #f97316;          /* orange */
-  --accent-deep: #ea580c;
-  --accent-soft: rgba(249, 115, 22, 0.12);
-  --accent-dim: rgba(249, 115, 22, 0.55);
-  --accent-glow: rgba(249, 115, 22, 0.42);
-  --border-subtle: rgba(236, 231, 223, 0.06);
-  --border: rgba(236, 231, 223, 0.10);
-  --border-strong: rgba(236, 231, 223, 0.18);
-  --code-bg: #17140f;
+  --bg: #101216;
+  --bg-glow: #1a1508;
+  --surface: #16181d;
+  --surface-2: #1b1d23;
+  --surface-3: #24262e;
+  --text: #e6e7ea;
+  --text-muted: #9a9ba2;
+  --text-faint: #71727b;
+  --accent: #ffb224;          /* phosphor amber */
+  --accent-deep: #eda00e;
+  --accent-soft: rgba(255, 178, 36, 0.12);
+  --accent-dim: rgba(255, 178, 36, 0.55);
+  --accent-glow: rgba(255, 178, 36, 0.42);
+  --border-subtle: rgba(230, 231, 234, 0.06);
+  --border: rgba(230, 231, 234, 0.10);
+  --border-strong: rgba(230, 231, 234, 0.18);
+  --code-bg: #131519;
   --code-green: #9cbf9b;
   --code-str: #e0b36b;
   --code-fn: #d7b9a6;
-  --on-accent: #1a0e05;
-  --nav-bg: rgba(19, 17, 16, 0.82);
+  --on-accent: #171004;
+  --nav-bg: rgba(16, 18, 22, 0.82);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.5);
@@ -35,33 +35,35 @@
   --crt-red: rgba(255, 74, 45, 0.52);
   --crt-cyan: rgba(61, 213, 232, 0.42);
   --crt-glow: rgba(249, 115, 22, 0.72);
+  /* 磷光余晖，不纯白；亮色主题回落正文色（见下方 light 覆盖） */
+  --hero-title: #c9ccd1;
 
   color-scheme: dark;
 }
 
 :root[data-theme="light"] {
-  --bg: #fcf8f2;
-  --bg-glow: #f6ebdc;
+  --bg: #f4f3ee;
+  --bg-glow: #eee6cf;
   --surface: #ffffff;
-  --surface-2: #f6efe4;
-  --surface-3: #ede3d3;
-  --text: #241b12;
-  --text-muted: #6e6154;
-  --text-faint: #7e7466;
-  --accent: #c2410c;          /* deep orange for contrast on paper */
-  --accent-deep: #9a3412;
-  --accent-soft: rgba(194, 65, 12, 0.1);
-  --accent-dim: rgba(194, 65, 12, 0.55);
-  --accent-glow: rgba(194, 65, 12, 0.3);
-  --border-subtle: rgba(36, 27, 18, 0.06);
-  --border: rgba(36, 27, 18, 0.1);
-  --border-strong: rgba(36, 27, 18, 0.22);
-  --code-bg: #f5efe4;
+  --surface-2: #f2f0e8;
+  --surface-3: #e7e4d8;
+  --text: #202126;
+  --text-muted: #5d5e66;
+  --text-faint: #7b7c83;
+  --accent: #b45309;          /* deep amber for contrast on paper */
+  --accent-deep: #92400e;
+  --accent-soft: rgba(180, 83, 9, 0.1);
+  --accent-dim: rgba(180, 83, 9, 0.55);
+  --accent-glow: rgba(180, 83, 9, 0.3);
+  --border-subtle: rgba(32, 33, 38, 0.06);
+  --border: rgba(32, 33, 38, 0.1);
+  --border-strong: rgba(32, 33, 38, 0.22);
+  --code-bg: #efede4;
   --code-green: #4e7a4e;
   --code-str: #a0622d;
   --code-fn: #8a5a3b;
-  --on-accent: #fff8f2;
-  --nav-bg: rgba(252, 248, 242, 0.82);
+  --on-accent: #fffaf0;
+  --nav-bg: rgba(244, 243, 238, 0.85);
   --shadow-sm: 0 1px 2px rgba(58, 42, 24, 0.1);
   --shadow-md: 0 8px 24px rgba(58, 42, 24, 0.12);
   --shadow-lg: 0 24px 60px rgba(58, 42, 24, 0.16);
@@ -72,6 +74,7 @@
   --crt-red: rgba(194, 65, 12, 0.3);
   --crt-cyan: rgba(0, 122, 140, 0.24);
   --crt-glow: rgba(194, 65, 12, 0.42);
+  --hero-title: var(--text);
 
   color-scheme: light;
 }
@@ -211,19 +214,25 @@ img, svg { display: block; max-width: 100%; }
 .back-home {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: 6px;
   margin-bottom: var(--space-xl);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  padding: 7px 10px;
-  color: var(--text-muted);
+  padding: 4px 2px;
+  color: var(--text-faint);
   font-family: var(--mono);
   font-size: 12px;
-  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  transition: color var(--dur-fast) var(--ease-out);
 }
+/* 命令式按钮：无边框无底色的 […]，括号贴住文字，hover 整行染琥珀 */
+.back-home::before { content: "["; color: var(--text-faint); margin-right: 4px; transition: color var(--dur-fast) var(--ease-out); }
+.back-home::after { content: "]"; color: var(--text-faint); margin-left: 4px; transition: color var(--dur-fast) var(--ease-out); }
 .back-home span { color: var(--accent); }
-.back-home:hover { border-color: var(--accent); color: var(--text); }
+.back-home:hover,
+.back-home:hover::before,
+.back-home:hover::after { color: var(--accent); }
 .page-head h1 {
+  /* 拉丁字符优先 Fraunces，中文回落衬线 —— 与 ArticleLayout h1 同一规则，
+     避免 zh-CN 页面被 :lang 整体切到华文中宋而与文章页标题不一致 */
+  font-family: 'Fraunces', var(--serif-zh);
   font-size: clamp(3rem, 6vw, 5.5rem);
   font-weight: 500;
   line-height: 1;
@@ -270,6 +279,10 @@ img, svg { display: block; max-width: 100%; }
    未定稿字符染成暗橙，像信号解码
    ========================================================= */
 [data-scramble] { min-height: 1.2em; }
+/* :lang(zh) 会直接命中 scramble 元素本体/内部 span，把 mono 标题劫持成
+   衬线（About 的 "Aloha"、Archive 的年份都曾中招）。inherit 让字体跟随
+   父级意图；已有显式字体声明的规则（.page-head h1 等）优先级更高，不受影响 */
+[data-scramble] { font-family: inherit; }
 .scramble-glyph { color: var(--accent-dim); }
 
 /* 终端式硬闪烁光标（首页 Hero 横线光标 / About `_` 共用节奏） */
@@ -309,40 +322,44 @@ html.js [data-reveal].is-revealed {
 }
 
 /* =========================================================
-   Buttons (mono)
+   Buttons — 命令式：无边框、无底色、无圆角，
+   一对方括号即是按钮的边界；primary 以琥珀区分权重
    ========================================================= */
 .btn {
-  font-family: var(--mono);
-  font-size: 14px;
-  font-weight: 500;
-  padding: 11px 18px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-strong);
-  color: var(--text);
-  background: var(--surface);
-  transition:
-    border-color var(--dur-fast) var(--ease-out),
-    color var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out),
-    transform var(--dur-fast) var(--ease-out);
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  padding: 6px 2px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
   cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out);
 }
-.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn::before,
+.btn::after {
+  color: var(--text-faint);
+  transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-out);
+}
+.btn::before { content: "["; }
+.btn::after { content: "]"; }
+.btn:hover,
+.btn:hover::before,
+.btn:hover::after { color: var(--accent); }
+.btn:hover::before { transform: translateX(-2px); }
+.btn:hover::after { transform: translateX(2px); }
 .btn:active { transform: translateY(1px); }
-.btn--primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
-  font-weight: 700;
-}
-.btn--primary:hover {
-  background: var(--accent-deep);
-  border-color: var(--accent-deep);
-  color: var(--on-accent);
-}
+.btn--primary { color: var(--accent); font-weight: 700; }
+.btn--primary::before,
+.btn--primary::after { color: var(--accent); }
+.btn--primary:hover { color: var(--accent-deep); }
+.btn--primary:hover::before,
+.btn--primary:hover::after { color: var(--accent-deep); }
 
 /* =========================================================
    Section divider — code comment style
@@ -376,6 +393,18 @@ html.js [data-reveal].is-revealed {
 /* =========================================================
    Skip link (a11y)
    ========================================================= */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .skip-link {
   position: absolute;
   left: -9999px;

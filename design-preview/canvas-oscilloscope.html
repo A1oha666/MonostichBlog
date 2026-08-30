@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Canvas 背景预览 — Oscilloscope / monostich</title>
+<style>
+  /* ============================================
+     Tokens — 与站点 global.css 保持一致
+     ============================================ */
+  :root,
+  :root[data-theme="dark"] {
+    --bg: #0b0c0e;
+    --text: #e6e7ea;
+    --text-muted: #9a9ba2;
+    --text-faint: #71727b;
+    --accent: #ffb224;
+    --accent-dim: rgba(255, 178, 36, 0.55);
+    --border-subtle: rgba(230, 231, 234, 0.06);
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --serif-zh: 'STZhongsong', '华文中宋', 'Songti SC', SimSun, serif;
+    --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+    color-scheme: dark;
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f3ee;
+    --text: #202126;
+    --text-muted: #5d5e66;
+    --text-faint: #7b7c83;
+    --accent: #b45309;
+    --accent-dim: rgba(180, 83, 9, 0.55);
+    --border-subtle: rgba(32, 33, 38, 0.06);
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--serif-zh);
+    transition: background-color 240ms var(--ease-out), color 240ms var(--ease-out);
+    overflow-x: hidden;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 1080px;
+    margin-inline: auto;
+    padding-inline: clamp(20px, 4vw, 64px);
+  }
+
+  /* ============================================
+     模拟首页 Hero（与站点 Hero.astro 同结构）
+     ============================================ */
+  .hero {
+    min-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* 示波器 canvas：只占据 Hero 上半空域，随滚动离场 */
+  #scope {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 62%;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .hero__colophon,
+  .hero__inner { position: relative; z-index: 1; }
+
+  .hero__colophon {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 32px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-faint);
+  }
+  .hero__prompt { color: var(--text-muted); }
+  .hero__dollar { color: var(--accent); margin-left: 8px; }
+  .hero__led {
+    display: inline-block;
+    width: 7px; height: 7px;
+    margin-right: 9px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent-dim), 0 0 14px var(--accent-dim);
+    animation: led-blink 2.1s steps(1) infinite;
+  }
+  @keyframes led-blink {
+    0%, 64% { opacity: 1; }
+    65%, 100% { opacity: 0.12; }
+  }
+  .hero__inner { margin-top: auto; padding-bottom: 13vh; }
+  .hero__title {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: clamp(2.3rem, 6vw, 4.9rem);
+    letter-spacing: -0.02em;
+    line-height: 1.18;
+    color: var(--text);
+    margin: 0;
+  }
+  .hero__cursor {
+    color: var(--accent);
+    margin-left: 0.08em;
+    animation: cursor-blink 1.6s steps(1) infinite;
+  }
+  @keyframes cursor-blink {
+    0%, 58% { opacity: 1; }
+    59%, 100% { opacity: 0; }
+  }
+  .hero__intro {
+    margin-top: 32px;
+    color: var(--text-muted);
+    font-size: 1.02rem;
+  }
+  .hero__intro::before {
+    content: "//";
+    font-family: var(--mono);
+    color: var(--text-faint);
+  }
+
+  /* 模拟一屏内容，验证示波器只活在 Hero、滚动后即离场 */
+  .ghost { padding-block: 84px; }
+  .ghost h2 {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    color: var(--text-faint);
+    margin: 0 0 8px;
+  }
+  .ghost h2::before { content: "//"; color: var(--accent-dim); margin-right: 10px; }
+  .ghost__row {
+    display: grid;
+    grid-template-columns: 56px 1fr auto;
+    gap: 0 20px;
+    align-items: center;
+    padding-block: 22px;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 1.05rem;
+  }
+  .ghost__no {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+    padding-right: 18px;
+    border-right: 1px solid var(--border-subtle);
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  .ghost__date { font-family: var(--mono); font-size: 11.5px; color: var(--text-faint); }
+
+  /* ============================================
+     预览控制条（仅预览页有，正式集成时去掉）
+     ============================================ */
+  .preview-bar {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 10;
+    display: flex;
+    gap: 8px;
+    font-family: var(--mono);
+  }
+  .preview-bar button {
+    font: inherit;
+    font-size: 12px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--text-faint);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: border-color 150ms, color 150ms;
+  }
+  .preview-bar button:hover { border-color: var(--accent); color: var(--accent); }
+  .preview-note {
+    position: fixed;
+    left: 16px;
+    bottom: 16px;
+    z-index: 10;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <canvas id="scope" aria-hidden="true"></canvas>
+  <div class="hero__colophon container">
+    <p style="margin:0">
+      <span class="hero__prompt">aloha@monostich</span>:~<span class="hero__dollar">$</span>
+    </p>
+    <p style="margin:0"><span class="hero__led" aria-hidden="true"></span>monostich.cloud</p>
+  </div>
+  <div class="hero__inner container">
+    <h1 class="hero__title">explore and build.<span class="hero__cursor" aria-hidden="true">_</span></h1>
+    <p class="hero__intro">记录一些想法与实践。</p>
+  </div>
+</header>
+
+<section class="ghost container">
+  <h2>02 · 目录（占位，验证滚动后示波器离场）</h2>
+  <div class="ghost__row"><span class="ghost__no">1</span><span>示例条目：占位文字占位文字</span><span class="ghost__date">2026.08.30</span></div>
+  <div class="ghost__row"><span class="ghost__no">2</span><span>示例条目：占位文字占位文字占位</span><span class="ghost__date">2026.08.22</span></div>
+  <div class="ghost__row"><span class="ghost__no">3</span><span>示例条目：占位文字</span><span class="ghost__date">2026.08.15</span></div>
+  <div class="ghost__row"><span class="ghost__no">4</span><span>示例条目：占位文字占位文字占位文字</span><span class="ghost__date">2026.08.02</span></div>
+</section>
+
+<div class="preview-note">canvas preview — oscilloscope · 不改动站点代码</div>
+<div class="preview-bar">
+  <button id="btn-theme" type="button">切换亮/暗</button>
+  <button id="btn-pulse" type="button">立即触发脉冲</button>
+  <button id="btn-motion" type="button">暂停动效</button>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ========================================================
+     Oscilloscope —— 示波器
+     Hero 上半空域里的一条 1px 琥珀细线：
+     · 大部分时间是近乎平直的低幅噪声
+     · 偶尔鼓起一个波包脉冲，缓慢爬过屏幕，再归于平静
+     · 与 LED、闪烁光标同属一套叙事：这台机器在监听
+     只有一条线。没有第二个元素。
+     ======================================================== */
+
+  var CFG = {
+    alpha: 0.085,               // 线透明度（规格 6–10%）
+    speed: 26,                  // 爬行速度 px/s —— 慢，才像环境信号
+    step: 3,                    // 采样间距 px
+    baseline: 0.56,             // 基线位置（canvas 高度比例）
+    noiseAmp: 2.6,              // 平直噪声幅度 px
+    pulseGap: [7000, 16000],    // 两次脉冲的间隔 ms [min, max]
+    pulseDur: 1.7,              // 脉冲持续 s
+    pulseAmp: 30                // 脉冲幅度 px
+  };
+
+  var canvas = document.getElementById("scope");
+  var ctx = canvas.getContext("2d");
+  var reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* 主题色：读 --accent，切主题时重读 */
+  var accentRgb = "255,178,36";
+  function readAccent() {
+    var v = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+    var m = v.replace("#", "");
+    if (m.length === 3) m = m[0]+m[0]+m[1]+m[1]+m[2]+m[2];
+    var n = parseInt(m, 16);
+    if (!isNaN(n)) accentRgb = ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255);
+  }
+
+  /* ---------- 波形缓冲：新样本从右侧进入，整体向左爬 ---------- */
+  var W = 0, H = 0;
+  var samples = [];        // 每个采样点的垂直位移（相对基线）
+  var sampleTime = 0;      // 波形内部时钟（秒）
+  var scrollAcc = 0;       // 亚像素滚动累积
+
+  /* 脉冲调度（在波形时钟域内） */
+  var pulseStart = -1;
+  var nextPulseAt = 5;     // 首次脉冲来得早一点，便于预览看到
+
+  function noise(t) {
+    // 几组不可约正弦叠加 + 细微随机，得到平滑但不重复的低幅噪声
+    return CFG.noiseAmp * (
+      0.55 * Math.sin(t * 0.9) +
+      0.30 * Math.sin(t * 2.3 + 1.7) +
+      0.15 * Math.sin(t * 4.1 + 0.6)
+    ) + (Math.random() - 0.5) * 0.7;
+  }
+
+  function pulse(t) {
+    if (pulseStart < 0 || t < pulseStart) return 0;
+    var tau = (t - pulseStart) / CFG.pulseDur;
+    if (tau > 1) return 0;
+    // 高斯包络 × 阻尼正弦：鼓起 → 振荡两下 → 归于平静
+    var env = Math.exp(-Math.pow((tau - 0.5) / 0.22, 2));
+    return CFG.pulseAmp * env * Math.sin(Math.PI * 2 * 2.5 * tau);
+  }
+
+  function signal(t) {
+    return noise(t) + pulse(t);
+  }
+
+  function pushSample() {
+    var dtSample = CFG.step / CFG.speed;   // 每个采样占据的波形时长
+    sampleTime += dtSample;
+    if (pulseStart < 0 && sampleTime >= nextPulseAt) {
+      pulseStart = sampleTime;
+      nextPulseAt = sampleTime + (CFG.pulseGap[0] + Math.random() * (CFG.pulseGap[1] - CFG.pulseGap[0])) / 1000;
+    }
+    if (pulseStart >= 0 && sampleTime > pulseStart + CFG.pulseDur) {
+      pulseStart = -1; // 脉冲结束，等待下一次调度
+    }
+    samples.push(signal(sampleTime));
+    if (samples.length > Math.ceil(W / CFG.step) + 2) samples.shift();
+  }
+
+  function resize() {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = canvas.clientWidth;
+    H = canvas.clientHeight;
+    canvas.width = Math.floor(W * dpr);
+    canvas.height = Math.floor(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // 预填满缓冲，加载即是一条完整波形而非从右侧长出来
+    var need = Math.ceil(W / CFG.step) + 2;
+    while (samples.length < need) pushSample();
+    while (samples.length > need) samples.shift();
+    if (reducedMotion || paused) drawFrame();
+  }
+
+  /* ---------- 渲染：一条线，仅此而已 ---------- */
+  function drawFrame() {
+    ctx.clearRect(0, 0, W, H);
+    var base = H * CFG.baseline;
+    ctx.strokeStyle = "rgba(" + accentRgb + "," + CFG.alpha + ")";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, base - samples[0]);
+    for (var i = 1; i < samples.length; i++) {
+      ctx.lineTo(i * CFG.step, base - samples[i]);
+    }
+    ctx.stroke();
+  }
+
+  /* ---------- 主循环 ---------- */
+  var paused = false;
+  var rafId = 0;
+  var lastNow = 0;
+  function loop(now) {
+    var dt = Math.min((now - lastNow) / 1000, 0.1); // 切后台回来不跳变
+    lastNow = now;
+    scrollAcc += CFG.speed * dt;
+    while (scrollAcc >= CFG.step) {
+      scrollAcc -= CFG.step;
+      pushSample();
+    }
+    drawFrame();
+    rafId = requestAnimationFrame(loop);
+  }
+  function start() {
+    if (rafId || reducedMotion) return;
+    lastNow = performance.now();
+    rafId = requestAnimationFrame(loop);
+  }
+  function stop() {
+    cancelAnimationFrame(rafId);
+    rafId = 0;
+  }
+
+  /* ---------- 事件 ---------- */
+  window.addEventListener("resize", resize);
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) stop();
+    else if (!paused) start();
+  });
+  new MutationObserver(readAccent).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme"]
+  });
+
+  /* ---------- 预览控制条（仅预览用） ---------- */
+  document.getElementById("btn-theme").addEventListener("click", function () {
+    var el = document.documentElement;
+    el.dataset.theme = el.dataset.theme === "dark" ? "light" : "dark";
+  });
+  document.getElementById("btn-pulse").addEventListener("click", function () {
+    // 手动触发：下一个采样立即进入脉冲
+    pulseStart = sampleTime + CFG.step / CFG.speed;
+    nextPulseAt = pulseStart + CFG.pulseDur + (CFG.pulseGap[0] + Math.random() * (CFG.pulseGap[1] - CFG.pulseGap[0])) / 1000;
+  });
+  document.getElementById("btn-motion").addEventListener("click", function (e) {
+    paused = !paused;
+    e.target.textContent = paused ? "继续动效" : "暂停动效";
+    if (paused) stop();
+    else start();
+  });
+
+  /* ---------- 启动 ---------- */
+  readAccent();
+  resize();
+  if (reducedMotion) {
+    drawFrame(); // 静帧：一条静止的平噪线
+  } else {
+    start();
+  }
+})();
+</script>
+</body>
+</html>

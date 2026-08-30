@@ -1,300 +1,133 @@
 ---
+import LogStream from "./LogStream.astro";
+
+interface PathWeight {
+  p: string;
+  w: number;
+}
+interface Props {
+  logPaths?: PathWeight[];
+}
+const { logPaths = [] } = Astro.props;
 ---
 
 <header class="hero">
-  <div class="hero__screen" aria-hidden="true"></div>
-  <div class="hero__inner container">
-    <p class="hero__kicker">Aloha / Backend &amp; AI Full-Stack</p>
-    <h1 class="hero__title">
-      <span class="hero__line" style="--line-index: 0">Explore Deeply, </span>
-      <span class="hero__line hero__line--emphasis" style="--line-index: 1">Build Deliberately<span class="hero__cursor" aria-hidden="true"></span></span>
-    </h1>
-    <p class="hero__intro">
-      Notes on backend engineering, AI applications,<br />and reflections along the way.
+  <LogStream paths={logPaths} />
+  <div class="hero__colophon container">
+    <p>
+      <span class="hero__prompt">aloha@monostich</span><span class="hero__sep">:</span><span class="hero__path">~</span><span class="hero__dollar">$</span>
     </p>
-    <div class="hero__links">
-      <a href="#recent">Writing <span aria-hidden="true">↓</span></a>
-      <a href="https://github.com/A1oha666" target="_blank" rel="noopener">GitHub ↗</a>
-    </div>
+    <p><span class="hero__led" aria-hidden="true"></span>monostich.cloud</p>
+  </div>
+  <div class="hero__inner container">
+    <h1 class="hero__title">
+      <span class="hero__line" style="--line-index: 0">explore and build.<span class="hero__cursor" aria-hidden="true">_</span></span>
+    </h1>
+    <p class="hero__intro" lang="zh-CN" style="--line-index: 1">记录一些想法与实践。</p>
   </div>
 </header>
 
-<script>
-  // View-transition safe init: astro:page-load fires on first load and after
-  // every client-side navigation.
-  function initHero() {
-    const hero = document.querySelector<HTMLElement>(".hero");
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-
-    if (!hero || reducedMotion.matches || !("IntersectionObserver" in window)) return;
-    if (hero.dataset.heroBound) return;
-    hero.dataset.heroBound = "true";
-
-    if (hero.getBoundingClientRect().top < window.innerHeight) {
-      hero.classList.add("is-title-entering");
-    }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.intersectionRatio >= 0.3) {
-          hero.classList.add("is-title-entering");
-        } else if (entry.intersectionRatio <= 0.05) {
-          // also pauses the CRT sweep + breathe while off-screen
-          hero.classList.remove("is-title-entering");
-        }
-      },
-      { threshold: [0, 0.05, 0.3] },
-    );
-
-    observer.observe(hero);
-  }
-  document.addEventListener("astro:page-load", initHero);
-  initHero();
-</script>
-
 <style>
   .hero {
-    /* 样例定稿：非满屏的 74vh，内容垂直居中 */
-    min-height: 74vh;
+    min-height: 88vh;
+    display: flex;
+    flex-direction: column;
     position: relative;
-    isolation: isolate;
-    overflow: clip;
-    display: grid;
-    align-items: center;
-    padding-block: 48px 72px;
-    contain: paint;
   }
 
+  /* 日志瀑布 canvas 沉在最底层，文字内容抬到其上 */
+  .hero__colophon,
   .hero__inner {
     position: relative;
     z-index: 1;
   }
 
-  /* CRT 屏幕：扫描线/暗角/扫光/噪点全保留，外加 9s 呼吸。
-     --screen-base 是静态明度基准，呼吸关键帧按比例缩放，
-     让移动端的整体调暗不被动画覆盖 */
-  .hero__screen {
-    --screen-base: 0.85;
-    position: absolute;
-    inset-block: clamp(6px, 1.4vw, 18px);
-    inset-inline: var(--page-gutter);
-    z-index: 2;
-    overflow: hidden;
-    border-inline: 1px solid var(--crt-line-strong);
-    border-radius: clamp(24px, 4vw, 54px) / clamp(18px, 3vw, 42px);
-    pointer-events: none;
-    background:
-      repeating-linear-gradient(
-        to bottom,
-        transparent 0,
-        transparent 2px,
-        var(--crt-line-strong) 2px,
-        var(--crt-line-strong) 3px
-      ),
-      radial-gradient(ellipse at center, transparent 48%, var(--crt-vignette) 116%);
-    box-shadow:
-      inset 0 0 4px rgba(255, 255, 255, 0.18),
-      inset 18px 0 28px -22px var(--crt-glow),
-      inset -18px 0 28px -22px var(--crt-glow),
-      inset 0 0 90px var(--crt-vignette),
-      -2px 0 10px color-mix(in srgb, var(--accent) 58%, transparent),
-      2px 0 10px color-mix(in srgb, var(--accent) 58%, transparent);
-    opacity: var(--screen-base);
-    animation: breathe 9s ease-in-out infinite;
-  }
-
-  @keyframes breathe {
-    0%, 100% { opacity: calc(var(--screen-base, 0.85) * 0.94); }
-    50% { opacity: calc(var(--screen-base, 0.85) * 1.082); }
-  }
-
-  .hero__screen::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background:
-      linear-gradient(90deg, transparent 42%, var(--crt-sweep) 48%, rgba(255, 255, 255, 0.1) 50%, var(--crt-sweep) 52%, transparent 58%),
-      linear-gradient(90deg, var(--crt-sweep), transparent 7%, transparent 93%, var(--crt-sweep)),
-      linear-gradient(118deg, rgba(255, 255, 255, 0.08), transparent 18%, transparent 76%, rgba(249, 115, 22, 0.055));
-    background-position: -180% 0, 0 0, 0 0;
-    background-repeat: no-repeat;
-    background-size: 260% 100%, 100% 100%, 100% 100%;
-    animation: screen-sweep 13s linear infinite;
-  }
-
-  /* decorative loops only run while the hero is on screen (JS available);
-     without JS they stay as-is so the CRT identity doesn't depend on scripts */
-  :global(html.js) .hero:not(.is-title-entering) .hero__screen {
-    animation-play-state: paused;
-  }
-  :global(html.js) .hero:not(.is-title-entering) .hero__screen::before {
-    animation-play-state: paused;
-  }
-
-  @keyframes screen-sweep {
-    0%, 86% { background-position: -180% 0, 0 0, 0 0; }
-    98%, 100% { background-position: 180% 0, 0 0, 0 0; }
-  }
-
-  .hero__screen::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.65'/%3E%3C/svg%3E");
-    opacity: var(--crt-noise-opacity);
-  }
-
-  .hero__kicker {
-    font-family: var(--mono);
-    font-size: 13px;
-    color: var(--accent);
-    margin-bottom: var(--space-lg);
-  }
-
-  h1 {
-    max-width: 900px;
-    font-size: clamp(3rem, 7.4vw, 6.2rem);
-    font-weight: 500;
-    letter-spacing: -0.035em;
-    line-height: 0.98;
-    /* 磷光余晖，不纯白；亮色主题回落正文色保证可读 */
-    color: #cfc9bf;
-  }
-  :global(html[data-theme="light"]) h1 { color: var(--text); }
-
-  .hero__line {
-    display: block;
-  }
-
-  .hero__line--emphasis {
-    font-style: italic;
-    font-weight: 400;
-    letter-spacing: -0.045em;
-  }
-
-  /* 横线光标：终端式硬闪烁（steps 明灭），低伏亮线 */
-  .hero__cursor {
-    display: inline-block;
-    width: 0.62em;
-    height: 0.055em;
-    margin-left: 0.14em;
-    vertical-align: 0.02em;
-    background: var(--accent);
-    border-radius: 2px;
-    box-shadow: 0 0 14px var(--accent-glow), 0 0 40px var(--accent-glow);
-    animation: cursor-blink 2.6s steps(1) infinite;
-  }
-
-  /* v2 柔版进场：更慢更柔，无位移/缩放，只有模糊消散 + 色散余晖 */
-  .hero.is-title-entering .hero__line {
-    animation: line-enter 1300ms linear both;
-    animation-delay: calc(var(--line-index) * 420ms);
-    will-change: opacity, filter;
-  }
-
-  @keyframes line-enter {
-    0% {
-      opacity: 0;
-      filter: blur(12px);
-      text-shadow:
-        -0.07em 0 rgba(255, 74, 45, 0.4),
-        0.07em 0 rgba(61, 213, 232, 0.32);
-    }
-
-    45% {
-      opacity: 0.6;
-      filter: blur(5px);
-      text-shadow:
-        -0.035em 0 rgba(255, 74, 45, 0.4),
-        0.035em 0 rgba(61, 213, 232, 0.32);
-    }
-
-    100% {
-      opacity: 1;
-      filter: blur(0);
-      text-shadow:
-        0 0 transparent,
-        0 0 transparent;
-    }
-  }
-
-  .hero__intro {
-    max-width: 48ch;
-    margin-top: 28px;
-    color: var(--text-muted);
-    font-size: 1.08rem;
-  }
-
-  .hero__intro em {
-    color: var(--text);
-    font-weight: 600;
-  }
-
-  .hero__facts {
+  /* 顶部 colophon：一行 shell 提示符 + 域名，像终端的第一行 */
+  .hero__colophon {
     display: flex;
-    flex-wrap: wrap;
-    gap: 10px 26px;
-    margin-top: 26px;
+    justify-content: space-between;
+    gap: var(--space-md);
+    padding-top: var(--space-xl);
     font-family: var(--mono);
-    font-size: 12.5px;
+    font-size: 12px;
+    letter-spacing: 0.02em;
     color: var(--text-faint);
   }
-  .hero__facts span::before {
-    content: "▸ ";
-    color: var(--accent);
-  }
-  .hero__facts b {
-    color: var(--text-muted);
-    font-weight: 500;
-  }
+  .hero__prompt { color: var(--text-muted); }
+  .hero__sep { color: var(--text-faint); }
+  .hero__path { color: var(--text-muted); }
+  /* 全页仅有的两处磷光之一：提示符的 $ */
+  .hero__dollar { color: var(--accent); margin-left: 8px; }
 
-  .hero__links {
-    display: flex;
-    gap: var(--space-lg);
-    margin-top: 30px;
-    font-family: var(--mono);
-    font-size: 13.5px;
-  }
-
-  .hero__links a {
-    color: var(--text-muted);
-    transition: color var(--dur-fast) var(--ease-out);
-  }
-
-  .hero__links a span {
+  /* 状态灯：一粒琥珀 LED，硬闪烁 —— 机器活着的信号 */
+  .hero__led {
     display: inline-block;
-    transition: transform var(--dur-base) var(--ease-spring);
+    width: 7px;
+    height: 7px;
+    margin-right: 9px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent-glow), 0 0 14px var(--accent-glow);
+    animation: led-blink 2.1s steps(1) infinite;
+  }
+  @keyframes led-blink {
+    0%, 64% { opacity: 1; }
+    65%, 100% { opacity: 0.12; }
   }
 
-  .hero__links a:hover { color: var(--accent); }
-  /* ↗ drifts up-right, ↓ nudges down — motion matches each arrow's meaning */
-  .hero__links a:hover span[aria-hidden] { transform: translate(2px, -2px) scale(1.08); }
-  .hero__links a[href^="#"]:hover span { transform: translateY(2px); }
+  /* 文字压到视口下三分之一：上方的大片空无即是神秘 */
+  .hero__inner {
+    margin-top: auto;
+    padding-bottom: 13vh;
+  }
+
+  .hero__title {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: clamp(2.3rem, 6vw, 4.9rem);
+    letter-spacing: -0.02em;
+    line-height: 1.18;
+    /* 磷光余晖，不纯白；亮色主题由 token 回落正文色 */
+    color: var(--hero-title);
+  }
+
+  .hero__line { display: block; }
+
+  /* 全页仅有的两处磷光之二：句尾硬闪烁下划线光标 */
+  .hero__cursor {
+    color: var(--accent);
+    margin-left: 0.08em;
+    animation: cursor-blink 1.6s steps(1) infinite;
+  }
+
+  /* 副题是一行代码注释 */
+  .hero__intro {
+    margin-top: var(--space-xl);
+    color: var(--text-muted);
+    font-size: 1.02rem;
+  }
+  .hero__intro::before {
+    content: "//";
+    font-family: var(--mono);
+    color: var(--text-faint);
+  }
+
+  /* 进场只有慢速的模糊消散，无位移、无色散、无 JS；
+     全局 reduced-motion 规则会兜底关掉所有动画 */
+  .hero__line,
+  .hero__intro {
+    animation: hero-in 1400ms var(--ease-out) both;
+    animation-delay: calc(160ms + var(--line-index, 0) * 260ms);
+  }
+
+  @keyframes hero-in {
+    from { opacity: 0; filter: blur(10px); }
+    to { opacity: 1; filter: blur(0); }
+  }
 
   @media (max-width: 600px) {
-    .hero { padding-block: var(--space-xl) var(--space-2xl); }
-    .hero__screen {
-      inset-block: 4px;
-      inset-inline: var(--page-gutter);
-      --screen-base: 0.66;
-    }
-    h1 { font-size: clamp(2.85rem, 15vw, 4.7rem); }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .hero__screen,
-    .hero__screen::before { animation: none; }
-    .hero__screen { opacity: var(--screen-base); }
-    .hero__cursor { animation: none; }
-    .hero.is-title-entering .hero__line {
-      animation: none;
-      opacity: 1;
-      filter: none;
-      text-shadow: none;
-    }
-  }
-
-  @media (forced-colors: active) {
-    .hero__screen { display: none; }
+    .hero { min-height: 82vh; }
+    .hero__inner { padding-bottom: 10vh; }
+    .hero__title { font-size: clamp(1.7rem, 8.6vw, 2.6rem); }
   }
 </style>

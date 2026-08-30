@@ -1,8 +1,6 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Hero from "../components/Hero.astro";
-// Now 横条暂不上线，保留代码（组件见 src/components/NowStrip.astro）
-// import NowStrip from "../components/NowStrip.astro";
 import Projects from "../components/Projects.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import { getCollection } from "astro:content";
@@ -15,68 +13,177 @@ const [notes, thinkings, moments] = await Promise.all([
   getCollection("moments", draftFilter),
 ]);
 
+// 「一行」：最新一条小记，作为本站点题的单行诗
+const latestMoment = moments
+  .map((entry) => ({
+    id: entry.id,
+    date: new Date(entry.data.date),
+    text: entry.data.title || entry.data.summary,
+  }))
+  .filter((m) => m.text)
+  .sort((a, b) => b.date.valueOf() - a.date.valueOf())[0];
+
 // 首页展示最近五篇（Notes 与 Thinkings 含小记混排），完整回溯走 /archive。
-// kind 是分类 chip 的固定文案映射：notes→笔记、thinkings→随想、moments→小记。
+// 已被「一行」引用的小记从目录里剔除，避免相邻两节重复同一条内容。
 const recent = [
   ...notes.map((entry) => ({
+    key: `notes/${entry.id}`,
     date: new Date(entry.data.date),
     title: entry.data.title,
     href: `/notes/${entry.id}/`,
-    kind: "笔记",
   })),
   ...thinkings.map((entry) => ({
+    key: `thinkings/${entry.id}`,
     date: new Date(entry.data.date),
     title: entry.data.title,
     href: `/thinkings/${entry.id}/`,
-    kind: "随想",
   })),
   ...moments.map((entry) => ({
+    key: `moments/${entry.id}`,
     date: new Date(entry.data.date),
     // 小记可能没有标题，回退用摘要（loader 侧已用正文摘录兜底）
     title: entry.data.title || entry.data.summary,
     href: `/thinkings#${entry.id}`,
-    kind: "小记",
   })),
 ]
+  .filter((item) => item.key !== `moments/${latestMoment?.id}`)
   .sort((a, b) => b.date.valueOf() - a.date.valueOf())
   .slice(0, 5);
+
+// Hero 日志瀑布的路径池：真实 slug + 访问权重，文章页权重高于索引页。
+// 新增文章自动入池，无需手维护。
+const logPaths = [
+  { p: "/", w: 10 },
+  ...notes.map((entry) => ({ p: `/notes/${entry.id}`, w: 6 })),
+  ...thinkings.map((entry) => ({ p: `/thinkings/${entry.id}`, w: 5 })),
+  { p: "/notes", w: 3 },
+  { p: "/thinkings", w: 3 },
+  { p: "/moments", w: 2 },
+  { p: "/archive", w: 2 },
+  { p: "/about", w: 2 },
+  { p: "/rss.xml", w: 1.5 },
+];
 ---
 
-<BaseLayout>
-  <Hero />
-  {/* <NowStrip /> */}
+<BaseLayout bodyClass="home">
+  <Hero logPaths={logPaths} />
+
+    {
+    latestMoment && (
+      <section class="oneline container" aria-labelledby="home-oneline-heading">
+        <div class="module-head" data-reveal>
+          <h2 id="home-oneline-heading"><span class="module-head__no">01</span> 一行</h2>
+          <a href="/moments">小记 →</a>
+        </div>
+        <figure class="oneline__figure" data-reveal style="--reveal-delay: 80ms">
+          <blockquote lang="zh-CN">{latestMoment.text}</blockquote>
+          <figcaption>
+            <time datetime={isoDate(latestMoment.date)}>{dotDate(latestMoment.date)}</time>
+          </figcaption>
+        </figure>
+      </section>
+    )
+  }
+
   <section class="section container" id="recent" aria-labelledby="home-recent-heading">
-    <div class="section__head" data-reveal>
-      <h2 id="home-recent-heading" data-scramble>Recent</h2>
-      <a href="/archive">进入归档 →</a>
+    <div class="module-head" data-reveal>
+      <h2 id="home-recent-heading"><span class="module-head__no">02</span> 目录</h2>
+      <a href="/archive">全部 →</a>
     </div>
-    <ol class="recent-list">
+    <!-- 列表内容以中文为主：局部标注语言，避免 html lang 影响英文 Hero 的字体选择 -->
+    <ol class="recent-list" lang="zh-CN">
       {
         recent.map((item, index) => (
           <li data-reveal style={`--reveal-delay: ${Math.min(index * 60, 240)}ms`}>
             <a href={item.href}>
-              <time datetime={isoDate(item.date)}>{dotDate(item.date)}</time>
-              <span class="chip">{item.kind}</span>
+              <span class="recent-list__no" aria-hidden="true">{index + 1}</span>
               <span class="recent-list__title">{item.title}</span>
-              <span class="recent-list__arrow" aria-hidden="true">↗</span>
+              <time datetime={isoDate(item.date)}>{dotDate(item.date)}</time>
             </a>
           </li>
         ))
       }
     </ol>
   </section>
+
   <Projects />
   <SiteFooter />
 </BaseLayout>
 
 <style>
-  /* anchor target must clear the sticky nav after smooth-scroll */
-  /* 72px 与样例 .section padding-block 对齐 */
-  .section { padding-block: 72px; scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
+  /* =========================================================
+     首页专属：熄灭背景光晕，让「神秘」建立在纯粹的暗上。
+     配色 token 已全站统一（global.css），此处不再覆盖。
+     ========================================================= */
+  :global(body.home) {
+    background-image: none;
+  }
 
-  /* ===== Recent（照搬 design-preview/index.html） ===== */
+  /* ===== 模块头：代码注释式 —— // 编号 · 名目 ===== */
+  .module-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-md);
+    margin-bottom: var(--space-sm);
+  }
+  .module-head h2 {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    color: var(--text-faint);
+  }
+  .module-head h2::before {
+    content: "//";
+    color: var(--accent-dim);
+    margin-right: 10px;
+  }
+  .module-head__no { margin-right: 10px; }
+  .module-head a {
+    color: var(--text-faint);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+  .module-head a:hover { color: var(--accent); }
+
+  .section { padding-block: 84px; scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
+
+  /* ===== 一行：markdown 引用式 —— > 开头的一行，周围留白即是装裱 ===== */
+  .oneline { padding-block: var(--space-4xl) var(--space-2xl); }
+  .oneline__figure { margin: 0; }
+  .oneline__figure blockquote {
+    position: relative;
+    margin: 0;
+    padding-left: 1.2em;
+    max-width: 26ch;
+    font-size: clamp(1.45rem, 3vw, 2.05rem);
+    font-weight: 400;
+    line-height: 1.6;
+    letter-spacing: 0.02em;
+    color: var(--text);
+  }
+  .oneline__figure blockquote::before {
+    content: ">";
+    position: absolute;
+    left: 0;
+    font-family: var(--mono);
+    color: var(--accent-dim);
+  }
+  .oneline__figure figcaption {
+    margin-top: var(--space-lg);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.1em;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ===== 目录：编辑器 gutter 式 —— 右对齐行号 + 竖线 + 题名 + 日期 ===== */
   .recent-list { margin: 0; padding: 0; list-style: none; }
-  .recent-list > li { border-bottom: 1px solid var(--border-subtle); transition: background var(--dur-fast) var(--ease-out); }
+  .recent-list > li { border-bottom: 1px solid var(--border-subtle); }
   /* Recent uses a softer arrival than the default reveal: less snap, more drift. */
   html.js .recent-list > li[data-reveal] {
     opacity: 0;
@@ -93,38 +200,55 @@ const recent = [
   }
   .recent-list a {
     display: grid;
-    grid-template-columns: 108px 76px minmax(0, 1fr) 20px;
-    align-items: baseline;
-    gap: 20px;
-    padding-block: 20px;
+    grid-template-columns: 56px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0 20px;
+    padding-block: 22px;
   }
-  .recent-list time { color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
-  .recent-list__arrow { color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; transition: all var(--dur-base) var(--ease-spring); }
-  .chip {
-    justify-self: start;
+  .recent-list__no {
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 18px;
+    border-right: 1px solid var(--border-subtle);
     font-family: var(--mono);
     font-size: 11px;
-    color: var(--text-muted);
-    background: var(--accent-soft);
-    border: 1px solid var(--border-subtle);
-    padding: 2px 8px;
-    border-radius: 999px;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+    transition: color var(--dur-base) var(--ease-out);
+  }
+  .recent-list time {
+    color: var(--text-faint);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+    transition: color var(--dur-base) var(--ease-out);
   }
   .recent-list__title {
     overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
     text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
     font-family: var(--serif-zh);
-    font-size: 1.08rem;
+    font-size: 1.12rem;
     font-weight: 500;
+    line-height: 1.5;
     transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-out);
   }
-  .recent-list > li:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
-  .recent-list a:hover .recent-list__title { color: var(--accent); transform: translateX(3px); }
-  .recent-list a:hover .recent-list__arrow { color: var(--accent); transform: translate(2px, -2px); }
+  /* 交互只动三处：编号染朱、题名微移、日期提亮 —— 没有底色块 */
+  .recent-list > li:focus-within .recent-list__no,
+  .recent-list a:hover .recent-list__no { color: var(--accent); }
+  .recent-list a:focus-visible .recent-list__title,
+  .recent-list a:hover .recent-list__title { transform: translateX(6px); }
+  .recent-list a:hover time { color: var(--text-muted); }
 
   @media (max-width: 640px) {
-    .recent-list a { grid-template-columns: 76px minmax(0,1fr) 20px; row-gap: 4px; }
-    .recent-list time { grid-column: 1 / -1; }
+    .section { padding-block: 64px; }
+    .recent-list a { grid-template-columns: 40px minmax(0, 1fr); row-gap: 6px; padding-block: 16px; }
+    .recent-list__no { padding-right: 12px; }
+    .recent-list time { grid-column: 2; }
   }
 </style>
