@@ -5,6 +5,12 @@
  * 路径为真（由 index.astro 从 content collection 生成后传入），
  * 时间戳为真（本机时钟），IP 与耗时为虚构。
  *
+ * 两枚彩蛋：
+ *  - 幽灵路径：极低频混入一条"人在找一个不存在的页面"，永远 404；
+ *    真去访问会落到真实的 404，闭环成立。
+ *  - 深夜系统行（00:00–05:00）：偶尔混进一格无 IP、无状态码的 # 注释，
+ *    机器对作者说的一句话 —— “夜深了，注意休息”。
+ *
  * 性能预算：每帧 ≤ 十余次 fillText，无阴影无渐变；
  * reduced-motion 下只画一次静帧；切后台自动暂停。
  */
@@ -54,6 +60,8 @@ const { paths } = Astro.props;
       spawnGap: [900, 3400],     // 两条日志的间隔 ms [min, max]
       burstChance: 0.16,         // 一波连续访问（读者翻页）的概率
       probeChance: 0.05,         // 混进一条探测流量 404 的概率
+      ghostChance: 0.03,         // 幽灵路径：一个人畜无害、但永远 404 的请求
+      nightLineChance: 0.05,     // 深夜（00:00–05:00）系统行混入的概率
       ease: 9,                   // 位置/透明度指数缓动系数
       alphaMeta: 0.55,           // IP / 时间戳
       alphaReq: 0.88,            // 请求行主体
@@ -71,6 +79,25 @@ const { paths } = Astro.props;
 
     /* 互联网上永远存在的背景噪声：探测流量，注定 404 */
     var PROBES = ["/wp-admin", "/wp-login.php", "/xmlrpc.php", "/.env"];
+
+    /* 幽灵路径：不属于 PROBES 那堆机器探测，而是"一个人"在反复找一个
+       并不存在的页面。真去访问会落到真实的 404 —— 彩蛋闭环。 */
+    var GHOSTS = [
+      "/thinking-out-loud",
+      "/notes/that-post-i-never-wrote",
+      "/archive/2020",
+      "/drafts"
+    ];
+
+    /* 深夜系统行：不是访问日志，是机器对作者说的一句话。
+       没有 IP、没有状态码，一格缩进的 # 注释 —— tail 流里混进的人声。 */
+    var NIGHT_LINES = [
+      "# 夜深了，注意休息",
+      "# it's quiet in here",
+      "# 03:47, still awake",
+      "# the logs dream of visitors"
+    ];
+    function isNight() { var h = new Date().getHours(); return h >= 0 && h < 5; }
 
     var reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -128,16 +155,32 @@ const { paths } = Astro.props;
     }
 
     function makeLine(forcedPath?: string): LogLine {
-      var probe = !forcedPath && Math.random() < CFG.probeChance;
-      var path = forcedPath || (probe
-        ? PROBES[~~(Math.random() * PROBES.length)]
-        : pickWeighted());
+      var compact = W < CFG.compactWidth;
+
+      // 深夜低概率混入一行"系统自语"。窄屏同样可见，只是去掉时间戳。
+      if (!forcedPath && isNight() && Math.random() < CFG.nightLineChance) {
+        var note = NIGHT_LINES[~~(Math.random() * NIGHT_LINES.length)];
+        var segs: Seg[] = compact
+          ? [{ t: note, rgb: C.accent, a: 0.5 }]
+          : [
+              { t: "[" + nowStamp() + "] ", rgb: C.faint, a: CFG.alphaMeta * 0.6 },
+              { t: note, rgb: C.accent, a: 0.5 }
+            ];
+        return { segs: segs, y: 0, alpha: 0, dying: false };
+      }
+
+      var ghost = !forcedPath && Math.random() < CFG.ghostChance;
+      var probe = !forcedPath && !ghost && Math.random() < CFG.probeChance;
+      var path = forcedPath || (ghost
+        ? GHOSTS[~~(Math.random() * GHOSTS.length)]
+        : probe
+          ? PROBES[~~(Math.random() * PROBES.length)]
+          : pickWeighted());
       var method = Math.random() < 0.08 ? "HEAD" : "GET";
-      var status = probe ? 404
+      var status = probe || ghost ? 404
         : (path === "/rss.xml" && Math.random() < 0.4) ? 304
         : 200;
       var statusColor = status === 200 ? C.accent : status === 304 ? C.faint : C.bad;
-      var compact = W < CFG.compactWidth;
 
       var segs: Seg[] = compact
         ? [

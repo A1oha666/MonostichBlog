@@ -14,6 +14,7 @@ const isActive = (base: string) => pathname === base || pathname.startsWith(`${b
         <a href="/notes" data-nav-base="/notes" aria-current={isActive("/notes") ? "page" : undefined}>Notes</a>
         <a href="/thinkings" data-nav-base="/thinkings" aria-current={isActive("/thinkings") ? "page" : undefined}>Thinkings</a>
         <a href="/#projects">Work</a>
+        <a href="/lab" data-nav-base="/lab" aria-current={isActive("/lab") ? "page" : undefined}>Lab</a>
         <a href="/about" data-nav-base="/about" aria-current={isActive("/about") ? "page" : undefined}>About</a>
       </div>
       <button
