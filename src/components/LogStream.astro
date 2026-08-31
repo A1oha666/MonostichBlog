@@ -165,11 +165,16 @@ const { paths } = Astro.props;
       });
     }
 
+    /* 首次访问的开机瀑布：start() 里置位，loop 以高频连续吐这么多行，
+       把空域灌满后恢复环境速率；同一会话内再次回到首页不再重播 */
+    var bootLeft = 0;
+
     function spawn(forcedPath?: string) {
       var line = makeLine(forcedPath);
       line.y = bottomY() + CFG.lineHeight * 0.7; // 出生在槽位略偏下，缓动升上来
       lines.push(line);
-      if (Math.random() < CFG.burstChance) queueBurst();
+      // 开机瀑布本身已是高密度，期间不再叠加读者翻页的小 burst
+      if (bootLeft <= 0 && Math.random() < CFG.burstChance) queueBurst();
     }
 
     /* ---------- 布局 ---------- */
@@ -254,7 +259,12 @@ const { paths } = Astro.props;
 
       if (now >= nextSpawnAt) {
         spawn();
-        nextSpawnAt = now + CFG.spawnGap[0] + Math.random() * (CFG.spawnGap[1] - CFG.spawnGap[0]);
+        if (bootLeft > 0) {
+          bootLeft--;
+          nextSpawnAt = now + 70 + Math.random() * 90; // 开机瀑布：高频吐行
+        } else {
+          nextSpawnAt = now + CFG.spawnGap[0] + Math.random() * (CFG.spawnGap[1] - CFG.spawnGap[0]);
+        }
       }
 
       var k = 1 - Math.exp(-dt * CFG.ease); // 帧率无关的指数缓动
@@ -279,7 +289,15 @@ const { paths } = Astro.props;
     function start() {
       if (rafId || reducedMotion) return;
       lastNow = performance.now();
-      nextSpawnAt = lastNow + 600;
+      // 首次访问灌一波开机瀑布（sessionStorage 保证同一会话只播一次；
+      // 存储不可用时静默退回环境速率）
+      try {
+        if (!sessionStorage.getItem("logstream-booted")) {
+          sessionStorage.setItem("logstream-booted", "1");
+          bootLeft = Math.min(maxVisible() + 2, 14);
+        }
+      } catch (e) {}
+      nextSpawnAt = lastNow + (bootLeft > 0 ? 150 : 600);
       rafId = requestAnimationFrame(loop);
     }
     function stop() {

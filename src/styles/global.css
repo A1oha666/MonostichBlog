@@ -4,7 +4,6 @@
 :root,
 :root[data-theme="dark"] {
   --bg: #101216;
-  --bg-glow: #1a1508;
   --surface: #16181d;
   --surface-2: #1b1d23;
   --surface-3: #24262e;
@@ -43,7 +42,6 @@
 
 :root[data-theme="light"] {
   --bg: #f4f3ee;
-  --bg-glow: #eee6cf;
   --surface: #ffffff;
   --surface-2: #f2f0e8;
   --surface-3: #e7e4d8;
@@ -133,9 +131,6 @@ body {
   line-height: 1.7;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  background-image:
-    radial-gradient(900px 480px at 78% -8%, var(--bg-glow), transparent 60%);
-  background-attachment: fixed;
   transition: background-color var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
 }
 
