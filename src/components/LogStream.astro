@@ -179,8 +179,10 @@ const { paths } = Astro.props;
       return Math.max(3, Math.floor((H - CFG.topZone - 18) / CFG.lineHeight) - 1);
     }
 
-    /* 行与行之间保持左对齐（tail 的本来面目），但整个日志块按最长行的
-       宽度在空域里水平居中；窄屏放不下整块时退回左边距对齐 */
+    /* 行与行之间保持左对齐（tail 的本来面目），整个日志块的左缘对齐到
+       colophon / 标题共用的那条铅垂线（容器内容左缘）：直接量 colophon
+       第一段的实际位置，gutter / maxw 以后怎么改都不会脱钩；
+       量不到时按 token 估算，极端窄屏再退回 gutter */
     function computeLeftPad() {
       var gutter = Math.max(20, Math.min(64, W * 0.04)); // 与 .container 一致
       var longest = "/";
@@ -194,7 +196,16 @@ const { paths } = Astro.props;
         ? req.length
         : ("255.255.255.255 [00:00:00] " + req).length;
       var blockW = chars * charW;
-      leftPad = blockW + gutter * 2 <= W ? Math.round((W - blockW) / 2) : gutter;
+      var edge = NaN;
+      var anchor = document.querySelector(".hero__colophon p");
+      if (anchor) {
+        edge = Math.round(anchor.getBoundingClientRect().left - canvas.getBoundingClientRect().left);
+      }
+      if (!isFinite(edge) || edge < 0) {
+        // 回退估算：max(gutter, (W - min(W, maxw)) / 2 + gutter)
+        edge = Math.max(gutter, Math.round((W - Math.min(W, 1080)) / 2 + gutter));
+      }
+      leftPad = edge + blockW + gutter <= W ? edge : gutter;
     }
 
     function resize() {
@@ -289,7 +300,7 @@ const { paths } = Astro.props;
       attributes: true,
       attributeFilter: ["data-theme"]
     });
-    // 字体加载完成后重测字符宽并重新居中，避免首屏用回退字体度量
+    // 字体加载完成后重测字符宽并重新对齐，避免首屏用回退字体度量
     if (document.fonts && document.fonts.ready) {
       document.fonts.ready.then(function () {
         measureChar();
