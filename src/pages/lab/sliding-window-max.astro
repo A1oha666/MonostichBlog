@@ -1,0 +1,649 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+<BaseLayout
+  title="滑动窗口最大值 · 杂物间 — Aloha"
+  bodyClass="lab-lab"
+  lang="zh-CN"
+>
+  <div class="wrap">
+
+    <header class="lab-head">
+      <a class="lab-back" href="/lab/">[ ← 杂物间 ]</a>
+      <h1>滑动窗口最大值</h1>
+      <p class="subtitle">// 单调队列 · 队首即窗口最大值 · O(n) <span class="ver">v4</span></p>
+      <div class="badges">
+        <span class="badge">[1, 3, -1, -3, 5, 3, 6, 7]</span>
+        <span class="badge">k = 3</span>
+        <span class="badge badge--ans">[3, 3, 5, 5, 6, 7]</span>
+      </div>
+    </header>
+
+    <div class="stage">
+
+      <div class="block-label">数组</div>
+      <div class="array-zone">
+        <div class="rail" id="rail"><span>k=3</span></div>
+        <div class="array" id="array"></div>
+      </div>
+
+      <div class="verdict" id="verdict">
+        <span class="v-step" id="vStep">—</span>
+        <span class="v-text" id="vText">点击「下一步」开始推演</span>
+      </div>
+
+      <div class="block-label">队列 <span class="q-note">存下标，值严格递减</span></div>
+      <div class="track" id="track">
+        <div class="track-empty" id="trackEmpty">空</div>
+      </div>
+
+      <div class="result-line">
+        <span class="rs-label">结果</span>
+        <div class="rs-slots" id="rsSlots"></div>
+      </div>
+
+    </div>
+
+    <div class="code-panel">
+      <div class="block-label">代码</div>
+      <div class="codebox" id="codebox"></div>
+    </div>
+
+    <div class="controls">
+      <button class="btn" id="btnReset">重置</button>
+      <button class="btn" id="btnPrev">←</button>
+      <button class="btn btn--primary" id="btnNext">→</button>
+      <button class="btn" id="btnPlay"><span id="playLabel">播放</span></button>
+      <span class="progress" id="progress">1 / 1</span>
+    </div>
+    <div class="pbar"><i id="pbarFill"></i></div>
+
+  </div>
+
+<style is:global>
+  /* 本页元素大多由 JS 动态创建，Astro 作用域样式（data-astro-cid）匹配不到，
+     故用 is:global + .lab-lab（body class）前缀实现"页面级"作用域。 */
+  .lab-lab .wrap { padding: 48px 24px 80px; max-width: 720px; margin: 0 auto; }
+
+  .lab-lab .lab-head { margin-bottom: 36px; }
+  .lab-lab .lab-back {
+    display: inline-block;
+    margin-bottom: 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-faint);
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+  .lab-lab .lab-back:hover { color: var(--accent); }
+  .lab-lab .lab-head h1 {
+    margin: 0;
+    font-family: var(--serif-zh);
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .lab-lab .subtitle {
+    margin: 8px 0 0;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-faint);
+  }
+  .lab-lab .ver {
+    margin-left: 8px;
+    padding: 1px 6px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 3px;
+    font-size: 10px;
+    color: var(--text-faint);
+  }
+  .lab-lab .badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .lab-lab .badge {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    padding: 4px 10px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    color: var(--text-muted);
+  }
+  .lab-lab .badge--ans { border-color: var(--accent-dim); color: var(--accent); }
+
+  .lab-lab .stage { margin-bottom: 32px; }
+
+  .lab-lab .block-label {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    color: var(--text-faint);
+    margin-bottom: 8px;
+  }
+  .lab-lab .q-note {
+    margin-left: 10px;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    color: var(--text-faint);
+    opacity: 0.7;
+  }
+
+  /* 数组 */
+  .lab-lab .array-zone { position: relative; padding-top: 28px; }
+  .lab-lab .rail {
+    position: absolute;
+    top: 4px;
+    height: 20px;
+    border: 1px solid var(--border-strong);
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    transition: left .4s var(--ease-out), width .4s var(--ease-out), opacity .25s;
+    pointer-events: none;
+  }
+  .lab-lab .rail span {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translate(-50%, -100%);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    color: var(--text-faint);
+    white-space: nowrap;
+  }
+  .lab-lab .array {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .lab-lab .cell {
+    position: relative;
+    padding: 12px 2px 10px;
+    text-align: center;
+    transition: background .3s, box-shadow .3s;
+  }
+  .lab-lab .cell + .cell { border-left: 1px solid var(--border-subtle); }
+  .lab-lab .cell .v {
+    font-family: var(--mono);
+    font-size: clamp(15px, 2.2vw, 18px);
+    font-weight: 700;
+    color: var(--text);
+    transition: color .25s;
+  }
+  .lab-lab .cell .ix {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    color: var(--text-faint);
+    margin-top: 2px;
+  }
+  .lab-lab .cell.inwin { background: var(--accent-soft); }
+  .lab-lab .cell.current { box-shadow: inset 0 0 0 1px var(--accent-dim); }
+  .lab-lab .cell.indeque .v { color: var(--accent); }
+  .lab-lab .cell.indeque::before {
+    content: '';
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .lab-lab .cell.pop-flash { animation: swm-popFlash .7s ease-out; }
+  .lab-lab .cell.push-flash { animation: swm-pushFlash .7s ease-out; }
+  @keyframes swm-popFlash { 0% { background: var(--accent-soft); } 100% { background: transparent; } }
+  @keyframes swm-pushFlash { 0% { background: var(--accent-soft); } 100% { background: transparent; } }
+
+  /* 判定行 */
+  .lab-lab .verdict {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 14px 0;
+    min-height: 46px;
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 20px;
+  }
+  .lab-lab .v-step {
+    flex: none;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+    min-width: 72px;
+  }
+  .lab-lab .v-text {
+    font-family: var(--mono);
+    font-size: clamp(12px, 1.8vw, 14px);
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+  .lab-lab .verdict.v-kick .v-text { color: var(--text-muted); }
+  .lab-lab .verdict.v-keep .v-text,
+  .lab-lab .verdict.v-info .v-text { color: var(--accent); }
+
+  /* 队列 */
+  .lab-lab .track {
+    position: relative;
+    height: 88px;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .lab-lab .track-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-faint);
+    transition: opacity .25s;
+  }
+  .lab-lab .dcard {
+    position: absolute;
+    top: 50%;
+    margin-top: -30px;
+    width: 72px;
+    height: 60px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: left .4s var(--ease-out), opacity .35s, transform .4s var(--ease-out), border-color .25s, box-shadow .25s;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .lab-lab .dcard .dv { font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--text); line-height: 1.1; }
+  .lab-lab .dcard .di { font-family: var(--mono); font-size: 9.5px; color: var(--text-faint); }
+  .lab-lab .dcard.is-front { border-color: var(--accent); box-shadow: 0 0 12px var(--accent-glow); }
+  .lab-lab .dcard.is-front .dv { color: var(--accent); }
+  .lab-lab .dcard.is-new { animation: swm-enter .45s var(--ease-out); }
+  @keyframes swm-enter { 0% { transform: translate(30px, 0) scale(.75); opacity: 0; } 100% { transform: translate(0, 0) scale(1); opacity: 1; } }
+  .lab-lab .dcard.fly-left { opacity: 0 !important; transform: translate(-60px, -40px) rotate(-6deg) !important; }
+  .lab-lab .dcard.fly-right { opacity: 0 !important; transform: translate(60px, -8px) rotate(6deg) !important; }
+
+  /* 结果 */
+  .lab-lab .result-line {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-subtle);
+  }
+  .lab-lab .rs-label {
+    flex: none;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    color: var(--text-faint);
+  }
+  .lab-lab .rs-slots { display: flex; gap: 6px; }
+  .lab-lab .slot {
+    width: 38px;
+    height: 34px;
+    border: 1px dashed var(--border);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-faint);
+  }
+  .lab-lab .slot.filled { border: 1px solid var(--accent-dim); color: var(--accent); background: var(--accent-soft); }
+  .lab-lab .slot.newest { animation: swm-slotPop .4s var(--ease-out); }
+  @keyframes swm-slotPop { 0% { transform: scale(.5); } 100% { transform: scale(1); } }
+
+  /* 代码 */
+  .lab-lab .code-panel { margin-bottom: 28px; }
+  .lab-lab .codebox {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.85;
+    overflow-x: auto;
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    padding: 12px 0;
+    background: var(--code-bg);
+  }
+  .lab-lab .codebox .ln { display: block; padding: 0 12px; white-space: pre; color: var(--text-muted); }
+  .lab-lab .codebox .ln-no { display: inline-block; width: 20px; margin-right: 12px; color: var(--text-faint); opacity: 0.5; }
+  .lab-lab .codebox .ln .cm { color: var(--text-faint); }
+  .lab-lab .codebox .ln .kw { color: var(--code-fn); }
+  .lab-lab .codebox .ln.active { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); }
+
+  /* 控制 */
+  .lab-lab .controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .lab-lab .btn {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+  }
+  .lab-lab .btn:hover { color: var(--accent); border-color: var(--accent-dim); }
+  .lab-lab .btn:disabled { opacity: .3; cursor: not-allowed; }
+  .lab-lab .btn--primary { color: var(--accent); border-color: var(--accent-dim); }
+  .lab-lab .btn--primary:hover { border-color: var(--accent); }
+  .lab-lab .progress {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+  }
+  .lab-lab .progress b { color: var(--text-muted); font-weight: 500; }
+  .lab-lab .pbar { height: 1px; background: var(--border-subtle); overflow: hidden; }
+  .lab-lab .pbar i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .25s; }
+
+  @media (max-width: 560px) {
+    .lab-lab .dcard { width: 58px; height: 52px; }
+    .lab-lab .dcard .dv { font-size: 17px; }
+    .lab-lab .verdict { flex-direction: column; gap: 4px; align-items: flex-start; }
+    .lab-lab .v-step { min-width: 0; }
+  }
+</style>
+
+<script>
+  let teardownLab: (() => void) | null = null;
+
+  function setupLab() {
+    const root = document.querySelector<HTMLElement>(".lab-lab .wrap");
+    if (!root) return;
+    if (root.dataset.bound === "1") return;
+    root.dataset.bound = "1";
+
+    const NUMS = [1, 3, -1, -3, 5, 3, 6, 7];
+    const K = 3, N = NUMS.length;
+
+    const frames: any[] = [];
+    let dq: number[] = [], res: number[] = [];
+
+    function mk(o: any) {
+      frames.push(Object.assign({
+        i: -1, deque: [...dq], res: [...res], lo: 0, hi: 0,
+        step: '—', verdict: 'neutral', text: '', code: [] as number[],
+        popped: null, pushed: null, recorded: null
+      }, o));
+    }
+
+    mk({ step: '初始', text: '点击「→」开始推演，或用 ← → 翻帧。', code: [] });
+
+    for (let i = 0; i < N; i++) {
+      const v = NUMS[i];
+      const lo = Math.max(0, i - K + 1);
+
+      // ① 过期淘汰：队首下标 ≤ i−k 则滑出窗口
+      if (dq.length === 0) {
+        mk({ i, lo, hi: i, step: `i=${i} ①`,
+          text: '队列为空，跳过过期检查', code: [5,6] });
+      } else {
+        const front = dq[0], th = i - K, expired = front <= th;
+        if (expired) {
+          dq = dq.slice(1);
+          mk({ i, lo, hi: i, step: `i=${i} ①`,
+            text: `队首下标 ${front} ≤ ${i}−${K}=${th}，已滑出窗口，pollFirst`,
+            verdict: 'kick', code: [5,6], popped: { idx: front, reason: 'front' } });
+        } else {
+          mk({ i, lo, hi: i, step: `i=${i} ①`,
+            text: `队首下标 ${front} > ${i}−${K}=${th}，在窗口内，保留`,
+            verdict: 'keep', code: [5,6] });
+        }
+      }
+
+      // ② 维护递减：队尾值 ≤ 新元素则踢出
+      let poppedAny = false;
+      while (dq.length && NUMS[dq[dq.length-1]] <= v) {
+        const tail = dq[dq.length-1], tv = NUMS[tail];
+        dq = dq.slice(0, -1);
+        poppedAny = true;
+        mk({ i, lo, hi: i, step: `i=${i} ②`,
+          text: `队尾 ${tail}(${tv}) ≤ ${v}，不可能再成为最大值，pollLast`,
+          verdict: 'kick', code: [7,8], popped: { idx: tail, reason: 'tail' } });
+      }
+      if (!poppedAny) {
+        if (dq.length) {
+          const tail = dq[dq.length-1], tv = NUMS[tail];
+          mk({ i, lo, hi: i, step: `i=${i} ②`,
+            text: `队尾 ${tail}(${tv}) > ${v}，保留`,
+            verdict: 'keep', code: [7,8] });
+        } else {
+          mk({ i, lo, hi: i, step: `i=${i} ②`,
+            text: '队列为空，无队尾可比', code: [7,8] });
+        }
+      }
+
+      // ③ 入队
+      dq = dq.concat(i);
+      mk({ i, lo, hi: i, step: `i=${i} ③`,
+        text: `offerLast(${i})，值 ${v} 入队`, verdict: 'info', code: [10,11], pushed: { idx: i } });
+
+      // ④ 记录
+      if (i >= K-1) {
+        const front = dq[0], mv = NUMS[front];
+        res = res.concat(mv);
+        mk({ i, lo, hi: i, step: `i=${i} ④`,
+          text: `窗口 [${lo},${i}] 最大值 = ${mv}`,
+          verdict: 'keep', code: [12,13], recorded: mv });
+      } else {
+        mk({ i, lo, hi: i, step: `i=${i} ④`,
+          text: `i=${i} < k−1=${K-1}，窗口未满，不记录`, code: [12,13] });
+      }
+    }
+
+    mk({ i: N-1, lo: N-K, hi: N-1, step: '完成',
+      text: '[3, 3, 5, 5, 6, 7] ✓', verdict: 'keep', code: [] });
+
+    /* ================= 渲染 ================= */
+    const $ = (id: string) => document.getElementById(id)!;
+    const arrayEl = $('array'), rail = $('rail'), track = $('track'), trackEmpty = $('trackEmpty');
+    const verdict = $('verdict'), vStep = $('vStep'), vText = $('vText');
+    const codebox = $('codebox'), rsSlots = $('rsSlots');
+    const progress = $('progress'), pbarFill = $('pbarFill');
+    const btnPrev = $('btnPrev') as HTMLButtonElement, btnNext = $('btnNext') as HTMLButtonElement;
+    const btnPlay = $('btnPlay'), btnReset = $('btnReset'), playLabel = $('playLabel');
+
+    const cells = NUMS.map((v, idx) => {
+      const d = document.createElement('div');
+      d.className = 'cell';
+      d.innerHTML = `<div class="v">${v}</div><div class="ix">${idx}</div>`;
+      arrayEl.appendChild(d);
+      return d;
+    });
+
+    const dcards = NUMS.map((v, idx) => {
+      const d = document.createElement('div');
+      d.className = 'dcard';
+      d.innerHTML = `<div class="dv">${v}</div><div class="di">${idx}</div>`;
+      track.appendChild(d);
+      return d;
+    });
+
+    function layoutCards(frame: any, prevFrame: any) {
+      const tw = track.clientWidth, cw = 72, gap = 10;
+      const n = frame.deque.length;
+      const start = Math.max(12, (tw - (n * (cw + gap) - gap)) / 2);
+      const popped = frame.popped;
+      const prevPos = popped && prevFrame ? prevFrame.deque.indexOf(popped.idx) : -1;
+
+      NUMS.forEach((_, idx) => {
+        const el = dcards[idx];
+        const pos = frame.deque.indexOf(idx);
+        const inDeque = pos !== -1;
+        const isPopped = popped && popped.idx === idx;
+        let cls = 'dcard';
+        let left = start, opacity = 0;
+
+        if (inDeque) {
+          left = start + pos * (cw + gap);
+          opacity = 1;
+          if (pos === 0) cls += ' is-front';
+          if (frame.pushed && frame.pushed.idx === idx) cls += ' is-new';
+        } else if (isPopped) {
+          left = start + prevPos * (cw + gap);
+          opacity = 0;
+          cls += popped.reason === 'front' ? ' fly-left' : ' fly-right';
+        }
+        el.className = cls;
+        el.style.left = left + 'px';
+        el.style.opacity = String(opacity);
+      });
+      trackEmpty.style.opacity = n === 0 && !popped ? '1' : '0';
+    }
+
+    const slots: HTMLElement[] = [];
+    for (let s = 0; s < N - K + 1; s++) {
+      const d = document.createElement('div');
+      d.className = 'slot'; d.textContent = '?';
+      rsSlots.appendChild(d); slots.push(d);
+    }
+
+    const CODE_LINES = [
+      ['cm', '// nums = [1,3,-1,-3,5,3,6,7], k = 3'],
+      ['', 'Deque<Integer> dq = new ArrayDeque<>();'],
+      ['', 'int[] res = new int[n - k + 1];'],
+      ['kw', 'for (int i = 0; i < n; i++) {'],
+      ['cm', '    // ① 过期淘汰'],
+      ['kw', '    if (!dq.isEmpty() && dq.peekFirst() <= i - k) dq.pollFirst();'],
+      ['cm', '    // ② 维护递减'],
+      ['kw', '    while (!dq.isEmpty() && nums[dq.peekLast()] <= nums[i]) dq.pollLast();'],
+      ['', ''],
+      ['cm', '    // ③ 入队'],
+      ['', '    dq.offerLast(i);'],
+      ['cm', '    // ④ 记录'],
+      ['kw', '    if (i >= k - 1) res[i - k + 1] = nums[dq.peekFirst()];'],
+      ['', '}'],
+    ];
+    CODE_LINES.forEach(([cls, text], i) => {
+      const ln = document.createElement('span');
+      ln.className = 'ln';
+      ln.dataset.ln = String(i + 1);
+      const no = document.createElement('span');
+      no.className = 'ln-no';
+      no.textContent = String(i + 1).padStart(2, ' ');
+      const tx = document.createElement('span');
+      if (cls) tx.className = cls;
+      tx.textContent = text || ' ';
+      ln.append(no, tx);
+      codebox.appendChild(ln);
+    });
+    const codeLines = [...codebox.querySelectorAll<HTMLElement>('.ln')];
+
+    let cur = 0, playing = false, timer: number | null = null;
+
+    function render(noAnim: boolean) {
+      const f = frames[cur];
+      const prev = cur > 0 ? frames[cur-1] : null;
+
+      if (f.i >= 0) {
+        rail.style.opacity = '1';
+        rail.style.left = `calc(${f.lo / N * 100}% + 1px)`;
+        rail.style.width = `calc(${(f.hi - f.lo + 1) / N * 100}% - 2px)`;
+        rail.firstElementChild!.textContent = f.hi - f.lo + 1 < K ? `${f.lo}~${f.hi}` : `[${f.lo}, ${f.hi}]`;
+      } else {
+        rail.style.opacity = '0';
+      }
+
+      cells.forEach((c, idx) => {
+        let cls = 'cell';
+        if (idx >= f.lo && idx <= f.hi && f.i >= 0) cls += ' inwin';
+        if (idx === f.i) cls += ' current';
+        if (f.deque.includes(idx)) cls += ' indeque';
+        if (!noAnim) {
+          if (f.popped && f.popped.idx === idx) cls += ' pop-flash';
+          if (f.pushed && f.pushed.idx === idx) cls += ' push-flash';
+        }
+        c.className = cls;
+      });
+
+      layoutCards(f, noAnim ? null : prev);
+
+      verdict.className = 'verdict v-' + f.verdict;
+      vStep.textContent = f.step;
+      vText.textContent = f.text;
+
+      slots.forEach((s, idx) => {
+        const filled = idx < f.res.length;
+        s.textContent = filled ? String(f.res[idx]) : '?';
+        let cls = 'slot' + (filled ? ' filled' : '');
+        if (!noAnim && f.recorded != null && filled && idx === f.res.length - 1) cls += ' newest';
+        s.className = cls;
+      });
+
+      codeLines.forEach(l => l.classList.toggle('active', f.code.includes(+l.dataset.ln!)));
+
+      progress.innerHTML = `<b>${cur + 1}</b> / ${frames.length}`;
+      pbarFill.style.width = (cur / (frames.length - 1) * 100) + '%';
+      btnPrev.disabled = cur === 0;
+      btnNext.disabled = cur === frames.length - 1;
+    }
+
+    function goTo(n: number) {
+      n = Math.max(0, Math.min(frames.length - 1, n));
+      const back = n < cur;
+      cur = n;
+      render(back);
+    }
+
+    function tick() { if (cur >= frames.length - 1) { stopPlay(); return; } goTo(cur + 1); }
+    function startPlay() {
+      if (cur >= frames.length - 1) goTo(0);
+      playing = true; playLabel.textContent = '暂停';
+      timer = window.setInterval(tick, 1400);
+    }
+    function stopPlay() {
+      playing = false; playLabel.textContent = '播放';
+      if (timer) { clearInterval(timer); timer = null; }
+    }
+    btnPlay.addEventListener('click', () => playing ? stopPlay() : startPlay());
+    btnNext.addEventListener('click', () => { stopPlay(); goTo(cur + 1); });
+    btnPrev.addEventListener('click', () => { stopPlay(); goTo(cur - 1); });
+    btnReset.addEventListener('click', () => { stopPlay(); goTo(0); });
+
+    function onKey(e: KeyboardEvent) {
+      if (/INPUT|SELECT|TEXTAREA/.test((e.target as HTMLElement).tagName)) return;
+      if (e.key === 'ArrowRight') { stopPlay(); goTo(cur + 1); }
+      else if (e.key === 'ArrowLeft') { stopPlay(); goTo(cur - 1); }
+      else if (e.key === ' ') { e.preventDefault(); playing ? stopPlay() : startPlay(); }
+    }
+    function onResize() { render(true); }
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('resize', onResize);
+
+    render(true);
+    requestAnimationFrame(() => render(true));
+
+    // 调试钩子：?frame=N 直接跳到第 N 帧（无动画），用于无头浏览器验证渲染
+    const debugFrame = new URLSearchParams(location.search).get('frame');
+    if (debugFrame !== null) {
+      const fn = parseInt(debugFrame, 10);
+      if (Number.isFinite(fn)) { cur = Math.max(0, Math.min(frames.length - 1, fn)); render(true); }
+    }
+
+    teardownLab = () => {
+      stopPlay();
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onResize);
+      delete root.dataset.bound;
+    };
+  }
+
+  document.addEventListener("astro:page-load", setupLab);
+  document.addEventListener("astro:before-swap", () => {
+    if (teardownLab) { teardownLab(); teardownLab = null; }
+  });
+  setupLab();
+</script>
+</BaseLayout>

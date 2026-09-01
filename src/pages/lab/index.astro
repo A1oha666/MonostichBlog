@@ -1,0 +1,111 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { lab } from "../../data/lab.js";
+---
+
+<BaseLayout title="杂物间 — Aloha" bodyClass="lab-index">
+  <section class="section container" aria-labelledby="lab-heading">
+    <div class="module-head">
+      <h2 id="lab-heading"><span class="module-head__no">04</span> 杂物间</h2>
+      <a href="/">首页 →</a>
+    </div>
+    <p class="lab-intro" lang="zh-CN">// 演示思维的机器、一次性小工具、不好归类的实验。</p>
+
+    <ol class="lab-list">
+      {
+        lab.map((item, index) => (
+          <li data-reveal style={`--reveal-delay: ${Math.min(index * 60, 180)}ms`}>
+            <a class="lab-row" href={item.href}>
+              <span class="lab-row__name">{item.name}</span>
+              <span class="lab-row__desc">{item.desc}</span>
+              <span class="lab-row__kind">[{item.kind}]</span>
+            </a>
+          </li>
+        ))
+      }
+    </ol>
+  </section>
+</BaseLayout>
+
+<style>
+  .section { padding-block: 84px; scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
+
+  .module-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-md);
+    margin-bottom: var(--space-sm);
+  }
+  .module-head h2 {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    color: var(--text-faint);
+  }
+  .module-head h2::before {
+    content: "//";
+    color: var(--accent-dim);
+    margin-right: 10px;
+  }
+  .module-head__no { margin-right: 10px; }
+  .module-head a {
+    color: var(--text-faint);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+  .module-head a:hover { color: var(--accent); }
+
+  .lab-intro {
+    margin: 0 0 var(--space-sm);
+    color: var(--text-faint);
+    font-size: 0.85rem;
+  }
+
+  /* 与造物同一制式：三栏一行 —— 名 / 述 / 门类 */
+  .lab-list { margin: 0; padding: 0; list-style: none; }
+  .lab-list > li { border-bottom: 1px solid var(--border-subtle); }
+  .lab-row {
+    display: grid;
+    grid-template-columns: 190px minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 24px;
+    padding-block: 22px;
+  }
+  .lab-row__name {
+    font-family: var(--mono);
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text);
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+  .lab-row__desc {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .lab-row__kind {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    white-space: nowrap;
+  }
+
+  @media (hover: hover) {
+    .lab-row:hover .lab-row__name { color: var(--accent); }
+  }
+  .lab-row:focus-visible .lab-row__name { color: var(--accent); }
+
+  @media (max-width: 700px) {
+    .section { padding-block: 64px; }
+    .lab-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; padding-block: 18px; }
+    .lab-row__desc { grid-column: 1 / -1; white-space: normal; }
+  }
+</style>
