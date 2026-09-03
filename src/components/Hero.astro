@@ -1,5 +1,6 @@
 ---
 import LogStream from "./LogStream.astro";
+import FlickerTitle from "./FlickerTitle.astro";
 
 interface PathWeight {
   p: string;
@@ -21,7 +22,7 @@ const { logPaths = [] } = Astro.props;
   </div>
   <div class="hero__inner container">
     <h1 class="hero__title">
-      <span class="hero__line" style="--line-index: 0">explore and build.<span class="hero__cursor" aria-hidden="true">_</span></span>
+      <span class="hero__line" style="--line-index: 0">explore and build.<FlickerTitle /><span class="hero__cursor" aria-hidden="true">_</span></span>
     </h1>
     <p class="hero__intro" lang="zh-CN" style="--line-index: 1">记录一些想法与实践。</p>
   </div>
@@ -112,12 +113,16 @@ const { logPaths = [] } = Astro.props;
     color: var(--text-faint);
   }
 
-  /* 进场只有慢速的模糊消散，无位移、无色散、无 JS；
-     全局 reduced-motion 规则会兜底关掉所有动画 */
-  .hero__line,
+  /* 进场只有慢速的模糊消散，无位移、无色散；
+     全局 reduced-motion 规则会兜底关掉所有动画。
+     有 JS 时灯管闪烁（FlickerTitle）接管 .hero__line 的进场 */
   .hero__intro {
     animation: hero-in 1400ms var(--ease-out) both;
     animation-delay: calc(160ms + var(--line-index, 0) * 260ms);
+  }
+  html:not(.js) .hero__line {
+    animation: hero-in 1400ms var(--ease-out) both;
+    animation-delay: 160ms;
   }
 
   @keyframes hero-in {

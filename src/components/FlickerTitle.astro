@@ -1,0 +1,342 @@
+---
+/**
+ * FlickerTitle —— 一支接触不良的老灯管
+ *
+ * "explore and build." 被拆成逐字的 span，rAF 每帧把亮度写进各字符的
+ * --fk CSS 变量（filter: brightness），颜色/字体/字号完全不动，只做明暗。
+ *
+ * 通电前挣扎三轮（GSAP 时间轴驱动每个字符自己的电平）：
+ *   假亮 —— 汞蒸气在余烬上抖三下 —— 灭
+ *   再起 —— 稳了半秒突然整管塌掉 —— 更长的挣扎 —— 灭
+ *   第三次 —— 烧到 1.45x 过亮 —— 回落进稳定态
+ * 每个字符 18–90ms 的随机通电延迟，像启辉器接触沿灯管爬行；全程叠加
+ * 低位 60Hz 颤抖（亮度越低越明显），老灯管快灭不灭那种"活"的抖动。
+ *
+ * 稳定之后是一套独立的状态机：
+ *   基底 = 1/f 极光噪声（快速随机游走 + 慢速均值回归），肉眼几乎不可察；
+ *   偶发事件 = 扰动(nav dip) 55% / 雷劈(double-strike) 30% / 严重扰动 15%，
+ *   间隔 3.5–11s 均匀随机 —— 均匀分布没有节奏可循，才是"毫无预兆"。
+ *   突发电平沿 16–45ms power4.out 硬启动（电极击穿），250–600ms 慢尾巴
+ *   衰减（电极冷却）；雷后 0.4–1.1s 内余烬还在抖。
+ *
+ * 光标(_)的 steps(1) 硬闪仍在 CSS 里，物理上独立于灯管电平 —— 两条电路
+ * 不该同步。
+ *
+ * 无 JS：CSS 动画照旧模糊进场，与从前一致。
+ * 有 JS + reduced-motion：一次 600ms 静音点亮，不闪。
+ * 生命周期与 LogStream 相同：astro:page-load 幂等 init，before-swap 清理。
+ */
+---
+
+<span class="hero__flicker" aria-hidden="true"></span>
+
+<script>
+  import gsap from "gsap";
+
+  let teardownFlicker: (() => void) | null = null;
+
+  const LIT = 1.0;
+  const EMBER = 0.3;   // 灯丝还红着的那一格
+  const DEAD = 0.06;
+
+  function setupFlicker() {
+    const host = document.querySelector<HTMLElement>(".hero__flicker");
+    const line = host?.closest<HTMLElement>(".hero__line");
+    if (!host || !line) return;
+    if (host.dataset.bound === "1") return;
+    host.dataset.bound = "1";
+
+    /* 文案在服务端 HTML 里（SEO/无 JS 兜底），这里重建为逐字 span。
+       host 是空壳标记，真正的文字是 .hero__line 的文本节点。 */
+    const textNode = Array.from(line.childNodes).find(
+      (n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim(),
+    );
+    if (!textNode) return;
+    const phrase = textNode.textContent || "";
+    const frag = document.createDocumentFragment();
+    const chars: HTMLSpanElement[] = [];
+    for (const ch of phrase) {
+      const s = document.createElement("span");
+      s.className = "fk-ch";
+      s.textContent = ch;
+      s.style.filter = "brightness(var(--fk, 1))";
+      s.style.willChange = "filter";
+      s.style.setProperty("--fk", String(DEAD));
+      frag.appendChild(s);
+      chars.push(s);
+    }
+    line.replaceChild(frag, textNode);
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (reducedMotion) {
+      gsap.to(chars, {
+        duration: 0.6,
+        ease: "power2.out",
+        "--fk": LIT,
+        stagger: 0.012,
+      } as gsap.TweenVars);
+      teardownFlicker = () => {
+        gsap.killTweensOf(chars);
+        delete host.dataset.bound;
+      };
+      return;
+    }
+
+    /* ---------- 状态 ---------- */
+    // 每个字符自己的电平：启动期由时间轴驱动；稳定期收拢为 1，
+    // 事件期的局部暗斑也写在这里
+    const level = chars.map(() => DEAD);
+    // 每个字符自己的颤抖相位/频率：汞蒸气不会在整根灯管上同步抖动
+    const sputPhase = chars.map(() => Math.random() * Math.PI * 2);
+    const sputFreq = chars.map(() => 0.34 + Math.random() * 0.14);
+    const drift = { v: 1 };          // 稳定态基底：噪声 + 事件都作用在它身上
+    let sputterAmp = 0;              // 低位 60Hz 颤抖的幅度
+    let sputterUntil = 0;            // 颤抖截止时间（雷后余烬用）
+    let phase = "startup" as "startup" | "stable";
+
+    /* ---------- 启动序列 ---------- */
+
+    const tl = gsap.timeline({ delay: 0.35, paused: true });
+    // 每个字符自己的通电延迟，接触沿灯管爬行
+    const delayOf = chars.map(() => 0.018 + Math.random() * 0.072);
+    const maxDelay = Math.max(...delayOf);
+    // 时间轴当前位置标签，step 用 at 参数绝对定位，避免 += 累积误差
+    let cursor = 0;
+
+    function step(
+      idxs: number[],
+      value: number,
+      dur: number,
+      ease: string,
+      gap: number,
+      staggered = true,
+    ) {
+      cursor += gap;
+      idxs.forEach((ci) => {
+        const proxy = { v: level[ci] };
+        tl.to(
+          proxy,
+          {
+            v: value,
+            duration: dur,
+            ease,
+            delay: staggered ? delayOf[ci] : 0,
+            onUpdate: () => {
+              level[ci] = proxy.v;
+            },
+          },
+          cursor,
+        );
+      });
+      cursor += dur + (staggered ? maxDelay : 0);
+    }
+
+    const all = chars.map((_, i) => i);
+    const R = (min: number, max: number) => min + Math.random() * (max - min);
+
+    /* —— 第一次通电：假亮。第一下接触，亮得比额定更刺眼 —— */
+    step(all, 1.22, R(0.03, 0.055), "power4.out", 0);
+    step(all, EMBER, R(0.09, 0.16), "power2.in", 0.02);
+    // 汞蒸气在低压里挣扎三下
+    for (let i = 0; i < 3; i++) {
+      step(all, R(0.38, 0.55), R(0.02, 0.04), "power1.out", 0.01);
+      step(all, R(0.16, 0.24), R(0.03, 0.06), "power2.in", 0.01);
+    }
+    step(all, DEAD, R(0.12, 0.2), "power2.in", 0.02);
+
+    /* —— 第二次通电：稳了半秒，然后整个塌掉 —— */
+    step(all, 1.0, R(0.02, 0.04), "power4.out", 0.14);
+    step(all, 1.0, R(0.4, 0.55), "none", 0); // 假稳，人以为成了
+    step(all, EMBER, R(0.06, 0.1), "power3.in", 0);
+    // 更长的挣扎，亮得更接近，却到不了
+    for (let i = 0; i < 5; i++) {
+      step(all, R(0.45, 0.72), R(0.02, 0.05), "power1.out", 0.008);
+      step(all, R(0.12, 0.26), R(0.025, 0.07), "power2.in", 0.008);
+    }
+    step(all, DEAD, R(0.15, 0.25), "power2.in", 0.03);
+
+    /* —— 第三次通电：过亮，回落，进稳定态 —— */
+    step(all, 1.45, R(0.025, 0.045), "power4.out", 0.22);
+    step(all, 1.0, R(0.5, 0.8), "power2.inOut", 0.02);
+    tl.eventCallback("onComplete", () => {
+      phase = "stable";
+      drift.v = 1; // 以防启动期残留的噪声 tween 把基底带偏
+      level.fill(1);
+      scheduleDrift();
+      scheduleEvent();
+    });
+
+    // 启动全程的低位颤抖，快灭不灭的"活"抖动；雷后余烬复用同一通道
+    sputterAmp = 0.1;
+    sputterUntil = Infinity;
+
+    /* ---------- 稳定态：1/f 极光噪声 ---------- */
+
+    let driftTimer = 0;
+    let driftTween: gsap.core.Tween | null = null;
+    function scheduleDrift() {
+      driftTimer = window.setTimeout(
+        () => {
+          if (eventActive) {
+            // 事件正攥着 drift，噪声等下一个空窗，避免 tween 打架
+            scheduleDrift();
+            return;
+          }
+          const fast = R(-0.028, 0.028);
+          const slow = (1 - drift.v) * 0.18;
+          driftTween = gsap.to(drift, {
+            v: gsap.utils.clamp(0.94, 1.06, drift.v + fast + slow),
+            duration: R(0.05, 0.14),
+            ease: "none",
+            onComplete: scheduleDrift,
+          });
+        },
+        // 50–140ms 的间隔也是噪声频谱的一部分（快端），不再是纯空转
+        50 + Math.random() * 90,
+      );
+    }
+
+    /* ---------- 偶发事件：电压不稳的雷 ---------- */
+
+    let eventTimer = 0;
+    let eventActive = false;
+
+    function runEvent(kind: "nav" | "double" | "severe") {
+      eventActive = true;
+      driftTween?.kill(); // 事件接管基底，噪声 tween 退场
+      const strikes =
+        kind === "double" ? 2 :
+        kind === "severe" ? 2 + Math.floor(Math.random() * 2) :
+        1;
+      // 严重扰动深度递进，一击比一击深，像电压在一路垮掉
+      let depthFloor = 0;
+      const ev = gsap.timeline({
+        onComplete: () => {
+          eventActive = false;
+          level.fill(1); // 局部暗斑的字符立刻回到电路里
+          sputterUntil = performance.now() + R(400, 1100); // 雷后余烬还在抖
+          scheduleEvent();
+        },
+      });
+      for (let s = 0; s < strikes; s++) {
+        const depth =
+          kind === "nav" ? R(0.3, 0.42) :
+          kind === "double" ? R(0.55, 0.78) :
+          Math.min(0.92, R(0.7, 0.92) + depthFloor);
+        depthFloor += 0.08;
+        const attack = R(0.016, 0.045);  // 电极击穿
+        const decay = R(0.25, 0.6);      // 电极冷却
+        ev.to(drift, { v: 1 - depth, duration: attack, ease: "power4.out" });
+        ev.to(drift, { v: 1, duration: decay, ease: "power2.inOut" });
+        // 灯管内局部暗斑：随机 1–2 个字符多挨一刀
+        if (Math.random() < 0.4) {
+          const ci = Math.floor(Math.random() * chars.length);
+          const dip = R(0.3, 0.5);
+          ev.to(
+            { v: 1 },
+            {
+              v: dip,
+              duration: attack * 0.7,
+              ease: "power4.out",
+              onUpdate(this: gsap.core.Tween) {
+                level[ci] = this.targets()[0].v;
+              },
+            } as gsap.TweenVars,
+            "<",
+          );
+          ev.to(
+            { v: dip },
+            {
+              v: 1,
+              duration: decay * 0.6,
+              ease: "power2.inOut",
+              onUpdate(this: gsap.core.Tween) {
+                level[ci] = this.targets()[0].v;
+              },
+            } as gsap.TweenVars,
+          );
+        }
+      }
+    }
+
+    function scheduleEvent() {
+      eventTimer = window.setTimeout(() => {
+        const roll = Math.random();
+        runEvent(roll < 0.55 ? "nav" : roll < 0.85 ? "double" : "severe");
+      }, R(3500, 11000));
+    }
+
+    /* ---------- 合成与渲染：单一 rAF 写 DOM ---------- */
+
+    let raf = 0;
+    let running = false;
+
+    function frame(now: number) {
+      const sputtering = now < sputterUntil;
+      for (let i = 0; i < chars.length; i++) {
+        // 每字自己的相位与频率，亮度越低抖得越大 —— 汞蒸气在低压里挣扎
+        const sput = sputtering
+          ? Math.sin(now * sputFreq[i] + sputPhase[i]) *
+            sputterAmp *
+            (1 - Math.min(phase === "startup" ? level[i] : drift.v, 1))
+          : 0;
+        // 启动期读每字电平；稳定期 = 基底 × 局部暗斑(事件期才偏离 1)
+        const base = phase === "startup" ? level[i] : drift.v * level[i];
+        const v = gsap.utils.clamp(0.02, 1.5, base + sput);
+        chars[i].style.setProperty("--fk", String(v));
+      }
+      raf = requestAnimationFrame(frame);
+    }
+    function startLoop() {
+      if (running) return;
+      running = true;
+      raf = requestAnimationFrame(frame);
+    }
+    function stopLoop() {
+      running = false;
+      cancelAnimationFrame(raf);
+    }
+
+    /* 切后台暂停整个电路；回来补一小下抖动，像电压刚恢复。
+       只动本组件创建的 tween，不碰 globalTimeline —— 别的组件可能也在用 GSAP */
+    let hiddenAt = 0;
+    function onVisibility() {
+      if (document.hidden) {
+        hiddenAt = performance.now();
+        stopLoop();
+        tl.pause();
+        driftTween?.pause();
+      } else {
+        // 补偿 sputter 截止时间，隐藏期间不算余烬寿命
+        if (sputterUntil !== Infinity) sputterUntil += performance.now() - hiddenAt;
+        driftTween?.resume();
+        tl.resume();
+        startLoop();
+      }
+    }
+    document.addEventListener("visibilitychange", onVisibility);
+
+    tl.play();
+    startLoop();
+
+    teardownFlicker = () => {
+      stopLoop();
+      tl.kill();
+      driftTween?.kill();
+      window.clearTimeout(driftTimer);
+      window.clearTimeout(eventTimer);
+      document.removeEventListener("visibilitychange", onVisibility);
+      delete host.dataset.bound;
+    };
+  }
+
+  document.addEventListener("astro:page-load", setupFlicker);
+  document.addEventListener("astro:before-swap", () => {
+    if (teardownFlicker) {
+      teardownFlicker();
+      teardownFlicker = null;
+    }
+  });
+  setupFlicker();
+</script>
