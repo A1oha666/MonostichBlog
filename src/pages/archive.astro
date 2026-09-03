@@ -203,7 +203,8 @@ const filters = [
 <style>
   /* .page-head / .back-home / .eyebrow 样式在 global.css 统一维护 */
 
-  /* ---- 归档搜索：官方 UI 主题接管（变量映射到站点 token） ---- */
+  /* ---- 归档搜索：官方 UI 主题接管 ---- */
+  /* 去卡片式搜索框，保留下划线的终端提示行：⌕ ___ ↵ */
   .archive__search { padding-bottom: var(--space-xl); }
   .archive-search {
     --pagefind-ui-scale: 0.9;
@@ -213,21 +214,69 @@ const filters = [
     --pagefind-ui-border: var(--border-strong);
     --pagefind-ui-tag: var(--surface-2);
     --pagefind-ui-border-width: 1px;
-    --pagefind-ui-border-radius: var(--radius-sm);
+    --pagefind-ui-border-radius: 0;
     --pagefind-ui-font: var(--mono);
+    position: relative;
   }
-  /* 输入框：终端风行 —— 去底色、保留下划感描边，聚焦染琥珀 */
+  /* 输入行：无边框卡片，底部一条细线，聚焦时线染琥珀 */
+  .archive-search :global(.pagefind-ui__form) {
+    border-bottom: 1px solid var(--border-strong);
+    transition: border-color var(--dur-fast) var(--ease-out);
+  }
+  .archive-search :global(.pagefind-ui__form:focus-within) {
+    border-color: var(--accent);
+  }
+  /* 放大镜图标：官方 form::before 改为琥珀色并重新定位 */
+  .archive-search :global(.pagefind-ui__form::before) {
+    background-color: var(--accent);
+    width: 15px;
+    height: 15px;
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+    opacity: 1;
+  }
   .archive-search :global(.pagefind-ui__search-input) {
+    height: 52px;
+    padding: 0 64px 0 28px; /* 左侧留给 ⌕，右侧留给清除 */
     background: transparent;
+    border: 0;
+    border-radius: 0;
     color: var(--text);
     font-family: var(--mono);
     font-size: 15px;
-    transition: border-color var(--dur-fast) var(--ease-out);
+    font-weight: 400;
+    appearance: none;
+    -webkit-appearance: none;
   }
-  .archive-search :global(.pagefind-ui__search-input:focus) { border-color: var(--accent); outline: none; }
-  .archive-search :global(.pagefind-ui__search-input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .archive-search :global(.pagefind-ui__search-input::placeholder) { color: var(--text-faint); }
-  .archive-search :global(.pagefind-ui__search-clear) { background: transparent; color: var(--text-faint); font-family: var(--mono); }
+  .archive-search :global(.pagefind-ui__search-input:focus) { outline: none; }
+  .archive-search :global(.pagefind-ui__search-input::placeholder) { color: var(--text-faint); opacity: 1; }
+  /* 清除：一条琥珀斜线 ×，平时 faint，hover 提亮 */
+  .archive-search :global(.pagefind-ui__search-clear) {
+    top: 0;
+    right: 0;
+    height: 52px;
+    padding: 0 4px;
+    background: transparent;
+    border-radius: 0;
+    color: var(--text-faint);
+    font-family: var(--mono);
+    font-size: 13px;
+    cursor: pointer;
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+  .archive-search :global(.pagefind-ui__search-clear::before) {
+    content: "×";
+    margin-right: 4px;
+    color: var(--accent-dim);
+    font-size: 16px;
+    line-height: 1;
+    vertical-align: baseline;
+  }
+  @media (hover: hover) {
+    .archive-search :global(.pagefind-ui__search-clear:hover) { color: var(--text); }
+    .archive-search :global(.pagefind-ui__search-clear:hover::before) { color: var(--accent); }
+  }
   /* 计数/提示语：faint mono，与 archive__count 同制式 */
   .archive-search :global(.pagefind-ui__message) { padding: var(--space-md) 0 var(--space-sm); color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
   /* 结果行：去卡片底色，细线分行，hover 微染 */
