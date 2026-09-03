@@ -18,17 +18,29 @@ const isActive = (base: string) => pathname === base || pathname.startsWith(`${b
         <a href="/about" data-nav-base="/about" aria-current={isActive("/about") ? "page" : undefined}>About</a>
       </div>
       <button
-        class="nav__theme"
+        class="nav__icon"
+        id="search-open"
+        type="button"
+        aria-label="搜索"
+        title="搜索"
+      >
+        <svg class="nav__icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="m21 21-4.35-4.35"></path>
+        </svg>
+      </button>
+      <button
+        class="nav__icon nav__theme"
         id="theme-toggle"
         type="button"
         aria-label="Switch to light theme"
         title="Toggle theme"
       >
-        <svg class="ic ic--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <svg class="nav__icon-svg ic ic--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="4"></circle>
           <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
         </svg>
-        <svg class="ic ic--moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <svg class="nav__icon-svg ic ic--moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
         </svg>
       </button>
@@ -71,11 +83,27 @@ const isActive = (base: string) => pathname === base || pathname.startsWith(`${b
     });
   }
 
+  // 搜索入口：已在搜索页则聚焦输入框，否则跳转 /search
+  function bindSearchOpen() {
+    const btn = document.getElementById("search-open");
+    if (!btn || btn.dataset.searchBound) return;
+    btn.dataset.searchBound = "true";
+    btn.addEventListener("click", () => {
+      if (location.pathname.replace(/\/$/, "") === "/search") {
+        document.querySelector<HTMLInputElement>(".pagefind-ui__search-input")?.focus();
+      } else {
+        location.href = "/search/";
+      }
+    });
+  }
+
   document.addEventListener("astro:page-load", () => {
     bindThemeToggle();
+    bindSearchOpen();
     syncCurrentPage();
   });
   bindThemeToggle();
+  bindSearchOpen();
   syncCurrentPage();
 </script>
 
@@ -156,7 +184,7 @@ const isActive = (base: string) => pathname === base || pathname.startsWith(`${b
   .nav__links a[aria-current="page"] { color: var(--text); }
   .nav__links a[aria-current="page"]::after { transform: scaleX(1); }
 
-  .nav__theme {
+  .nav__icon {
     position: relative;
     display: inline-flex;
     align-items: center;
@@ -170,19 +198,18 @@ const isActive = (base: string) => pathname === base || pathname.startsWith(`${b
     cursor: pointer;
     transition: color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
   }
-  .nav__theme:hover { color: var(--accent); }
-  .nav__theme:active { transform: scale(0.92); }
+  .nav__icon:hover { color: var(--accent); }
+  .nav__icon:active { transform: scale(0.92); }
   /* extend the tap area to ~44px without enlarging the visible control */
-  .nav__theme::after {
+  .nav__icon::after {
     content: "";
     position: absolute;
     inset: -8px;
     border-radius: 50%;
   }
-  .ic {
+  .nav__icon-svg { width: 14px; height: 14px; }
+  .nav__theme .nav__icon-svg {
     position: absolute;
-    width: 14px;
-    height: 14px;
     transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
   }
   .ic--sun { opacity: 1; transform: none; }

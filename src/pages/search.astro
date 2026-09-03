@@ -1,0 +1,216 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import SiteFooter from "../components/SiteFooter.astro";
+
+// 站内搜索：直接挂 Pagefind 默认 UI（postbuild 生成的 /pagefind/ 索引）。
+// 样式只做主题接管：把 Pagefind 的 CSS 变量映射到站点 token，不改交互。
+---
+
+<BaseLayout
+  lang="zh-CN"
+  title="Search — Aloha"
+  description="站内搜索 Aloha 的全部内容。"
+  pageStylesheet="/pagefind/pagefind-ui.css"
+>
+  <section class="page-head container">
+    <a class="back-home" href="/" data-reveal><span aria-hidden="true">←</span> 返回主页</a>
+    <p class="eyebrow" data-reveal style="--reveal-delay: 60ms">/ search</p>
+  </section>
+
+  <section class="search container" aria-label="站内搜索">
+    <div id="search" data-reveal style="--reveal-delay: 120ms"></div>
+  </section>
+  <SiteFooter />
+</BaseLayout>
+
+<script>
+  // PagefindUI 由 postbuild 生成的 /pagefind/pagefind-ui.js 挂到 window；
+  // 首次加载后跨视图过渡复用同一实例。
+  interface PagefindUIInstance { triggerSearch(term: string): void; }
+
+  // baseUrl 不能省 —— 默认 "./pagefind/" 是相对当前页面的，
+  // 视图过渡不改写 script 的解析基准，从 /notes/xxx/ 导航到 /search 会 404。
+  declare global {
+    interface Window {
+      __pagefindUI?: PagefindUIInstance;
+      PagefindUI?: new (opts: Record<string, unknown>) => PagefindUIInstance;
+    }
+  }
+
+  let loading: Promise<void> | null = null;
+
+  function initSearch() {
+    const el = document.getElementById("search");
+    if (!el) return; // 不在搜索页
+
+    // 视图过渡换 DOM 不卸载 window 上的实例：已经初始化过就直接返回，
+    // 让触发搜索在下方统一执行（新输入框不会自动带值）。
+    if (window.__pagefindUI) {
+      triggerQuery(el);
+      return;
+    }
+
+    // 双击/脚本重入防护：UI 构建是异步的（脚本加载 + new PagefindUI）
+    loading ??= new Promise<void>((resolve) => {
+      const script = document.createElement("script");
+      script.src = "/pagefind/pagefind-ui.js";
+      script.onload = () => {
+        window.__pagefindUI = new window.PagefindUI!({
+          element: "#search",
+          baseUrl: "/",
+          showSubResults: true,
+          showImages: false,
+          resetStyles: false,
+          excerptLength: 30,
+          debounceTimeoutMs: 200,
+          translations: {
+            placeholder: "搜索标题或内容…",
+            clear_search: "清除",
+            load_more: "加载更多",
+            search_label: "站内搜索",
+            filters_label: "筛选",
+            zero_results: "没有找到「[SEARCH_TERM]」相关内容",
+            many_results: "找到 [COUNT] 条「[SEARCH_TERM]」相关结果",
+            one_result: "找到 1 条「[SEARCH_TERM]」相关结果",
+            alt_search: "没有找到「[SEARCH_TERM]」，试试「[DIFFERENT_TERM]」？",
+            search_suggestion: "没有找到「[SEARCH_TERM]」，你可能想找：[DIFFERENT_TERMS]",
+            searching: "正在搜索「[SEARCH_TERM]」…",
+          },
+        });
+        triggerQuery(el);
+        resolve();
+      };
+      // 索引缺失（dev 模式未跑 postbuild）：静默默认态，不报错
+      script.onerror = () => resolve();
+      document.head.appendChild(script);
+    });
+  }
+
+  // 从别的页面带 ?q= 进来时，把关键词灌进输入框并触发搜索。
+  // PagefindUI.triggerSearch 是公开 API；instance 复用或新建两条路径都在这里汇合。
+  function triggerQuery(root: HTMLElement) {
+    const q = new URLSearchParams(location.search).get("q");
+    if (!q) return;
+    window.__pagefindUI?.triggerSearch(q);
+    // 防御：PagefindUI 若未同步填入输入框（旧版行为），手动补齐保持一致
+    const input = root.querySelector<HTMLInputElement>(".pagefind-ui__search-input");
+    if (input && input.value !== q) input.value = q;
+  }
+
+  document.addEventListener("astro:page-load", initSearch);
+  initSearch();
+</script>
+
+<style>
+  .search { padding-bottom: var(--space-4xl); }
+
+  /* ---- Pagefind UI 主题接管：变量映射到站点 token ---- */
+  #search {
+    /* 面板骨架 */
+    --pagefind-ui-scale: 0.9;
+    --pagefind-ui-primary: var(--accent);
+    --pagefind-ui-text: var(--text);
+    --pagefind-ui-background: var(--surface);
+    --pagefind-ui-border: var(--border-strong);
+    --pagefind-ui-tag: var(--surface-2);
+    --pagefind-ui-border-width: 1px;
+    --pagefind-ui-border-radius: var(--radius-sm);
+    --pagefind-ui-font: var(--mono);
+  }
+
+  /* 输入框：终端风行 —— 去底色、保留下划感描边，聚焦染琥珀 */
+  #search :global(.pagefind-ui__search-input) {
+    background: transparent;
+    font-family: var(--mono);
+    font-size: 15px;
+    color: var(--text);
+    border-color: var(--border-strong);
+    transition: border-color var(--dur-fast) var(--ease-out);
+  }
+  #search :global(.pagefind-ui__search-input:focus) {
+    border-color: var(--accent);
+    outline: none; /* 焦点不删：用 border + 下方 focus-visible 环双重表达 */
+  }
+  #search :global(.pagefind-ui__search-input:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  #search :global(.pagefind-ui__search-input::placeholder) { color: var(--text-faint); }
+  #search :global(.pagefind-ui__search-clear) {
+    background: transparent;
+    color: var(--text-faint);
+    font-family: var(--mono);
+  }
+
+  /* 结果计数 / 提示语：faint mono，与 archive__count 同制式 */
+  #search :global(.pagefind-ui__message) {
+    padding-top: var(--space-md);
+    padding-bottom: var(--space-sm);
+    color: var(--text-faint);
+    font-family: var(--mono);
+    font-size: 12.5px;
+  }
+
+  /* 结果行：去卡片底色，用细线分行（呼应 archive 列表），hover 微染 */
+  #search :global(.pagefind-ui__result) {
+    border-top: 1px solid var(--border-subtle);
+    border-bottom: none;
+    padding: var(--space-lg) var(--space-sm);
+    transition: background var(--dur-fast) var(--ease-out);
+  }
+  #search :global(.pagefind-ui__result:last-of-type) { border-bottom: 1px solid var(--border-subtle); }
+  @media (hover: hover) {
+    #search :global(.pagefind-ui__result:hover) { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+  }
+  #search :global(.pagefind-ui__result-inner) { margin-top: 0; }
+  #search :global(.pagefind-ui__result-title) { margin-bottom: var(--space-xs); }
+  #search :global(.pagefind-ui__result-link) {
+    color: var(--text);
+    font-family: var(--serif);
+    font-size: 1.05rem;
+    font-weight: 500;
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+  @media (hover: hover) {
+    #search :global(.pagefind-ui__result-link:hover) { color: var(--accent); }
+  }
+  #search :global(.pagefind-ui__result-excerpt) {
+    color: var(--text-muted);
+    font-size: 0.92rem;
+    line-height: 1.6;
+  }
+  /* 命中词高亮：琥珀底而非默认黄色，暗色下不刺眼 */
+  #search :global(.pagefind-ui__result-excerpt mark) {
+    background: var(--accent-soft);
+    color: var(--accent);
+    padding-inline: 1px;
+  }
+  /* 子结果（页面内锚点）：细竖线缩进，mono 小字 */
+  #search :global(.pagefind-ui__result-nested) {
+    padding-left: var(--space-md);
+    border-left: 1px solid var(--border);
+    margin-top: var(--space-sm);
+  }
+  #search :global(.pagefind-ui__result-nested .pagefind-ui__result-link) {
+    font-size: 0.92rem;
+    font-family: var(--mono);
+    color: var(--text-muted);
+  }
+
+  /* 加载更多按钮：描边按钮，hover 琥珀 */
+  #search :global(.pagefind-ui__button) {
+    margin-top: var(--space-lg);
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--text-muted);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+  }
+  @media (hover: hover) {
+    #search :global(.pagefind-ui__button:hover) { color: var(--accent); border-color: var(--accent-dim); }
+  }
+
+  /* 抽屉圆点等杂项收进 faint */
+  #search :global(.pagefind-ui__drawer) { gap: 0; }
+</style>
