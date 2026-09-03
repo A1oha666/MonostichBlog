@@ -3,6 +3,7 @@ import { getCollection } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import { dotDate, isoDate, DRAFT_PREVIEW } from "../lib/format";
+import "@pagefind/default-ui/css/ui.css";
 
 // 归档借鉴 WHITE 的栏目逻辑：全站内容按年份分组、可按栏目筛选。
 // 标签/分类不在本期范围（不改 PocketBase 数据模型），筛选维度即三个栏目本身。
@@ -79,6 +80,10 @@ const filters = [
   </section>
 
   <section class="archive container" aria-label="归档">
+    <div class="archive__search" data-reveal>
+      <div id="archive-search" class="archive-search" role="search"></div>
+    </div>
+
     <div class="archive__filters" data-reveal role="group" aria-label="按栏目筛选">
       {
         filters.map((f, i) => (
@@ -159,8 +164,90 @@ const filters = [
   applyFilter();
 </script>
 
+<script>
+  import { PagefindUI } from "@pagefind/default-ui";
+
+  // 归档页顶部搜索：官方 UI 开箱即用，挂载到本页容器。
+  // PagefindUI 默认从站点根 /pagefind/ 绝对路径加载索引，打包后安全。
+  // 客户端脚本按页面打包、视图过渡换页时随 DOM 重建，直接初始化即可。
+  function initArchiveSearch() {
+    const el = document.getElementById("archive-search");
+    if (!el || el.dataset.initialized) return;
+    el.dataset.initialized = "true";
+    new PagefindUI({
+      element: "#archive-search",
+      showSubResults: true,
+      showImages: false,
+      resetStyles: false,
+      excerptLength: 26,
+      debounceTimeoutMs: 200,
+      translations: {
+        placeholder: "搜索标题或内容…",
+        clear_search: "清除",
+        load_more: "加载更多",
+        search_label: "站内搜索",
+        filters_label: "筛选",
+        zero_results: "没有找到「[SEARCH_TERM]」相关内容",
+        many_results: "找到 [COUNT] 条「[SEARCH_TERM]」相关结果",
+        one_result: "找到 1 条「[SEARCH_TERM]」相关结果",
+        alt_search: "没有找到「[SEARCH_TERM]」，试试「[DIFFERENT_TERM]」？",
+        search_suggestion: "没有找到「[SEARCH_TERM]」，你可能想找：[DIFFERENT_TERMS]",
+        searching: "正在搜索「[SEARCH_TERM]」…",
+      },
+    });
+  }
+  document.addEventListener("astro:page-load", initArchiveSearch);
+  initArchiveSearch();
+</script>
+
 <style>
   /* .page-head / .back-home / .eyebrow 样式在 global.css 统一维护 */
+
+  /* ---- 归档搜索：官方 UI 主题接管（变量映射到站点 token） ---- */
+  .archive__search { padding-bottom: var(--space-xl); }
+  .archive-search {
+    --pagefind-ui-scale: 0.9;
+    --pagefind-ui-primary: var(--accent);
+    --pagefind-ui-text: var(--text);
+    --pagefind-ui-background: var(--surface);
+    --pagefind-ui-border: var(--border-strong);
+    --pagefind-ui-tag: var(--surface-2);
+    --pagefind-ui-border-width: 1px;
+    --pagefind-ui-border-radius: var(--radius-sm);
+    --pagefind-ui-font: var(--mono);
+  }
+  /* 输入框：终端风行 —— 去底色、保留下划感描边，聚焦染琥珀 */
+  .archive-search :global(.pagefind-ui__search-input) {
+    background: transparent;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 15px;
+    transition: border-color var(--dur-fast) var(--ease-out);
+  }
+  .archive-search :global(.pagefind-ui__search-input:focus) { border-color: var(--accent); outline: none; }
+  .archive-search :global(.pagefind-ui__search-input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .archive-search :global(.pagefind-ui__search-input::placeholder) { color: var(--text-faint); }
+  .archive-search :global(.pagefind-ui__search-clear) { background: transparent; color: var(--text-faint); font-family: var(--mono); }
+  /* 计数/提示语：faint mono，与 archive__count 同制式 */
+  .archive-search :global(.pagefind-ui__message) { padding: var(--space-md) 0 var(--space-sm); color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
+  /* 结果行：去卡片底色，细线分行，hover 微染 */
+  .archive-search :global(.pagefind-ui__result) { border-top: 1px solid var(--border-subtle); border-bottom: none; padding: var(--space-md) var(--space-sm); transition: background var(--dur-fast) var(--ease-out); }
+  .archive-search :global(.pagefind-ui__result:last-of-type) { border-bottom: 1px solid var(--border-subtle); }
+  @media (hover: hover) {
+    .archive-search :global(.pagefind-ui__result:hover) { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+    .archive-search :global(.pagefind-ui__result-link:hover) { color: var(--accent); }
+  }
+  .archive-search :global(.pagefind-ui__result-link) { color: var(--text); font-family: var(--serif); font-size: 1.05rem; font-weight: 500; transition: color var(--dur-fast) var(--ease-out); }
+  .archive-search :global(.pagefind-ui__result-excerpt) { color: var(--text-muted); font-size: 0.92rem; line-height: 1.6; }
+  /* 命中词：琥珀底而非默认黄，暗色下不刺眼 */
+  .archive-search :global(.pagefind-ui__result-excerpt mark) { background: var(--accent-soft); color: var(--accent); padding-inline: 1px; }
+  /* 子结果锚点：细竖线缩进，mono 小字 */
+  .archive-search :global(.pagefind-ui__result-nested) { padding-left: var(--space-md); border-left: 1px solid var(--border); margin-top: var(--space-sm); }
+  .archive-search :global(.pagefind-ui__result-nested .pagefind-ui__result-link) { font-size: 0.92rem; font-family: var(--mono); color: var(--text-muted); }
+  .archive-search :global(.pagefind-ui__button) { margin-top: var(--space-md); background: transparent; border: 1px solid var(--border-strong); color: var(--text-muted); font-family: var(--mono); font-size: 12.5px; transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); }
+  @media (hover: hover) {
+    .archive-search :global(.pagefind-ui__button:hover) { color: var(--accent); border-color: var(--accent-dim); }
+  }
 
   /* 斜杠路径式筛选：全部/Notes/Thinkings —— 无框无底色，激活项染琥珀 */
   .archive__filters {
