@@ -1,0 +1,196 @@
+---
+/**
+ * HeroGlow —— pixelScreen 辉光背景
+ * Hero 最底层的 WebGL 氛围层：移植自 Dmitry Andreev 的 Shadertoy 作品
+ * pixelScreen（https://www.shadertoy.com/view/XdG3Wc，CC BY-NC-SA 3.0）。
+ * 不接音频：Buf A 的信号源由程序合成波形顶替，GLSL 原样未改。
+ *
+ * 层级：本 canvas（z-0）< LogStream 日志瀑布（z-0，DOM 序在后）< 文字（z-1）。
+ * 生命周期与 LogStream 同款：astro:page-load 幂等 init，before-swap 全量清理。
+ *
+ * 性能预算：0.6x 渲染分辨率、DPR 封顶 1；离屏 / 切后台 / 浅色主题（CSS 隐藏）
+ * 即停；reduced-motion 下跑 90 帧让反馈缓冲收敛出辉光，然后冻结成静帧。
+ * 调试：URL 加 ?glow=debug 全强度 + HUD（分辨率 / 帧数 / fps）。
+ */
+---
+
+<canvas class="hero-glow" aria-hidden="true"></canvas>
+<div class="hero-glow__hud" hidden></div>
+<a
+  class="hero-glow__credit"
+  href="https://www.shadertoy.com/view/XdG3Wc"
+  target="_blank"
+  rel="noopener"
+  title="pixelScreen — Dmitry Andreev, CC BY-NC-SA 3.0"
+>pixelScreen ↗</a>
+
+<style>
+  .hero-glow {
+    position: absolute;
+    inset: 0;
+    /* 必须显式给宽高：canvas 的 width/height 内容属性会作为呈现提示
+       参与布局，把 inset:0 的拉伸顶掉（LogStream 的 width:100% 同理） */
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    /* 光源收拢到状态卡后方一隅，亮度压到几乎只是“环境余温”；
+       标题与 eyebrow 背后保持纯粹的暗 */
+    opacity: 0.26;
+    -webkit-mask-image: radial-gradient(ellipse 40% 46% at 84% 68%, #000 0%, #000 40%, transparent 72%);
+    mask-image: radial-gradient(ellipse 40% 46% at 84% 68%, #000 0%, #000 40%, transparent 72%);
+  }
+  /* 辉光是黑底效果，与浅色页面底色冲突：v1 深色主题限定。
+     display:none 时 IntersectionObserver 自动判离屏，管线随之停止 */
+  html[data-theme="light"] .hero-glow { display: none; }
+
+  /* 署名：CC BY-NC-SA 3.0 要求标注原作者；浅色主题随 canvas 一起隐藏 */
+  .hero-glow__credit {
+    position: absolute;
+    right: 20px;
+    bottom: 12px;
+    z-index: 1;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
+    opacity: 0.7;
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+  .hero-glow__credit:hover { color: var(--accent); }
+  html[data-theme="light"] .hero-glow__credit { display: none; }
+
+  .hero-glow__hud {
+    position: absolute;
+    top: 64px;
+    right: 20px;
+    z-index: 2;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+    pointer-events: none;
+  }
+</style>
+
+<script>
+  import { getGL } from "../lib/pixelscreen/gl-core.js";
+  import { createPixelScreen } from "../lib/pixelscreen/renderer.js";
+
+  let teardownHeroGlow: (() => void) | null = null;
+
+  function setupHeroGlow() {
+    const canvas = document.querySelector<HTMLCanvasElement>("canvas.hero-glow");
+    if (!canvas || canvas.dataset.bound === "1") return;
+
+    const gl = getGL(canvas);
+    if (!gl) {
+      // 无 WebGL2 / 无浮点渲染扩展：静默移除，页面照常
+      canvas.remove();
+      return;
+    }
+    canvas.dataset.bound = "1";
+
+    const debug = new URLSearchParams(location.search).get("glow") === "debug";
+    const hud = canvas.parentElement?.querySelector<HTMLElement>(".hero-glow__hud") ?? null;
+    if (debug && hud) {
+      hud.hidden = false;
+      canvas.style.opacity = "1";
+      canvas.style.maskImage = "none";
+      (canvas.style as any).webkitMaskImage = "none";
+    }
+
+    const ps = createPixelScreen(gl);
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const SCALE = 0.75;
+    function resize() {
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      if (!w || !h) return; // display:none（浅色主题）时跳过，RO 会在恢复后再触发
+      const rw = Math.floor(w * SCALE);
+      const rh = Math.floor(h * SCALE);
+      canvas.width = rw;
+      canvas.height = rh;
+      ps.resize(rw, rh);
+    }
+
+    let raf = 0;
+    let running = false;
+    let visible = false;
+    let frames = 0;
+    let warmLeft = reduced ? 90 : 0; // 静帧模式：收敛所需帧数
+    let fpsShownAt = 0;
+    let fpsFrames = 0;
+    const t0 = performance.now();
+    let last = t0;
+
+    function tick(now: number) {
+      raf = requestAnimationFrame(tick);
+      if (!canvas.width) return; // 尚未分配尺寸
+      const t = (now - t0) / 1000;
+      const dt = Math.min((now - last) / 1000, 0.1);
+      last = now;
+      ps.render(t, dt);
+      frames++;
+      fpsFrames++;
+      if (debug && hud && now - fpsShownAt > 500) {
+        const fps = Math.round((fpsFrames * 1000) / (now - fpsShownAt));
+        hud.textContent = `${canvas.width}×${canvas.height} · f${frames} · ${fps}fps`;
+        fpsShownAt = now;
+        fpsFrames = 0;
+      }
+      if (warmLeft > 0) {
+        warmLeft--;
+        if (warmLeft === 0) stop(); // 收敛完成，冻结为静帧
+      }
+    }
+    function start() {
+      if (running) return;
+      running = true;
+      last = performance.now();
+      raf = requestAnimationFrame(tick);
+    }
+    function stop() {
+      running = false;
+      cancelAnimationFrame(raf);
+      raf = 0;
+    }
+
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        visible = e.isIntersecting;
+        if (visible) start();
+        else stop();
+      }
+    });
+    io.observe(canvas);
+
+    function onVisibility() {
+      if (document.hidden) stop();
+      else if (visible) start();
+    }
+    document.addEventListener("visibilitychange", onVisibility);
+
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
+    resize();
+
+    teardownHeroGlow = function () {
+      stop();
+      io.disconnect();
+      ro.disconnect();
+      document.removeEventListener("visibilitychange", onVisibility);
+      ps.destroy();
+      delete canvas.dataset.bound;
+    };
+  }
+
+  document.addEventListener("astro:page-load", setupHeroGlow);
+  document.addEventListener("astro:before-swap", function () {
+    if (teardownHeroGlow) {
+      teardownHeroGlow();
+      teardownHeroGlow = null;
+    }
+  });
+  setupHeroGlow(); // 模块脚本 deferred，此时 DOM 已就绪
+</script>

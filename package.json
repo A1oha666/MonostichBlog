@@ -19,7 +19,8 @@
     "@fontsource/fraunces": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
     "@pagefind/default-ui": "^1.5.2",
-    "astro": "^5.18.2"
+    "astro": "^5.18.2",
+    "gsap": "^3.15.0"
   },
   "devDependencies": {
     "gray-matter": "^4.0.3",
