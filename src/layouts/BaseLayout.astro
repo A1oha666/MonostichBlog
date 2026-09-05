@@ -58,9 +58,14 @@ const {
           if (btn) btn.setAttribute("aria-label", t === "dark" ? "Switch to light theme" : "Switch to dark theme");
         };
         applyTheme();
-        // 视图过渡会用新页面（服务端渲染、无 data-theme）的属性整体替换
-        // <html>，客户端导航后必须重新应用一次，否则浅色会被重置回深色
-        document.addEventListener("astro:after-swap", applyTheme);
+        // 视图过渡会用新页面（服务端渲染、无 data-theme / 无 class）的属性
+        // 整体替换 <html>，客户端导航后必须重新应用一次，否则浅色会被重置
+        // 回深色，html.js 也会丢失（CSS 里 html:not(.js) 的 JS-可用分支会
+        // 误判成无 JS）
+        document.addEventListener("astro:after-swap", function () {
+          applyTheme();
+          document.documentElement.classList.add("js");
+        });
       })();
       document.documentElement.classList.add("js");
     </script>

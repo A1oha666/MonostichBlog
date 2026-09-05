@@ -29,13 +29,18 @@ const { paths } = Astro.props;
 <style>
   .logstream {
     position: absolute;
-    top: 0;
+    top: 56px;
     left: 0;
     width: 100%;
-    /* 只占 Hero 上半空域：下方标题区保持纯粹的暗 */
-    height: 62%;
+    /* 只占 Hero 顶部一带（桌面 26%，移动 25%），与内容区之间留足呼吸 */
+    height: 22%;
     z-index: 0;
     pointer-events: none;
+    /* 氛围层再退后一步：淡淡出现，不许与标题竞争 */
+    opacity: 0.45;
+  }
+  @media (max-width: 600px) {
+    .logstream { top: 48px; height: 20%; }
   }
 </style>
 
@@ -57,7 +62,7 @@ const { paths } = Astro.props;
       fontSize: 11.5,
       lineHeight: 21,
       topZone: 56,               // 给 colophon 让位，日志不进入这一带
-      spawnGap: [900, 3400],     // 两条日志的间隔 ms [min, max]
+      spawnGap: [1400, 4600],    // 两条日志的间隔 ms [min, max]（spec：降低环境速率）
       burstChance: 0.16,         // 一波连续访问（读者翻页）的概率
       probeChance: 0.05,         // 混进一条探测流量 404 的概率
       ghostChance: 0.03,         // 幽灵路径：一个人畜无害、但永远 404 的请求
@@ -337,7 +342,8 @@ const { paths } = Astro.props;
       try {
         if (!sessionStorage.getItem("logstream-booted")) {
           sessionStorage.setItem("logstream-booted", "1");
-          bootLeft = Math.min(maxVisible() + 2, 14);
+          // spec §9：首次加载最多 3–5 行，不再灌满整个空域
+          bootLeft = Math.min(maxVisible(), 5);
         }
       } catch (e) {}
       nextSpawnAt = lastNow + (bootLeft > 0 ? 150 : 600);

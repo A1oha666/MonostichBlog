@@ -6,6 +6,7 @@ import SiteFooter from "../components/SiteFooter.astro";
 import { getCollection } from "astro:content";
 import { dotDate, isoDate, DRAFT_PREVIEW } from "../lib/format";
 import { lab } from "../data/lab.js";
+import { projects } from "../data/projects.js";
 
 const draftFilter = ({ data }) => DRAFT_PREVIEW || !data.draft;
 const [notes, thinkings, moments] = await Promise.all([
@@ -51,6 +52,18 @@ const recent = [
   .sort((a, b) => b.date.valueOf() - a.date.valueOf())
   .slice(0, 5);
 
+// Hero 状态面板：真实统计（notes 数 / projects 数 / 最近更新时间）
+const allEntries = [...notes, ...thinkings, ...moments];
+const notesCount = allEntries.length;
+const projectsCount = projects.length;
+const latestDate = allEntries
+  .map((entry) => new Date(entry.data.date))
+  .sort((a, b) => b.valueOf() - a.valueOf())[0];
+const pad2 = (n) => String(n).padStart(2, "0");
+const updatedLabel = latestDate
+  ? `${pad2(latestDate.getMonth() + 1)}.${pad2(latestDate.getDate())}`
+  : "—";
+
 // Hero 日志瀑布的路径池：真实 slug + 访问权重，文章页权重高于索引页。
 // 新增文章自动入池，无需手维护。
 const logPaths = [
@@ -66,7 +79,12 @@ const logPaths = [
 ---
 
 <BaseLayout bodyClass="home">
-  <Hero logPaths={logPaths} />
+  <Hero
+    logPaths={logPaths}
+    notesCount={pad2(notesCount)}
+    projectsCount={pad2(projectsCount)}
+    updatedLabel={updatedLabel}
+  />
 
     {
     latestMoment && (
@@ -165,7 +183,7 @@ const logPaths = [
   .section { padding-block: 84px; scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
 
   /* ===== 一行：markdown 引用式 —— > 开头的一行，周围留白即是装裱 ===== */
-  .oneline { padding-block: var(--space-4xl) var(--space-2xl); }
+  .oneline { padding-block: var(--space-2xl) var(--space-2xl); }
   .oneline__figure { margin: 0; }
   .oneline__figure blockquote {
     position: relative;
