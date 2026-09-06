@@ -193,9 +193,12 @@ h1, h2, h3, h4 {
 
 p { margin: 0; }
 
+/* 中文页面：拉丁字符仍优先 Google Sans，中文回落 Noto Sans SC。
+   不能用 var(--font-zh)（Noto 开头），否则文章页 lang="zh-CN" 会把英文正文
+   也切给 Noto Sans SC —— 正文英文必须始终是 Google Sans */
 :lang(zh),
 :lang(zh-CN) {
-  font-family: var(--font-zh);
+  font-family: 'Google Sans', var(--font-zh);
 }
 
 a { color: inherit; text-decoration: none; }
@@ -229,7 +232,7 @@ img, svg { display: block; max-width: 100%; }
    不两端对齐（justify 会把黑体的字距撕出不均匀的灰斑）；字重略降、
    字号略收，长段落才有 thinkings 之外那种干净的灰度 */
 .prose-zh {
-  font-family: var(--font-zh);
+  font-family: 'Google Sans', var(--font-zh);
   font-size: 0.95rem;
   line-height: 1.7;
   letter-spacing: 0.01em;
