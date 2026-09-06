@@ -284,8 +284,8 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
   .back-link:hover, .back-link:hover::before, .back-link:hover::after { color: var(--accent); }
   .back-link:hover span { transform: translateX(-3px); }
   .article__eyebrow { margin-bottom: var(--space-lg); font-family: var(--mono); font-size: 13px; }
-  /* 标题是中文时走衬线；英文标题自然落到栈首的 Fraunces（无需 JS 检测） */
-  h1 { max-width: 18ch; font-family: 'Fraunces', var(--serif-zh); font-size: clamp(2.5rem, 5.5vw, 5rem); font-weight: 500; line-height: 1.04; }
+  /* 标题回到原来的栈：拉丁 Fraunces + 中文华文中宋衬线 */
+  h1 { max-width: 18ch; font-family: var(--font-display); font-size: clamp(2.5rem, 5.5vw, 5rem); font-weight: 500; line-height: 1.04; }
   .article__summary { max-width: 58ch; margin-top: var(--space-xl); color: var(--text-muted); font-size: 1.08rem; }
   .article__meta { display: flex; flex-wrap: wrap; gap: var(--space-md); margin-top: var(--space-xl); color: var(--text-faint); font-family: var(--mono); font-size: 12px; }
   .article__meta span + span::before { content: "/"; margin-right: var(--space-md); color: var(--border-strong); }
@@ -304,11 +304,10 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
   .article__content {
     min-width: 0;
     padding-bottom: var(--space-4xl);
-    /* 中文阅读区排版参数（与 .prose-zh 一致，正文容器整体生效） */
-    line-height: 1.85;
-    letter-spacing: 0.015em;
-    text-align: justify;
-    text-spacing-trim: space-all;
+    /* 中文阅读区：与「造物」简介同配方 —— 无衬线、1.7 行高、不两端对齐。
+       黑体 + justify 会拉出灰斑；1.85 对大字号衬线友好，对黑体则松散 */
+    line-height: 1.7;
+    letter-spacing: 0.01em;
   }
   .article__pagination { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xl); padding-top: var(--space-xl); padding-bottom: var(--space-4xl); }
   .article__pagination a { display: grid; gap: var(--space-sm); color: var(--text-muted); }
@@ -321,13 +320,16 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
   }
   .article__pagination-next { text-align: right; border-left: 1px solid var(--border-subtle); padding-left: var(--space-xl); }
   :global(.article__content > :first-child) { margin-top: 0; }
-  :global(.article__content h2) { margin-top: var(--space-3xl); font-family: 'Fraunces', var(--serif-zh); font-size: clamp(1.6rem, 3vw, 2.25rem); font-weight: 600; scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
-  :global(.article__content h3) { margin-top: var(--space-2xl); font-family: 'Fraunces', var(--serif-zh); font-size: 1.3rem; font-weight: 600; scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
+  :global(.article__content h2) { margin-top: var(--space-3xl); font-family: 'Google Sans', var(--font-zh); font-size: clamp(1.6rem, 3vw, 2.25rem); font-weight: 400; scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
+  :global(.article__content h3) { margin-top: var(--space-2xl); font-family: 'Google Sans', var(--font-zh); font-size: 1.3rem; font-weight: 400; scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
   :global(.article__content p), :global(.article__content ul), :global(.article__content ol) { margin-top: var(--space-lg); }
   :global(.article__content li + li) { margin-top: var(--space-sm); }
   :global(.article__content a) { color: var(--accent); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent); text-underline-offset: 3px; }
   :global(.article__content blockquote) { margin: var(--space-xl) 0 0; border-left: 2px solid var(--accent); padding-left: var(--space-lg); color: var(--text-muted); }
+  /* 代码块 / 行内代码：一律 JetBrains Mono。pre 显式声明是为防止被正文
+     继承链覆盖；行内 code 用 mono 但字号收到 0.88em，与中文正文视觉等高 */
   :global(.article__content pre) { margin-top: var(--space-xl); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-lg); overflow-x: auto; background: var(--code-bg); font-family: var(--mono); font-size: 13px; line-height: 1.7; }
+  :global(.article__content pre code) { font-family: var(--mono); font-size: inherit; background: none; border: 0; padding: 0; }
   :global(.article__content code) { font-family: var(--mono); }
   :global(.article__content :not(pre) > code) { border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; background: var(--accent-soft); font-size: 0.88em; }
   :global(.article__content img) { width: 100%; height: auto; margin-top: var(--space-xl); border: 1px solid var(--border); border-radius: var(--radius-sm); object-fit: contain; }
