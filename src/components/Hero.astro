@@ -153,14 +153,16 @@ const {
     animation: cursor-blink 1.6s steps(1) infinite;
   }
 
-  /* 中文介绍：衬线、克制，与标题保持一个紧凑间距 */
+  /* 中文介绍：无衬线、弱色、收紧 —— 与「造物」简介同一套阅读配方，
+     在 mono 大标题下不抢戏、安静地完成过渡 */
   .hero__intro {
     margin-top: 24px;
-    color: var(--text);
+    color: var(--text-muted);
     max-width: 25ch;
-    font-family: var(--serif-zh);
-    font-size: 18px;
+    font-family: var(--font-zh);
+    font-size: 15px;
     line-height: 1.7;
+    letter-spacing: 0.01em;
   }
 
   /* 状态卡：足够的纸面感 —— 边框更明确，底色更接近 surface */

@@ -286,7 +286,7 @@ const filters = [
     .archive-search :global(.pagefind-ui__result:hover) { background: color-mix(in srgb, var(--accent) 4%, transparent); }
     .archive-search :global(.pagefind-ui__result-link:hover) { color: var(--accent); }
   }
-  .archive-search :global(.pagefind-ui__result-link) { color: var(--text); font-family: var(--serif); font-size: 1.05rem; font-weight: 500; transition: color var(--dur-fast) var(--ease-out); }
+  .archive-search :global(.pagefind-ui__result-link) { color: var(--text); font-family: 'Google Sans', var(--font-zh); font-size: 1.05rem; font-weight: 400; transition: color var(--dur-fast) var(--ease-out); }
   .archive-search :global(.pagefind-ui__result-excerpt) { color: var(--text-muted); font-size: 0.92rem; line-height: 1.6; }
   /* 命中词：琥珀底而非默认黄，暗色下不刺眼 */
   .archive-search :global(.pagefind-ui__result-excerpt mark) { background: var(--accent-soft); color: var(--accent); padding-inline: 1px; }
@@ -329,8 +329,8 @@ const filters = [
     padding-top: var(--space-3xl);
     padding-bottom: var(--space-md);
     font-size: clamp(1.6rem, 3vw, 2.2rem);
-    font-weight: 500;
-    font-family: var(--mono);
+    font-weight: 400;
+    font-family: 'Google Sans', var(--font-zh);
     color: var(--text);
   }
   .archive__year-count { color: var(--text-faint); font-size: 13px; }
@@ -353,7 +353,7 @@ const filters = [
     font-size: 11px;
     white-space: nowrap;
   }
-  .archive__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(1.02rem, 1.6vw, 1.15rem); font-weight: 500; transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-out); }
+  .archive__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: 'Google Sans', var(--font-zh); font-size: clamp(1.02rem, 1.6vw, 1.15rem); font-weight: 400; transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-out); }
   .archive__arrow { padding-top: 2px; transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-spring); }
   @media (hover: hover) {
     .archive__list > li:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }

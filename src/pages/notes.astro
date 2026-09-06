@@ -46,7 +46,7 @@ const entries = (await getCollection("notes", ({ data }) => DRAFT_PREVIEW || !da
   .note { display: grid; grid-template-columns: 112px minmax(0, 1fr) 20px; gap: var(--space-lg); padding-block: var(--space-xl); }
   time, .note__arrow { color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
   .note__arrow { padding-top: 4px; transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-spring); }
-  h2 { font-family: var(--serif-zh); font-size: clamp(1.3rem, 2.2vw, 1.65rem); font-weight: 500; transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-out); }
+  h2 { font-family: 'Google Sans', var(--font-zh); font-size: clamp(1.3rem, 2.2vw, 1.65rem); font-weight: 400; transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-out); }
   .note__body > p { max-width: 65ch; margin-top: var(--space-sm); color: var(--text-muted); font-size: 0.98rem; }
   @media (hover: hover) {
     .notes__list > li:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }

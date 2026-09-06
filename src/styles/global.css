@@ -78,13 +78,59 @@
 }
 
 /* =========================================================
-   Type — self-hosted via @fontsource; Chinese falls back
-   to STZhongsong (华文中宋) per user preference
+   Type — 规则：正文 = Google Sans(拉丁)+Noto Sans SC(中文)；
+   大标题 h1 = Fraunces(拉丁)+华文中宋(中文)；mono 部位不动。
+   --font-body 全站正文 / --font-zh 中文阅读 / --font-display 大标题 /
+   --mono 等宽 / --font-serif-zh · --serif · --serif-zh 已废弃
    ========================================================= */
+@font-face {
+  font-family: 'Google Sans';
+  src: url('/fonts/GoogleSans-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Google Sans';
+  src: url('/fonts/GoogleSans-Italic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Google Sans';
+  src: url('/fonts/GoogleSans-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Google Sans';
+  src: url('/fonts/GoogleSans-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Google Sans';
+  src: url('/fonts/GoogleSans-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  --serif: 'Fraunces', 'STZhongsong', '华文中宋', Georgia, 'Times New Roman', serif;
-  --serif-zh: 'STZhongsong', '华文中宋', 'Songti SC', SimSun, serif;
+  --font-body: 'Google Sans', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-zh: 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  /* 【已废弃】thinkings/小记 衬线备用栈，当前全站无任何引用，仅留底 */
+  --font-serif-zh: 'STZhongsong', '华文中宋', 'Songti SC', SimSun, serif;
+  /* 标题专用（原来的栈）：拉丁 Fraunces + 中文华文中宋 —— 仅大标题 h1 使用 */
+  --font-display: 'Fraunces', 'STZhongsong', '华文中宋', Georgia, 'Times New Roman', serif;
   --mono: 'JetBrains Mono', 'Cascadia Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* 【已废弃】兼容别名：--serif → --font-body，--serif-zh → --font-zh。
+     新代码请改用上面的语义名，这两个仅保证旧引用不断裂 */
+  --serif: var(--font-body);
+  --serif-zh: var(--font-zh);
 
   /* spacing scale */
   --space-xs: 4px;
@@ -126,9 +172,11 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: var(--serif);
-  font-size: 17px;
-  line-height: 1.7;
+  font-family: var(--font-body);
+  /* 16px + 1.75：中文黑体（字面大、无衬线补偿）比 serif 更占视觉重量，
+     字号收 1px、行高从 1.7 略放到 1.75，换来无衬线中文的松而不散 */
+  font-size: 16px;
+  line-height: 1.75;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   transition: background-color var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
@@ -136,7 +184,7 @@ body {
 
 h1, h2, h3, h4 {
   font-family: inherit;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.15;
   letter-spacing: -0.01em;
   margin: 0;
@@ -147,7 +195,7 @@ p { margin: 0; }
 
 :lang(zh),
 :lang(zh-CN) {
-  font-family: var(--serif-zh);
+  font-family: var(--font-zh);
 }
 
 a { color: inherit; text-decoration: none; }
@@ -177,13 +225,15 @@ img, svg { display: block; max-width: 100%; }
 
 .prose { max-width: var(--maxw-prose); }
 
-/* 中文阅读区：衬线 + 1.85 行高 + 两端对齐 + 中西文自动间距（Chromium，不支持则降级） */
+/* 中文阅读区：与「造物」简介同一配方 —— Noto Sans SC + 弱色 + 1.7 行高，
+   不两端对齐（justify 会把黑体的字距撕出不均匀的灰斑）；字重略降、
+   字号略收，长段落才有 thinkings 之外那种干净的灰度 */
 .prose-zh {
-  font-family: var(--serif-zh);
-  line-height: 1.85;
-  letter-spacing: 0.015em;
-  text-align: justify;
-  text-spacing-trim: space-all;
+  font-family: var(--font-zh);
+  font-size: 0.95rem;
+  line-height: 1.7;
+  letter-spacing: 0.01em;
+  color: var(--text-muted);
 }
 
 .eyebrow {
@@ -225,9 +275,8 @@ img, svg { display: block; max-width: 100%; }
 .back-home:hover::before,
 .back-home:hover::after { color: var(--accent); }
 .page-head h1 {
-  /* 拉丁字符优先 Fraunces，中文回落衬线 —— 与 ArticleLayout h1 同一规则，
-     避免 zh-CN 页面被 :lang 整体切到华文中宋而与文章页标题不一致 */
-  font-family: 'Fraunces', var(--serif-zh);
+  /* 标题回到原来的栈：拉丁 Fraunces + 中文华文中宋衬线，与 ArticleLayout h1 一致 */
+  font-family: var(--font-display);
   font-size: clamp(3rem, 6vw, 5.5rem);
   font-weight: 500;
   line-height: 1;
