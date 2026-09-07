@@ -332,8 +332,13 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
   :global(.article__content li + li) { margin-top: var(--space-sm); }
   :global(.article__content a) { color: var(--accent); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent); text-underline-offset: 3px; }
   :global(.article__content blockquote) { margin: var(--space-xl) 0 0; border-left: 2px solid var(--accent); padding-left: var(--space-lg); color: var(--text-muted); }
-  :global(.article__content pre) { margin-top: var(--space-xl); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-lg); overflow-x: auto; background: var(--code-bg); font-family: 'Google Sans', var(--mono); font-size: 13px; line-height: 1.7; }
-  :global(.article__content pre code) { font-family: inherit; font-size: inherit; background: none; border: 0; padding: 0; }
+  :global(.article__content pre) { margin-top: var(--space-xl); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-lg); overflow-x: auto; background: var(--code-bg); font-family: var(--mono); font-size: 13px; line-height: 1.7; }
+  /* 保险：html:lang(zh-CN) 会把正文染成 Google Sans；Shiki 用 span 高亮代码，
+     这些 span 也可能被命中。直接把 mono 钉在 pre 的所有后代上。 */
+  :global(.article__content pre),
+  :global(.article__content pre code),
+  :global(.article__content pre span) { font-family: var(--mono) !important; }
+  :global(.article__content pre code) { font-size: inherit; background: none; border: 0; padding: 0; }
   :global(.article__content code) { font-family: var(--mono); }
   :global(.article__content :not(pre) > code) { border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; background: var(--accent-soft); font-size: 0.88em; }
   /* 数学公式：KaTeX 输出与正文同色；块级公式随正文列宽溢出时横向滚动，
