@@ -21,7 +21,10 @@
     "@fontsource/noto-sans-sc": "^5.3.0",
     "@pagefind/default-ui": "^1.5.2",
     "astro": "^5.18.2",
-    "gsap": "^3.15.0"
+    "gsap": "^3.15.0",
+    "katex": "^0.16.47",
+    "rehype-katex": "^7.0.1",
+    "remark-math": "^6.0.0"
   },
   "devDependencies": {
     "gray-matter": "^4.0.3",

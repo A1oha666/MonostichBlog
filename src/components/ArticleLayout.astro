@@ -332,6 +332,12 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
   :global(.article__content pre code) { font-family: var(--mono); font-size: inherit; background: none; border: 0; padding: 0; }
   :global(.article__content code) { font-family: var(--mono); }
   :global(.article__content :not(pre) > code) { border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; background: var(--accent-soft); font-size: 0.88em; }
+  /* 数学公式：KaTeX 输出与正文同色；块级公式随正文列宽溢出时横向滚动，
+     不撑破 720px 栅格；中文正文 1.7 行高下基线略下沉，微调对齐 */
+  :global(.article__content .katex) { color: var(--text); font-size: 1.06em; }
+  :global(.article__content .katex-display) { margin: var(--space-xl) 0; overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+  :global(.article__content .katex-display > .katex) { font-size: 1.15em; }
+  :global(.article__content .katex-error) { color: var(--accent-deep); }
   :global(.article__content img) { width: 100%; height: auto; margin-top: var(--space-xl); border: 1px solid var(--border); border-radius: var(--radius-sm); object-fit: contain; }
   :global(.article__content hr) { margin: var(--space-3xl) 0; border: 0; }
   :global(.codeblock) { position: relative; }
