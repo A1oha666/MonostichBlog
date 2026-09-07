@@ -183,15 +183,21 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
     }
 
     // --- code copy buttons (skip already-wrapped blocks) ---
-    // 包装时顺便从 code 的 language-* 类读出语言名写到 data-lang，
-    // .codeblock::before 用它渲染左上角的语言条（不新增静态 DOM）
+    // 包装时顺便读语言名写到 data-lang，.codeblock::before 用它渲染左上角语言条。
+    // Shiki 会把语言写入 pre.dataLanguage（渲染为 data-language 属性），
+    // 优先用它；fallback 到 code.className 的 language-* 类（兼容其他插件产出）。
     document.querySelectorAll(".article__content pre").forEach((pre) => {
       const parent = pre.parentElement;
       if (!parent || parent.classList.contains("codeblock")) return;
       const wrapper = document.createElement("div");
       wrapper.className = "codeblock";
       const code = pre.querySelector("code");
-      wrapper.dataset.lang = code?.className.match(/language-([\w+-]+)/)?.[1] ?? "text";
+      wrapper.dataset.lang = (
+        // Shiki 写 data-language="java"；无此属性说明被排除或未识别
+        pre.dataset.language
+        // 常见非小写变体规范化为大写首字母形式
+        || { java: 'Java', go: 'Go', golang: 'Go', js: 'JavaScript', ts: 'TypeScript', py: 'Python' }[pre.dataset.language]
+      ) ?? "text";
       pre.replaceWith(wrapper);
       wrapper.append(pre);
 
@@ -328,8 +334,8 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
   :global(.article__content blockquote) { margin: var(--space-xl) 0 0; border-left: 2px solid var(--accent); padding-left: var(--space-lg); color: var(--text-muted); }
   /* 代码块 / 行内代码：一律 JetBrains Mono。pre 显式声明是为防止被正文
      继承链覆盖；行内 code 用 mono 但字号收到 0.88em，与中文正文视觉等高 */
-  :global(.article__content pre) { margin-top: var(--space-xl); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-lg); overflow-x: auto; background: var(--code-bg); font-family: var(--mono); font-size: 13px; line-height: 1.7; }
-  :global(.article__content pre code) { font-family: var(--mono); font-size: inherit; background: none; border: 0; padding: 0; }
+  :global(.article__content pre) { margin-top: var(--space-xl); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-lg); overflow-x: auto; background: var(--code-bg); font-family: 'Roboto Mono', var(--mono); font-size: 13px; line-height: 1.7; }
+  :global(.article__content pre code) { font-family: inherit; font-size: inherit; background: none; border: 0; padding: 0; }
   :global(.article__content code) { font-family: var(--mono); }
   :global(.article__content :not(pre) > code) { border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; background: var(--accent-soft); font-size: 0.88em; }
   /* 数学公式：KaTeX 输出与正文同色；块级公式随正文列宽溢出时横向滚动，

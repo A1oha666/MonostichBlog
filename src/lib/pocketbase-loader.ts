@@ -154,10 +154,19 @@ export function pocketBaseLoader(type: 'notes' | 'thinkings' | 'moments'): Conte
       if (!processorPromise) {
         // 数学公式：remark-math 解析 $...$ / $$...$$，rehype-katex 渲染成
         // HTML（错误时回退原文并给出 vfile 警告，不会让构建失败）。
+        // langAlias 补常见别名：shiki 默认只加载 go 本体，
+        // golang/Java/Go 等首字母大写或别名写法会回退 plaintext
         processorPromise = createMarkdownProcessor({
           gfm: true,
           remarkPlugins: [remarkMath],
           rehypePlugins: [rehypeKatex],
+          shikiConfig: {
+            langAlias: {
+              golang: 'go',
+              Java: 'java',
+              Go: 'go',
+            },
+          },
         });
       }
       const processor = await processorPromise;
