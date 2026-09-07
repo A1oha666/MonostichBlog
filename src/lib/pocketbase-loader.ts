@@ -16,6 +16,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createMarkdownProcessor } from '@astrojs/markdown-remark';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import type { ContentLayerLoader } from 'astro/loaders';
 
 const DEFAULT_BASE = 'http://127.0.0.1:8090';
@@ -150,7 +152,13 @@ export function pocketBaseLoader(type: 'notes' | 'thinkings' | 'moments'): Conte
       const includeDrafts = process.env.INCLUDE_DRAFTS === '1';
 
       if (!processorPromise) {
-        processorPromise = createMarkdownProcessor({ gfm: true });
+        // 数学公式：remark-math 解析 $...$ / $$...$$，rehype-katex 渲染成
+        // HTML（错误时回退原文并给出 vfile 警告，不会让构建失败）。
+        processorPromise = createMarkdownProcessor({
+          gfm: true,
+          remarkPlugins: [remarkMath],
+          rehypePlugins: [rehypeKatex],
+        });
       }
       const processor = await processorPromise;
 
