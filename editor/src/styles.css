@@ -1,9 +1,8 @@
 /* ==========================================================================
-   Monostich 编辑器 — macOS / iOS 风格视觉层
-   设计语言：Apple Human Interface Guidelines
+   Monostich 编辑器 — 灰白极简 / macOS 质感
    - SF 系统字体栈 + 紧排字距
-   - 半透明磨砂 (vibrancy) 顶栏 / 元信息条
-   - Apple 系统蓝 (#0A84FF / #0A84FF dark) + 中性灰阶
+   - 半透明磨砂 (vibrancy) 顶栏 / 浮层
+   - 纯灰阶单色系：强调色为近黑（暗色模式反转），无彩色、无渐变
    - 连续圆角 (continuous corners)、细腻毛边阴影
    - iOS 风格分段控件、focus ring、弹跳 toast
    ========================================================================== */
@@ -21,15 +20,16 @@
   --text-dim: #6e6e73;
   --text-faint: #86868b;
 
-  /* Apple 系统色 */
-  --accent: #007aff;                 /* systemBlue */
-  --accent-strong: #0066d6;
-  --accent-soft: rgba(0, 122, 255, 0.1);
-  --ok: #28c840;                     /* 窗口绿灯同色系 */
-  --ok-soft: rgba(52, 199, 89, 0.14);
-  --ok-strong: #248a3d;
-  --danger: #ff3b30;
-  --danger-soft: rgba(255, 59, 48, 0.12);
+  /* 灰白单色系：强调色用近黑，信息色用灰阶 */
+  --accent: #1d1d1f;
+  --accent-strong: #000000;
+  --accent-soft: rgba(0, 0, 0, 0.08);
+  --accent-contrast: #ffffff;        /* 强调底上的前景色 */
+  --ok: #3a3a3c;
+  --ok-soft: rgba(0, 0, 0, 0.06);
+  --ok-strong: #1d1d1f;
+  --danger: #48484a;
+  --danger-soft: rgba(0, 0, 0, 0.06);
 
   --toolbar-h: 52px;
   --radius-s: 7px;
@@ -53,14 +53,15 @@
     --text-dim: #98989d;
     --text-faint: #6e6e73;
 
-    --accent: #0a84ff;               /* systemBlue dark */
-    --accent-strong: #409cff;
-    --accent-soft: rgba(10, 132, 255, 0.18);
-    --ok: #30d158;
-    --ok-soft: rgba(48, 209, 88, 0.16);
-    --ok-strong: #30d158;
-    --danger: #ff453a;
-    --danger-soft: rgba(255, 69, 58, 0.16);
+    --accent: #f5f5f7;
+    --accent-strong: #ffffff;
+    --accent-soft: rgba(255, 255, 255, 0.14);
+    --accent-contrast: #1d1d1f;
+    --ok: #aeaeb2;
+    --ok-soft: rgba(255, 255, 255, 0.1);
+    --ok-strong: #e5e5ea;
+    --danger: #aeaeb2;
+    --danger-soft: rgba(255, 255, 255, 0.1);
 
     --shadow-pop: 0 0.5px 2px rgba(0, 0, 0, 0.4), 0 12px 32px rgba(0, 0, 0, 0.5);
     --shadow-toast: 0 4px 16px rgba(0, 0, 0, 0.4);
@@ -141,8 +142,8 @@ input, button { font-family: inherit; }
 .btn.primary {
   background: var(--accent);
   border-color: transparent;
-  color: #fff;
-  box-shadow: 0 1px 3px rgba(0, 122, 255, 0.35);
+  color: var(--accent-contrast);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
 }
 .btn.primary:hover { background: var(--accent-strong); }
 
@@ -230,8 +231,8 @@ input, button { font-family: inherit; }
   border-radius: 50%;
   display: inline-grid;
   place-items: center;
-  background: linear-gradient(135deg, var(--accent), #5e5ce6);
-  color: #fff;
+  background: var(--accent);
+  color: var(--accent-contrast);
   font-size: 12px;
   font-weight: 600;
   flex: 0 0 auto;
@@ -279,7 +280,7 @@ input, button { font-family: inherit; }
   border-radius: 6px;
   cursor: pointer;
 }
-.user-dropdown-item:hover { background: var(--accent); color: #fff; }
+.user-dropdown-item:hover { background: var(--accent); color: var(--accent-contrast); }
 
 /* ---------- 元信息条 ---------- */
 .meta-bar {
@@ -492,12 +493,12 @@ input, button { font-family: inherit; }
 }
 .md-editor .bytemd-editor .CodeMirror pre.CodeMirror-placeholder { color: var(--text-faint); }
 
-/* Markdown 语法着色（GitHub 主题 → Apple 色系） */
-.md-editor .cm-s-default .cm-header { color: var(--accent); font-weight: 600; }
-.md-editor .cm-s-default .cm-quote { color: #30a24a; }
-.md-editor .cm-s-default .cm-link { color: var(--accent); }
+/* Markdown 语法着色（灰阶层次） */
+.md-editor .cm-s-default .cm-header { color: var(--text); font-weight: 700; }
+.md-editor .cm-s-default .cm-quote { color: var(--text-dim); }
+.md-editor .cm-s-default .cm-link { color: var(--text); text-decoration: underline; }
 .md-editor .cm-s-default .cm-url { color: var(--text-dim); }
-.md-editor .cm-s-default .cm-string { color: #c81e3a; }
+.md-editor .cm-s-default .cm-string { color: var(--text-dim); }
 .md-editor .cm-s-default .cm-comment { color: var(--text-faint); font-style: italic; }
 .md-editor .cm-s-default .cm-hr { color: var(--text-faint); }
 .md-editor .cm-s-default .cm-formatting,
@@ -545,10 +546,7 @@ input, button { font-family: inherit; }
   inset: 0;
   display: grid;
   place-items: center;
-  background:
-    radial-gradient(1100px 600px at 15% -10%, rgba(0, 122, 255, 0.08), transparent 60%),
-    radial-gradient(900px 500px at 110% 110%, rgba(94, 92, 230, 0.08), transparent 55%),
-    var(--bg-soft);
+  background: var(--bg-soft);
 }
 
 .login-card {
@@ -609,13 +607,13 @@ input, button { font-family: inherit; }
   margin-top: 8px;
   background: var(--accent);
   border: none;
-  color: #fff;
+  color: var(--accent-contrast);
   border-radius: var(--radius-s);
   padding: 10px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 1px 3px rgba(0, 122, 255, 0.35);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
   transition: background 0.18s ease, transform 0.1s ease;
 }
 .login-card button:hover { background: var(--accent-strong); }
