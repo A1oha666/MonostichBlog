@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react';
 import type { ArticleRecord } from '../lib/pb';
 import type { SaveMeta } from '../lib/article';
 
@@ -16,6 +17,20 @@ const TYPES: { value: ArticleRecord['type']; label: string }[] = [
 ];
 
 export function MetaBar({ meta, recordId, status, slugError, onChange }: Props) {
+  const segRef = useRef<HTMLDivElement>(null);
+
+  // iOS 风格分段控件：测量激活项位置，驱动滑块胶囊
+  useLayoutEffect(() => {
+    const seg = segRef.current;
+    if (!seg) return;
+    const active = seg.querySelector<HTMLElement>('.seg-item.active');
+    const thumb = seg.querySelector<HTMLElement>('.seg-thumb');
+    if (active && thumb) {
+      thumb.style.left = `${active.offsetLeft}px`;
+      thumb.style.width = `${active.offsetWidth}px`;
+    }
+  }, [meta.type]);
+
   return (
     <div className="meta-bar">
       <div className="meta-row">
@@ -38,7 +53,8 @@ export function MetaBar({ meta, recordId, status, slugError, onChange }: Props) 
         </label>
         <div className="meta-field meta-type">
           类型
-          <div className="seg">
+          <div className="seg" ref={segRef}>
+            <span className="seg-thumb" aria-hidden="true" />
             {TYPES.map((t) => (
               <button
                 key={t.value}
@@ -73,7 +89,7 @@ export function MetaBar({ meta, recordId, status, slugError, onChange }: Props) 
             onChange={(e) => onChange({ summary: e.target.value })}
           />
         </label>
-        <span className="meta-status">
+        <span className={`meta-status${status === 'published' ? ' published' : ''}`}>
           {status ? (status === 'published' ? '已发布' : status === 'draft' ? '草稿' : status) : '未保存'}
         </span>
       </div>

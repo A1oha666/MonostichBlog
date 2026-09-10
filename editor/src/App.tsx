@@ -38,6 +38,8 @@ export default function App() {
   const [saving, setSaving] = useState(false);
   const [slugError, setSlugError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const metaRef = useRef(meta);
   metaRef.current = meta;
@@ -45,6 +47,25 @@ export default function App() {
   recordIdRef.current = recordId;
 
   useBeforeUnload(dirty);
+
+  // 用户菜单：点击外部或 Esc 关闭
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setUserMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [userMenuOpen]);
 
   const setRecordId = useCallback(
     (id: string) => {
@@ -133,7 +154,7 @@ export default function App() {
         setStatus(rec.status);
         syncIdToUrl(rec.id);
         setDirty(false);
-        push(target === 'published' ? '已发布 ✓' : '草稿已保存 ✓');
+        push(target === 'published' ? '已发布' : '草稿已保存');
       } catch (e) {
         const msg = errMsg(e);
         if (msg.includes('slug')) setSlugError(msg.replace(/^slug:\s*/i, ''));
@@ -177,10 +198,29 @@ export default function App() {
           <button className="btn primary" disabled={saving} onClick={() => void doSave('published')}>
             {status === 'published' ? '更新发布' : '立即发布'}
           </button>
-          <span className="user">{email}</span>
-          <button className="btn ghost" onClick={logout}>
-            退出
-          </button>
+          <div className="user-menu" ref={userMenuRef}>
+            <button
+              className={`btn ghost user-chip${userMenuOpen ? ' open' : ''}`}
+              onClick={() => setUserMenuOpen((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={userMenuOpen}
+            >
+              <span className="user-avatar" aria-hidden="true">
+                {(email || '?').slice(0, 1).toUpperCase()}
+              </span>
+              <span className="user-email">{email}</span>
+              <svg className="chevron" width="8" height="6" viewBox="0 0 8 6" aria-hidden="true">
+                <path d="M1 1l3 3 3-3" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+              </svg>
+            </button>
+            {userMenuOpen && (
+              <div className="user-dropdown" role="menu">
+                <button className="user-dropdown-item" role="menuitem" onClick={logout}>
+                  退出登录
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
