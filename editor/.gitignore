@@ -1,0 +1,16 @@
+# 日志 / 依赖
+node_modules/
+npm-debug.log*
+
+# 构建产物（部署时生成）
+dist/
+
+# tsc 增量缓存
+*.tsbuildinfo
+
+# 环境
+.env.local
+.env.*.local
+
+# 系统
+.DS_Store
