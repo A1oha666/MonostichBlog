@@ -1,12 +1,16 @@
 // PocketBase 客户端。
 //
 // 生产环境 SPA 与 API 同源（admin.monostich.cloud/editor/ 访问，
-// /api 由同一个 PocketBase 提供），故默认空字符串 = window.location.origin。
-// 本地开发由 vite.config.ts 的 server.proxy 把 /api 转发到 127.0.0.1:8090。
-// 如需直连其他实例，可设 VITE_PB_BASE_URL 覆盖。
+// /api 由同一个 PocketBase 提供）。
+// 注意：不能传空字符串——SDK 的 buildURL 会把 baseURL='' 拼上
+// window.location.pathname，导致请求打到 /editor/api/...（404）。
+// 显式用 origin，本地开发则由 vite.config.ts 的 server.proxy 把 /api
+// 转发到 127.0.0.1:8090。如需直连其他实例，可设 VITE_PB_BASE_URL 覆盖。
 import PocketBase from 'pocketbase';
 
-export const pb = new PocketBase(import.meta.env.VITE_PB_BASE_URL ?? '');
+export const pb = new PocketBase(
+  import.meta.env.VITE_PB_BASE_URL ?? window.location.origin,
+);
 
 // 计算文件 URL：正文图片契约必须是
 //   {origin}/api/files/articles/{recordId}/{storedName}
