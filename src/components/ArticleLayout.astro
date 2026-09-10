@@ -184,20 +184,14 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
 
     // --- code copy buttons (skip already-wrapped blocks) ---
     // 包装时顺便读语言名写到 data-lang，.codeblock::before 用它渲染左上角语言条。
-    // Shiki 会把语言写入 pre.dataLanguage（渲染为 data-language 属性），
-    // 优先用它；fallback 到 code.className 的 language-* 类（兼容其他插件产出）。
+    // Shiki 会把语言写入 pre.data-language；无此属性说明语言被排除或未识别，
+    // loader 侧 shikiConfig.langAlias 已规范化别名（golang/Java/Go）。
     document.querySelectorAll(".article__content pre").forEach((pre) => {
       const parent = pre.parentElement;
       if (!parent || parent.classList.contains("codeblock")) return;
       const wrapper = document.createElement("div");
       wrapper.className = "codeblock";
-      const code = pre.querySelector("code");
-      wrapper.dataset.lang = (
-        // Shiki 写 data-language="java"；无此属性说明被排除或未识别
-        pre.dataset.language
-        // 常见非小写变体规范化为大写首字母形式
-        || { java: 'Java', go: 'Go', golang: 'Go', js: 'JavaScript', ts: 'TypeScript', py: 'Python' }[pre.dataset.language]
-      ) ?? "text";
+      wrapper.dataset.lang = pre.dataset.language ?? "text";
       pre.replaceWith(wrapper);
       wrapper.append(pre);
 

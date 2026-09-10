@@ -87,10 +87,8 @@ const PB_FILE_RE = /(?:src|href)=["']([^"']*\/api\/files\/articles\/[^"']+)["']/
 // 而 Markdown 里写的是原始文件名，这里按记录的 attachments 列表做映射。
 type FileIndex = Map<string, Set<string>>;
 
-async function buildFileIndex(records: AnyRecord[]): Promise<FileIndex> {
-  const idx: FileIndex = new Map();
-  for (const rec of records) idx.set(rec.id, new Set(rec.attachments ?? []));
-  return idx;
+function buildFileIndex(records: AnyRecord[]): FileIndex {
+  return new Map(records.map((rec) => [rec.id, new Set<string>(rec.attachments ?? [])]));
 }
 
 async function resolveStoredName(
@@ -174,7 +172,7 @@ export function pocketBaseLoader(type: 'notes' | 'thinkings' | 'moments'): Conte
       const records = await fetchAllPublished(base, type, includeDrafts);
       store.clear();
       const token = includeDrafts ? await getEditorToken(base) : undefined;
-      const fileIndex = await buildFileIndex(records);
+      const fileIndex = buildFileIndex(records);
 
       for (const rec of records) {
         const outDirRel = path.posix.join('pb', type, rec.slug);

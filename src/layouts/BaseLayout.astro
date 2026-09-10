@@ -20,8 +20,6 @@ import "../styles/global.css";
 interface Props {
   title?: string;
   description?: string;
-  hideNav?: boolean;
-  pageStylesheet?: string;
   bodyClass?: string;
   lang?: string;
 }
@@ -29,8 +27,6 @@ const {
   title = "Aloha — backend & agent engineering",
   description =
     "Personal site & blog: backend development, distributed systems, and LLM agent applications.",
-  hideNav = false,
-  pageStylesheet,
   bodyClass,
   lang = "en",
 } = Astro.props;
@@ -45,7 +41,6 @@ const {
     <meta name="theme-color" content="#000000" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="alternate" type="application/rss+xml" title="Aloha" href="/rss.xml" />
-    {pageStylesheet && <link rel="stylesheet" href={pageStylesheet} />}
     <title>{title}</title>
     <ClientRouter />
     <script is:inline>
@@ -79,7 +74,7 @@ const {
   </head>
   <body class={bodyClass}>
     <a class="skip-link" href="#main">Skip to main content</a>
-    {!hideNav && <Nav />}
+    <Nav />
     <main id="main">
       <slot />
     </main>

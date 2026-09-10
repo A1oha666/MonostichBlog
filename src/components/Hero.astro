@@ -213,16 +213,14 @@ const {
     /* 10 个字符的 "and build._" 按 0.62em 均宽 + 负字距测算：
        11vw @375px ≈ 41px，两行恰好放下且不破词 */
     .hero__title { font-size: clamp(1.9rem, 11vw, 3.2rem); }
-    .hero__actions a { display: inline-flex; align-items: center; min-height: 44px; }
     .hero__status { width: auto; padding: 12px 14px; }
     .hero__status-label, .hero__status-state { display: inline; margin: 0 18px 0 0; }
     .hero__status dl { display: inline-flex; gap: 14px; }
     .hero__status dl div { border: 0; padding: 0; gap: 4px; }
   }
 
-  /* ≤420px：CTA 纵向排列，状态条缩写为 notes 05 · projects 08 · 09.05 */
+  /* ≤420px：状态条缩写为 notes 05 · projects 08 · 09.05 */
   @media (max-width: 420px) {
-    .hero__actions { flex-direction: column; gap: 4px; }
     .hero__status dl div:last-child dt { display: none; }
   }
 </style>

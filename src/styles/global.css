@@ -81,7 +81,7 @@
    Type — 规则：正文 = Google Sans(拉丁)+Noto Sans SC(中文)；
    大标题 h1 = Fraunces(拉丁)+华文中宋(中文)；mono 部位不动。
    --font-body 全站正文 / --font-zh 中文阅读 / --font-display 大标题 /
-   --mono 等宽 / --font-serif-zh · --serif · --serif-zh 已废弃
+   --mono 等宽
    ========================================================= */
 @font-face {
   font-family: 'Google Sans';
@@ -129,15 +129,9 @@
 :root {
   --font-body: 'Google Sans', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
   --font-zh: 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-  /* 【已废弃】thinkings/小记 衬线备用栈，当前全站无任何引用，仅留底 */
-  --font-serif-zh: 'STZhongsong', '华文中宋', 'Songti SC', SimSun, serif;
-  /* 标题专用（原来的栈）：拉丁 Fraunces + 中文华文中宋 —— 仅大标题 h1 使用 */
+  /* 标题专用：拉丁 Fraunces + 中文华文中宋 —— 仅大标题 h1 使用 */
   --font-display: 'Fraunces', 'STZhongsong', '华文中宋', Georgia, 'Times New Roman', serif;
   --mono: 'JetBrains Mono', 'Cascadia Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  /* 【已废弃】兼容别名：--serif → --font-body，--serif-zh → --font-zh。
-     新代码请改用上面的语义名，这两个仅保证旧引用不断裂 */
-  --serif: var(--font-body);
-  --serif-zh: var(--font-zh);
 
   /* spacing scale */
   --space-xs: 4px;
@@ -298,35 +292,45 @@ img, svg { display: block; max-width: 100%; }
 }
 
 /* =========================================================
-   Section head — 首页模块标题行（Recent / Selected work）
+   Module head & section — 代码注释式模块头（// 编号 · 名目）
+   与列表区块节奏；首页 / 造物 / 杂物间共用
    ========================================================= */
-.section__head {
+.module-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  padding-bottom: 22px;
-  border-bottom: 1px solid var(--border-strong);
+  gap: var(--space-md);
+  margin-bottom: var(--space-sm);
 }
-.section__head h2 {
-  font-size: 1rem;
+.module-head h2 {
   font-family: var(--mono);
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.04em;
-  min-height: 1.2em;
+  letter-spacing: 0.14em;
+  color: var(--text-faint);
 }
-.section__head a {
-  color: var(--text-muted);
+.module-head h2::before {
+  content: "//";
+  color: var(--accent-dim);
+  margin-right: 10px;
+}
+.module-head__no { margin-right: 10px; }
+.module-head a {
+  color: var(--text-faint);
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
   transition: color var(--dur-fast) var(--ease-out);
 }
-.section__head a span {
-  display: inline-block;
-  color: var(--accent);
-  transition: transform var(--dur-base) var(--ease-out);
+.module-head a:hover { color: var(--accent); }
+
+.section {
+  padding-block: 84px;
+  scroll-margin-top: calc(var(--nav-height) + var(--space-lg));
 }
-.section__head a:hover { color: var(--accent); }
-.section__head a:hover span { transform: translateX(3px); }
+@media (max-width: 640px) {
+  .section { padding-block: 64px; }
+}
 
 /* =========================================================
    乱码解码标题（data-scramble）— 字符从符号翻滚定稿，
@@ -414,35 +418,6 @@ html.js [data-reveal].is-revealed {
 .btn--primary:hover { color: var(--accent-deep); }
 .btn--primary:hover::before,
 .btn--primary:hover::after { color: var(--accent-deep); }
-
-/* =========================================================
-   Section divider — code comment style
-   ========================================================= */
-.divider {
-  font-family: var(--mono);
-  font-size: 13px;
-  color: var(--text-faint);
-  letter-spacing: 0.04em;
-  border: 0;
-  margin: var(--space-4xl) 0 var(--space-2xl);
-}
-.divider::before { content: "/* ---- "; }
-.divider::after  { content: " ---- */"; }
-
-/* =========================================================
-   Tag (backtick / mono)
-   ========================================================= */
-.tag {
-  font-family: var(--mono);
-  font-size: 12.5px;
-  color: var(--text-muted);
-  background: var(--accent-soft);
-  border: 1px solid var(--border);
-  padding: 2px 8px;
-  border-radius: 6px;
-}
-.tag::before { content: "`"; color: var(--accent); }
-.tag::after  { content: "`"; color: var(--accent); }
 
 /* =========================================================
    Skip link (a11y)

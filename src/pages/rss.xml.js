@@ -1,18 +1,15 @@
 import rss from "@astrojs/rss";
-import { getCollection } from "astro:content";
+import { getBlogCollections, momentTitle } from "../lib/content";
 
 export async function GET(context) {
-  const notes = await getCollection("notes", ({ data }) => !data.draft);
-  const thinkings = await getCollection("thinkings", ({ data }) => !data.draft);
-  const moments = await getCollection("moments", ({ data }) => !data.draft);
+  const { notes, thinkings, moments } = await getBlogCollections();
 
   // 小记已并入 Thinkings：moments 内容归入 Thinkings 分类，链接锚到合并后的列表页
   const labels = { notes: "Notes", thinkings: "Thinkings", moments: "Thinkings" };
   const items = [...notes, ...thinkings, ...moments]
     .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
     .map((entry) => ({
-      // 小记可能没有标题，回退用摘要（loader 侧已用正文摘录兜底）
-      title: entry.data.title || entry.data.summary,
+      title: entry.collection === "moments" ? momentTitle(entry) : entry.data.title,
       description: entry.data.summary,
       pubDate: entry.data.date,
       categories: [labels[entry.collection]],

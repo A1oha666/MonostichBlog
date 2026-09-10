@@ -1,16 +1,13 @@
 ---
-import { getCollection, render } from "astro:content";
+import { render } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import SiteFooter from "../components/SiteFooter.astro";
-import { dotDate, isoDate, DRAFT_PREVIEW } from "../lib/format";
+import { dotDate, isoDate } from "../lib/format";
+import { getBlogCollections } from "../lib/content";
 
 // Thinkings 吸收原「小记」：两条流按时间倒序混排进同一个栏目。
 // thinking 走标题卡（详情页），moment 直接内联正文（无详情页）。
-const draftFilter = ({ data }) => DRAFT_PREVIEW || !data.draft;
-const [thinkings, moments] = await Promise.all([
-  getCollection("thinkings", draftFilter),
-  getCollection("moments", draftFilter),
-]);
+const { thinkings, moments } = await getBlogCollections();
 
 const renderedMoments = await Promise.all(
   moments.map(async (entry) => {
