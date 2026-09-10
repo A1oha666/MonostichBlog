@@ -3,7 +3,7 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import Hero from "../components/Hero.astro";
 import Projects from "../components/Projects.astro";
 import SiteFooter from "../components/SiteFooter.astro";
-import { dotDate, isoDate } from "../lib/format";
+import { dotDate, isoDate, safeDate } from "../lib/format";
 import { getBlogCollections, momentTitle } from "../lib/content";
 import { lab } from "../data/lab.js";
 import { projects } from "../data/projects.js";
@@ -14,7 +14,7 @@ const { notes, thinkings, moments } = await getBlogCollections();
 const latestMoment = moments
   .map((entry) => ({
     id: entry.id,
-    date: new Date(entry.data.date),
+    date: safeDate(entry.data.date),
     text: momentTitle(entry),
   }))
   .filter((m) => m.text)
@@ -25,19 +25,19 @@ const latestMoment = moments
 const recent = [
   ...notes.map((entry) => ({
     key: `notes/${entry.id}`,
-    date: new Date(entry.data.date),
+    date: safeDate(entry.data.date),
     title: entry.data.title,
     href: `/notes/${entry.id}/`,
   })),
   ...thinkings.map((entry) => ({
     key: `thinkings/${entry.id}`,
-    date: new Date(entry.data.date),
+    date: safeDate(entry.data.date),
     title: entry.data.title,
     href: `/thinkings/${entry.id}/`,
   })),
   ...moments.map((entry) => ({
     key: `moments/${entry.id}`,
-    date: new Date(entry.data.date),
+    date: safeDate(entry.data.date),
     title: momentTitle(entry),
     href: `/thinkings#${entry.id}`,
   })),
@@ -51,7 +51,7 @@ const allEntries = [...notes, ...thinkings, ...moments];
 const notesCount = allEntries.length;
 const projectsCount = projects.length;
 const latestDate = allEntries
-  .map((entry) => new Date(entry.data.date))
+  .map((entry) => safeDate(entry.data.date))
   .sort((a, b) => b.valueOf() - a.valueOf())[0];
 const pad2 = (n) => String(n).padStart(2, "0");
 const updatedLabel = latestDate

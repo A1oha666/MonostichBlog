@@ -1,4 +1,6 @@
 ---
+import { safeDate, dotDate, isoDate } from "../lib/format";
+
 interface Heading {
   depth: number;
   slug: string;
@@ -44,14 +46,11 @@ const {
   viewSlug,
 } = Astro.props;
 
-const publishedDate = date instanceof Date ? date : new Date(date);
-const editedDate = updated instanceof Date ? updated : updated ? new Date(updated) : null;
+const publishedDate = safeDate(date);
+const editedDate = updated ? safeDate(updated) : null;
 const tocHeadings = headings.filter((heading) => heading.depth >= 2 && heading.depth <= 3);
-const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
+// 与全站列表页同一制式：圆点日期（zh-CN locale 输出的是 2026/08/27 斜杠式）
+const formatDate = dotDate;
 ---
 
 <article class="article">
@@ -62,7 +61,7 @@ const formatDate = (value: Date) => value.toLocaleDateString("zh-CN", {
     <h1 data-reveal style="--reveal-delay: 120ms">{title}</h1>
     <p class="article__summary" data-reveal style="--reveal-delay: 200ms">{summary}</p>
     <div class="article__meta" data-reveal style="--reveal-delay: 280ms">
-      <time datetime={publishedDate.toISOString()}>{formatDate(publishedDate)}</time>
+      <time datetime={isoDate(publishedDate)}>{formatDate(publishedDate)}</time>
       <span>{readingTime}</span>
       {viewType && viewSlug && (
         <span

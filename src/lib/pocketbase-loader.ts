@@ -223,13 +223,18 @@ export function pocketBaseLoader(type: 'notes' | 'thinkings' | 'moments'): Conte
                 .slice(0, 80)
             : '';
 
+        // publishedAt 允许为空（作者未排期就发布）；z.coerce.date() 会把空串
+        // 转成 Invalid Date，页面侧 new Date()/toISOString() 随之崩溃。这里
+        // 在入库前就用 created 兜底，让 Invalid Date 不可能进入 content layer。
+        const date = rec.publishedAt || rec.created;
+
         store.set({
           id: rec.slug,
           body: rec.content ?? '',
           data: {
             title: rec.title ?? '',
-            date: rec.publishedAt ?? rec.created,
-            editedAt: rec.editedAt ?? null,
+            date,
+            editedAt: rec.editedAt || null,
             summary: rec.summary || plainExcerpt,
             label: rec.label || undefined,
             cover,

@@ -1,11 +1,11 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import SiteFooter from "../components/SiteFooter.astro";
-import { dotDate, isoDate } from "../lib/format";
+import { dotDate, isoDate, safeDate } from "../lib/format";
 import { getBlogCollections } from "../lib/content";
 
 const { notes } = await getBlogCollections();
-const entries = notes.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+const entries = notes.sort((a, b) => safeDate(b.data.date).valueOf() - safeDate(a.data.date).valueOf());
 ---
 
 <BaseLayout lang="zh-CN" title="Notes — Aloha" description="Aloha 的工程笔记。">

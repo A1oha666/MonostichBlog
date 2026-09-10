@@ -1,5 +1,6 @@
 import rss from "@astrojs/rss";
 import { getBlogCollections, momentTitle } from "../lib/content";
+import { safeDate } from "../lib/format";
 
 export async function GET(context) {
   const { notes, thinkings, moments } = await getBlogCollections();
@@ -7,7 +8,7 @@ export async function GET(context) {
   // 小记已并入 Thinkings：moments 内容归入 Thinkings 分类，链接锚到合并后的列表页
   const labels = { notes: "Notes", thinkings: "Thinkings", moments: "Thinkings" };
   const items = [...notes, ...thinkings, ...moments]
-    .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
+    .sort((a, b) => safeDate(b.data.date).valueOf() - safeDate(a.data.date).valueOf())
     .map((entry) => ({
       title: entry.collection === "moments" ? momentTitle(entry) : entry.data.title,
       description: entry.data.summary,

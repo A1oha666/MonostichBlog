@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import SiteFooter from "../components/SiteFooter.astro";
-import { dotDate, isoDate } from "../lib/format";
+import { dotDate, isoDate, safeDate } from "../lib/format";
 import { getBlogCollections, momentTitle } from "../lib/content";
 import "@pagefind/default-ui/css/ui.css";
 
@@ -49,7 +49,7 @@ for (const bucket of buckets) {
   for (const item of bucket.entries) {
     // content layer 传来的 date 可能是 Date 也可能是 ISO 字符串，统一转 Date
     // —— 取年份和后续排序都依赖它（字符串调 valueOf() 减法会得 NaN，比较器静默失效）
-    const date = new Date(item.date);
+    const date = safeDate(item.date);
     const y = date.getFullYear();
     if (!years.has(y)) years.set(y, []);
     years.get(y).push({ ...item, date, type: bucket.type, typeLabel: bucket.label });

@@ -2,7 +2,7 @@
 import { render } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import SiteFooter from "../components/SiteFooter.astro";
-import { dotDate, isoDate } from "../lib/format";
+import { dotDate, isoDate, safeDate } from "../lib/format";
 import { getBlogCollections } from "../lib/content";
 
 // Thinkings 吸收原「小记」：两条流按时间倒序混排进同一个栏目。
@@ -32,7 +32,7 @@ const items: Item[] = [
   ...thinkings.map((entry): Item => ({
     kind: "thinking",
     id: entry.id,
-    date: new Date(entry.data.date),
+    date: safeDate(entry.data.date),
     title: entry.data.title,
     label: entry.data.label ?? "",
     summary: entry.data.summary,
@@ -41,7 +41,7 @@ const items: Item[] = [
   ...renderedMoments.map(({ entry }): Item => ({
     kind: "moment",
     id: entry.id,
-    date: new Date(entry.data.date),
+    date: safeDate(entry.data.date),
     title: entry.data.title,
     label: "小记",
     summary: entry.data.summary,

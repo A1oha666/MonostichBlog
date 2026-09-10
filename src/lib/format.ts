@@ -4,15 +4,23 @@ type DateLike = Date | string;
 
 const asDate = (value: DateLike): Date => (value instanceof Date ? value : new Date(value));
 
+// 无效日期防护：PocketBase 数据可能带空 publishedAt（loader 侧已用 created
+// 兑底，但数据修复前的旧缓存/其他来源仍可能产出 Invalid Date）。
+// epoch 0 兜底保证排序与渲染可完成，不会让整次构建崩溃。
+export const safeDate = (value: DateLike): Date => {
+  const d = asDate(value);
+  return Number.isNaN(d.valueOf()) ? new Date(0) : d;
+};
+
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
 export const dotDate = (value: DateLike) => {
-  const d = asDate(value);
+  const d = safeDate(value);
   return `${d.getFullYear()}.${pad2(d.getMonth() + 1)}.${pad2(d.getDate())}`;
 };
 
 export const isoDate = (value: DateLike) => {
-  const d = asDate(value);
+  const d = safeDate(value);
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 };
 
