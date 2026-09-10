@@ -1,30 +1,18 @@
 ---
-import { getCollection, render } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import ArticleLayout from "../../components/ArticleLayout.astro";
 import SiteFooter from "../../components/SiteFooter.astro";
-import { readingTimeText, DRAFT_PREVIEW } from "../../lib/format";
+import { readingTimeText } from "../../lib/format";
+import { getArticleStaticPaths, toAdjacentArticle, render } from "../../lib/article-page";
 
+// Astro 5 依赖编译期静态分析识别 getStaticPaths，不能把它抽成跨模块工厂
+// （会丢失路由-路径函数关联，Astro.props 为空）。这里保留本地薄壳。
 export async function getStaticPaths() {
-  const entries = (await getCollection("thinkings", ({ data }) => DRAFT_PREVIEW || !data.draft))
-    .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
-
-  return entries.map((entry, index) => ({
-    params: { slug: entry.id },
-    props: {
-      entry,
-      previous: entries[index + 1],
-      next: entries[index - 1],
-    },
-  }));
+  return getArticleStaticPaths("thinkings");
 }
 
 const { entry, previous, next } = Astro.props;
 const { Content, headings } = await render(entry);
-const toArticle = (article) => article && ({
-  title: article.data.title,
-  href: `/thinkings/${article.id}/`,
-});
 ---
 
 <BaseLayout lang="zh-CN" title={`${entry.data.title} — Thinkings — Aloha`} description={entry.data.summary}>
@@ -41,8 +29,8 @@ const toArticle = (article) => article && ({
     views={entry.data.views}
     viewType="thinkings"
     viewSlug={entry.id}
-    previous={toArticle(previous)}
-    next={toArticle(next)}
+    previous={toAdjacentArticle(previous)}
+    next={toAdjacentArticle(next)}
   >
     <Content />
   </ArticleLayout>

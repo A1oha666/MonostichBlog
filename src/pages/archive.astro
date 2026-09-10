@@ -1,19 +1,13 @@
 ---
-import { getCollection } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import SiteFooter from "../components/SiteFooter.astro";
-import { dotDate, isoDate, DRAFT_PREVIEW } from "../lib/format";
+import { dotDate, isoDate } from "../lib/format";
+import { getBlogCollections, momentTitle } from "../lib/content";
 import "@pagefind/default-ui/css/ui.css";
 
 // 归档借鉴 WHITE 的栏目逻辑：全站内容按年份分组、可按栏目筛选。
 // 标签/分类不在本期范围（不改 PocketBase 数据模型），筛选维度即三个栏目本身。
-const draftFilter = ({ data }) => DRAFT_PREVIEW || !data.draft;
-
-const [notes, thinkings, moments] = await Promise.all([
-  getCollection("notes", draftFilter),
-  getCollection("thinkings", draftFilter),
-  getCollection("moments", draftFilter),
-]);
+const { notes, thinkings, moments } = await getBlogCollections();
 
 const buckets = [
   {
@@ -39,8 +33,7 @@ const buckets = [
       })),
       ...moments.map((entry) => ({
         date: entry.data.date,
-        // 小记可能没有标题，回退用摘要（loader 侧已用正文摘录兜底）
-        title: entry.data.title || entry.data.summary,
+        title: momentTitle(entry),
         meta: "小记",
         href: `/thinkings#${entry.id}`,
       })),

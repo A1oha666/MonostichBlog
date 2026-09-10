@@ -3,24 +3,19 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import Hero from "../components/Hero.astro";
 import Projects from "../components/Projects.astro";
 import SiteFooter from "../components/SiteFooter.astro";
-import { getCollection } from "astro:content";
-import { dotDate, isoDate, DRAFT_PREVIEW } from "../lib/format";
+import { dotDate, isoDate } from "../lib/format";
+import { getBlogCollections, momentTitle } from "../lib/content";
 import { lab } from "../data/lab.js";
 import { projects } from "../data/projects.js";
 
-const draftFilter = ({ data }) => DRAFT_PREVIEW || !data.draft;
-const [notes, thinkings, moments] = await Promise.all([
-  getCollection("notes", draftFilter),
-  getCollection("thinkings", draftFilter),
-  getCollection("moments", draftFilter),
-]);
+const { notes, thinkings, moments } = await getBlogCollections();
 
 // 「一行」：最新一条小记，作为本站点题的单行诗
 const latestMoment = moments
   .map((entry) => ({
     id: entry.id,
     date: new Date(entry.data.date),
-    text: entry.data.title || entry.data.summary,
+    text: momentTitle(entry),
   }))
   .filter((m) => m.text)
   .sort((a, b) => b.date.valueOf() - a.date.valueOf())[0];
@@ -43,8 +38,7 @@ const recent = [
   ...moments.map((entry) => ({
     key: `moments/${entry.id}`,
     date: new Date(entry.data.date),
-    // 小记可能没有标题，回退用摘要（loader 侧已用正文摘录兜底）
-    title: entry.data.title || entry.data.summary,
+    title: momentTitle(entry),
     href: `/thinkings#${entry.id}`,
   })),
 ]
@@ -78,7 +72,7 @@ const logPaths = [
 ];
 ---
 
-<BaseLayout bodyClass="home">
+<BaseLayout>
   <Hero
     logPaths={logPaths}
     notesCount={pad2(notesCount)}
@@ -86,7 +80,7 @@ const logPaths = [
     updatedLabel={updatedLabel}
   />
 
-    {
+  {
     latestMoment && (
       <section class="oneline container" aria-labelledby="home-oneline-heading">
         <div class="module-head" data-reveal>
@@ -150,37 +144,7 @@ const logPaths = [
 </BaseLayout>
 
 <style>
-  /* ===== 模块头：代码注释式 —— // 编号 · 名目 ===== */
-  .module-head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--space-md);
-    margin-bottom: var(--space-sm);
-  }
-  .module-head h2 {
-    font-family: var(--mono);
-    font-size: 12px;
-    font-weight: 500;
-    letter-spacing: 0.14em;
-    color: var(--text-faint);
-  }
-  .module-head h2::before {
-    content: "//";
-    color: var(--accent-dim);
-    margin-right: 10px;
-  }
-  .module-head__no { margin-right: 10px; }
-  .module-head a {
-    color: var(--text-faint);
-    font-family: var(--mono);
-    font-size: 12px;
-    letter-spacing: 0.06em;
-    transition: color var(--dur-fast) var(--ease-out);
-  }
-  .module-head a:hover { color: var(--accent); }
-
-  .section { padding-block: 84px; scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
+  /* .module-head / .section 样式在 global.css 统一维护 */
 
   /* ===== 一行：markdown 引用式 —— > 开头的一行，周围留白即是装裱 ===== */
   .oneline { padding-block: var(--space-2xl) var(--space-2xl); }
@@ -289,7 +253,6 @@ const logPaths = [
   .recent-list a:hover .recent-list__desc { color: var(--text-muted); }
 
   @media (max-width: 640px) {
-    .section { padding-block: 64px; }
     .recent-list a { grid-template-columns: 40px minmax(0, 1fr); row-gap: 6px; padding-block: 16px; }
     .recent-list__no { padding-right: 12px; }
     .recent-list time { grid-column: 2; }

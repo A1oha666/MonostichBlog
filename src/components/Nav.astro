@@ -4,18 +4,34 @@
 // 由下方脚本按 location.pathname 重新同步，避免高亮滞留。
 const pathname = Astro.url.pathname.replace(/\/$/, "") || "/";
 const isActive = (base: string) => pathname === base || pathname.startsWith(`${base}/`);
+
+// 带 data-nav-base 的链接参与当前页高亮（SSR 输出 + 客户端 syncCurrentPage）；
+// Work 是首页锚点，不参与。
+const links = [
+  { href: "/archive", label: "Archive", base: "/archive" },
+  { href: "/notes", label: "Notes", base: "/notes" },
+  { href: "/thinkings", label: "Thinkings", base: "/thinkings" },
+  { href: "/#projects", label: "Work" },
+  { href: "/lab", label: "Lab", base: "/lab" },
+  { href: "/about", label: "About", base: "/about" },
+];
 ---
 
 <nav class="nav" aria-label="Primary" transition:persist="nav">
     <div class="nav__inner container">
       <a class="nav__brand" href="/">Aloha.</a>
       <div class="nav__links">
-        <a href="/archive" data-nav-base="/archive" aria-current={isActive("/archive") ? "page" : undefined}>Archive</a>
-        <a href="/notes" data-nav-base="/notes" aria-current={isActive("/notes") ? "page" : undefined}>Notes</a>
-        <a href="/thinkings" data-nav-base="/thinkings" aria-current={isActive("/thinkings") ? "page" : undefined}>Thinkings</a>
-        <a href="/#projects">Work</a>
-        <a href="/lab" data-nav-base="/lab" aria-current={isActive("/lab") ? "page" : undefined}>Lab</a>
-        <a href="/about" data-nav-base="/about" aria-current={isActive("/about") ? "page" : undefined}>About</a>
+        {
+          links.map((link) => (
+            <a
+              href={link.href}
+              data-nav-base={link.base}
+              aria-current={link.base && isActive(link.base) ? "page" : undefined}
+            >
+              {link.label}
+            </a>
+          ))
+        }
       </div>
       <button
         class="nav__theme"
