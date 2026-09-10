@@ -23,7 +23,7 @@ export function LoginDialog() {
   return (
     <div className="login-overlay">
       <form className="login-card" onSubmit={submit}>
-        <h1>Monostich 编辑器</h1>
+        <h1>开始写作</h1>
         <p className="login-sub">editors 账号或后台管理员账号均可登录</p>
         <label>
           邮箱
