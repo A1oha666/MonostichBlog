@@ -1,5 +1,5 @@
 import { getCollection, render, type CollectionEntry } from "astro:content";
-import { DRAFT_PREVIEW } from "./format";
+import { DRAFT_PREVIEW, safeDate } from "./format";
 
 // notes / thinkings 两个详情页路由共用的静态路径生成：
 // 按日期倒序排好，previous = 更早一篇，next = 更新一篇。
@@ -16,7 +16,7 @@ export async function getArticleStaticPaths<C extends ArticleCollection>(
 ): Promise<{ params: { slug: string }; props: ArticlePageProps<C> }[]> {
   const entries = (
     await getCollection(collection, ({ data }) => DRAFT_PREVIEW || !data.draft)
-  ).sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+  ).sort((a, b) => safeDate(b.data.date).valueOf() - safeDate(a.data.date).valueOf());
 
   return entries.map((entry, index) => ({
     params: { slug: entry.id },
