@@ -13,8 +13,8 @@ export function LoginDialog() {
     setBusy(true);
     try {
       await login(identity.trim(), password);
-    } catch {
-      setError('登录失败：邮箱或密码错误');
+    } catch (err: any) {
+      setError(`登录失败：${err?.message ?? '邮箱或密码错误'}`);
     } finally {
       setBusy(false);
     }
@@ -24,7 +24,7 @@ export function LoginDialog() {
     <div className="login-overlay">
       <form className="login-card" onSubmit={submit}>
         <h1>Monostich 编辑器</h1>
-        <p className="login-sub">请使用管理员账号登录</p>
+        <p className="login-sub">editors 账号或后台管理员账号均可登录</p>
         <label>
           邮箱
           <input
