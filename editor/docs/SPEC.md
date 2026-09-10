@@ -1,7 +1,7 @@
 # SPEC — MonostichEditor 单页文章编辑器
 
 > 版本 v0.1 · 状态：待评审
-> 关联需求：`../ISSUE-article-editor.md`、本 issue（ByteMD + PocketBase 单页编辑器）
+> 关联需求：`./ISSUE.md`、本 issue（ByteMD + PocketBase 单页编辑器）
 
 ## 1. 背景与目标
 
@@ -157,7 +157,7 @@
 
 ## 9. 依赖与已确认决策
 
-- 前台博客「发布即见」依赖 Astro 端改为运行时拉取（`ISSUE-article-editor.md`
+- 前台博客「发布即见」依赖 Astro 端改为运行时拉取（`./ISSUE.md`
   第 2 节），**已确认缓做、单独立项**；本期「发布」仅保证数据库即时更新。
 - 已确认（2025-xx 评审）：
   - Q1 部署位置：`admin.monostich.cloud/editor/`（`pb_public`），不开新子域；

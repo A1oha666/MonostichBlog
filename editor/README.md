@@ -3,7 +3,7 @@
 单页 Markdown 文章编辑器：直连 PocketBase，写完即发布，摆脱「提交 Git → CI → 部署」。
 
 - 设计与计划见 `docs/SPEC.md`、`docs/PLAN.md`
-- 需求背景见 `../ISSUE-article-editor.md`
+- 需求背景见 `docs/ISSUE.md`
 
 ## 技术栈
 
