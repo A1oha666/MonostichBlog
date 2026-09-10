@@ -39,8 +39,18 @@ jobs:
           # 构建时从线上 PocketBase 拉取 published 内容并物化附件
           PB_BASE_URL: https://admin.monostich.cloud
 
+      - name: Install editor dependencies
+        working-directory: editor
+        run: npm ci
+
+      - name: Build editor
+        working-directory: editor
+        run: npm run build
+
       - name: Package build output
-        run: tar -C dist -czf site.tar.gz .
+        run: |
+          tar -C dist -czf site.tar.gz .
+          tar -C editor/dist -czf editor.tar.gz .
 
       - name: Configure SSH
         env:
@@ -60,6 +70,8 @@ jobs:
         run: |
           scp -P "$DEPLOY_PORT" site.tar.gz \
             "$DEPLOY_USER@$DEPLOY_HOST:/tmp/monostich-cloud-${GITHUB_SHA}.tar.gz"
+          scp -P "$DEPLOY_PORT" editor.tar.gz \
+            "$DEPLOY_USER@$DEPLOY_HOST:/tmp/monostich-editor-${GITHUB_SHA}.tar.gz"
 
       - name: Activate release
         env:
@@ -82,4 +94,21 @@ jobs:
 
           cd "$site_root/releases"
           ls -1dt */ | tail -n +6 | xargs -r rm -rf
+
+          # ---- 编辑器（PocketBase pb_public/editor/） ----
+          pb_root=/opt/monostich/pb
+          editor_release="$pb_root/editor-releases/$RELEASE_ID"
+          editor_archive="/tmp/monostich-editor-$RELEASE_ID.tar.gz"
+
+          mkdir -p "$editor_release"
+          tar -xzf "$editor_archive" -C "$editor_release"
+          rm -f "$editor_archive"
+
+          mkdir -p "$pb_root/pb_public"
+          ln -sfn "$editor_release" "$pb_root/pb_public/editor"
+
+          cd "$pb_root/editor-releases"
+          ls -1dt */ | tail -n +6 | xargs -r rm -rf
+
+          curl -fsS -o /dev/null http://127.0.0.1:8090/editor/
           REMOTE_SCRIPT
