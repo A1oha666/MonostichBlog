@@ -34,10 +34,12 @@
   const DEAD = 0.06;
 
   function setupFlicker() {
-    const host = document.querySelector<HTMLElement>(".hero__flicker");
+    const host = [...document.querySelectorAll<HTMLElement>(".hero__flicker")].find(el => el.getClientRects().length > 0);
     const line = host?.closest<HTMLElement>(".hero__line");
     if (!host || !line) return;
     if (host.dataset.bound === "1") return;
+    teardownFlicker?.();
+    teardownFlicker = null;
     host.dataset.bound = "1";
 
     /* 文案在服务端 HTML 里（SEO/无 JS 兜底），这里重建为逐字 span。
@@ -66,18 +68,20 @@
       textNode.replaceWith(frag);
     }
 
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const reducedMotion = motionPreference.matches;
+    const restoreText = () => {
+      chars.forEach(char => char.replaceWith(document.createTextNode(char.textContent ?? '')));
+      line.normalize();
+      line.classList.remove('hero__line--flicker');
+      delete host.dataset.bound;
+    };
 
     if (reducedMotion) {
-      gsap.to(chars, {
-        duration: 0.6,
-        ease: "power2.out",
-        "--fk": LIT,
-        stagger: 0.012,
-      } as gsap.TweenVars);
+      chars.forEach(char => char.style.setProperty('--fk', String(LIT)));
       teardownFlicker = () => {
         gsap.killTweensOf(chars);
-        delete host.dataset.bound;
+        restoreText();
       };
       return;
     }
@@ -170,7 +174,10 @@
             v: gsap.utils.clamp(0.94, 1.06, drift.v + fast + slow),
             duration: R(0.05, 0.14),
             ease: "none",
-            onComplete: scheduleDrift,
+            onComplete: () => {
+              if (driftTween) tweens.delete(driftTween);
+              scheduleDrift();
+            },
           });
           tweens.add(driftTween);
         },
@@ -195,6 +202,7 @@
       let depthFloor = 0;
       const ev = gsap.timeline({
         onComplete: () => {
+          tweens.delete(ev);
           eventActive = false;
           level.fill(1); // 局部暗斑的字符立刻回到电路里
           sputterUntil = performance.now() + R(400, 1100); // 雷后余烬还在抖
@@ -285,7 +293,7 @@
        只动本组件创建的 tween（含启动序列），不碰 globalTimeline ——
        别的组件可能也在用 GSAP。启动序列也必须能暂停/恢复，否则
        无头/隐藏标签页里 rAF 一停，动画就永远冻结在半截。 */
-    let hiddenAt = 0;
+    let hiddenAt = performance.now();
     function onVisibility() {
       if (document.hidden) {
         hiddenAt = performance.now();
@@ -300,20 +308,9 @@
     }
     document.addEventListener("visibilitychange", onVisibility);
 
-    /* 页面以隐藏状态加载（无头/预渲染/后台标签页）时，rAF 与 GSAP ticker
-       都被冻结，启动序列会停在第一帧。等首次可见再通电。
-       wake 同时补偿 sputter 截止时间（隐藏期间不算余烬寿命）。 */
+    // The visibility listener also resumes a page first loaded in the background.
     if (document.hidden) {
-      let wakeHiddenAt = performance.now();
-      const wake = () => {
-        if (document.hidden) return;
-        document.removeEventListener("visibilitychange", wake);
-        if (sputterUntil !== Infinity) sputterUntil += performance.now() - wakeHiddenAt;
-        tweens.forEach((t) => t.resume());
-        startLoop();
-      };
       tweens.forEach((t) => t.pause());
-      document.addEventListener("visibilitychange", wake);
     } else {
       tl.play();
       startLoop();
@@ -326,11 +323,17 @@
       window.clearTimeout(driftTimer);
       window.clearTimeout(eventTimer);
       document.removeEventListener("visibilitychange", onVisibility);
-      delete host.dataset.bound;
+      restoreText();
     };
   }
 
   document.addEventListener("astro:page-load", setupFlicker);
+  document.addEventListener('themechange', setupFlicker);
+  window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', () => {
+    teardownFlicker?.();
+    teardownFlicker = null;
+    setupFlicker();
+  });
   document.addEventListener("astro:before-swap", () => {
     if (teardownFlicker) {
       teardownFlicker();

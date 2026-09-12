@@ -12,7 +12,7 @@ const { notes, thinkings, moments } = await getBlogCollections();
 const buckets = [
   {
     type: "notes",
-    label: "Notes",
+    label: "笔记",
     entries: notes.map((entry) => ({
       date: entry.data.date,
       title: entry.data.title,
@@ -23,7 +23,7 @@ const buckets = [
   {
     // 小记已并入 Thinkings，归档里同样归入 Thinkings 筛选
     type: "thinkings",
-    label: "Thinkings",
+    label: "随想",
     entries: [
       ...thinkings.map((entry) => ({
         date: entry.data.date,
@@ -70,6 +70,7 @@ const filters = [
   <section class="page-head container">
     <a class="back-home" href="/" data-reveal><span aria-hidden="true">←</span> 返回主页</a>
     <p class="eyebrow" data-reveal style="--reveal-delay: 60ms">/ archive</p>
+    <h1 data-reveal>归档</h1>
   </section>
 
   <section class="archive container" aria-label="归档">
@@ -188,6 +189,9 @@ const filters = [
         searching: "正在搜索「[SEARCH_TERM]」…",
       },
     });
+    if (new URLSearchParams(location.search).get('search') === '1') {
+      requestAnimationFrame(() => el.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true }));
+    }
   }
   document.addEventListener("astro:page-load", initArchiveSearch);
   initArchiveSearch();
@@ -321,7 +325,7 @@ const filters = [
     gap: var(--space-md);
     padding-top: var(--space-3xl);
     padding-bottom: var(--space-md);
-    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    font-size: 28px;
     font-weight: 400;
     font-family: 'Google Sans', var(--font-zh);
     color: var(--text);
@@ -346,7 +350,7 @@ const filters = [
     font-size: 11px;
     white-space: nowrap;
   }
-  .archive__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: 'Google Sans', var(--font-zh); font-size: clamp(1.02rem, 1.6vw, 1.15rem); font-weight: 400; transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-out); }
+  .archive__title { overflow-wrap: anywhere; font-family: var(--font-body); font-size: 18px; font-weight: 500; line-height: 1.6; transition: color var(--dur-fast) var(--ease-out); }
   .archive__arrow { padding-top: 2px; transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-spring); }
   @media (hover: hover) {
     .archive__list > li:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }

@@ -79,7 +79,8 @@ const formatDate = dotDate;
   <div class:list={["article__layout container", tocHeadings.length === 0 && "article__layout--no-toc"]}>
     {tocHeadings.length > 0 && (
       <aside class="article__toc" aria-label="文章目录">
-        <p>目录</p>
+        <details class="article__toc-disclosure" open>
+        <summary>文章目录</summary>
         <ol>
           {tocHeadings.map((heading) => (
             <li class:list={[heading.depth === 3 && "article__toc-item--nested"]}>
@@ -87,6 +88,7 @@ const formatDate = dotDate;
             </li>
           ))}
         </ol>
+        </details>
       </aside>
     )}
     <div class="article__content" data-pagefind-body>
@@ -130,6 +132,26 @@ const formatDate = dotDate;
   // 视图过渡下 astro:page-load 在首次加载和每次客户端导航后触发，
   // 幂等初始化保证 上一篇/下一篇 跳转后功能仍然可用。
   function initArticleWidgets() {
+    const disclosure = document.querySelector<HTMLDetailsElement>('.article__toc-disclosure');
+    if (disclosure && !disclosure.dataset.bound) {
+      disclosure.dataset.bound = 'true';
+      const desktop = window.matchMedia('(min-width: 1280px)');
+      const darkDesktop = window.matchMedia('(min-width: 801px)');
+      const isDesktop = () => document.documentElement.dataset.theme === 'dark' ? darkDesktop.matches : desktop.matches;
+      const syncDisclosure = () => { disclosure.open = isDesktop(); };
+      syncDisclosure();
+      desktop.addEventListener('change', syncDisclosure);
+      darkDesktop.addEventListener('change', syncDisclosure);
+      document.addEventListener('themechange', syncDisclosure);
+      disclosure.addEventListener('click', (event) => {
+        if (!isDesktop() && (event.target as Element).closest('a')) disclosure.open = false;
+      });
+      document.addEventListener('astro:before-swap', () => {
+        desktop.removeEventListener('change', syncDisclosure);
+        darkDesktop.removeEventListener('change', syncDisclosure);
+        document.removeEventListener('themechange', syncDisclosure);
+      }, { once: true });
+    }
     // --- reading progress ---
     // 2px 进度条贴在 nav 下沿，按滚动比例 scaleX；纯位置映射非动画。
     // 监听器在模块层只注册一次（视图过渡不会重复执行本模块），
@@ -269,33 +291,32 @@ const formatDate = dotDate;
 
   /* 「屏幕外的那张纸」：内容直接落在 --bg 上，只有字，没有框 */
   .article {
-    max-width: 1200px;
-    margin: var(--space-xl) auto var(--space-3xl);
+    margin: 0 auto var(--space-3xl);
     position: relative;
   }
-  .article__header { max-width: 1080px; padding-top: var(--space-4xl); padding-bottom: var(--space-3xl); border-bottom: 1px solid var(--border-subtle); }
+  .article__header { max-width: calc(var(--maxw-prose) + 2 * var(--page-gutter)); padding-top: 56px; padding-bottom: 40px; }
   /* 返回按钮：与 .back-home 同一制式 —— 无边框 [ … ]，hover 整行染琥珀 */
   .back-link { display: inline-flex; align-items: center; gap: 6px; margin-bottom: var(--space-xl); padding: 4px 2px; color: var(--text-faint); font-family: var(--mono); font-size: 12px; transition: color var(--dur-fast) var(--ease-out); }
-  .back-link::before { content: "["; margin-right: 4px; color: var(--text-faint); transition: color var(--dur-fast) var(--ease-out); }
-  .back-link::after { content: "]"; margin-left: 4px; color: var(--text-faint); transition: color var(--dur-fast) var(--ease-out); }
+  .back-link::before, .back-link::after { content: none; }
   .back-link span, .article__eyebrow { color: var(--accent); }
   .back-link span { display: inline-block; transition: transform var(--dur-base) var(--ease-out); }
   .back-link:hover, .back-link:hover::before, .back-link:hover::after { color: var(--accent); }
   .back-link:hover span { transform: translateX(-3px); }
   .article__eyebrow { margin-bottom: var(--space-lg); font-family: var(--mono); font-size: 13px; }
   /* 标题回到原来的栈：拉丁 Fraunces + 中文华文中宋衬线 */
-  h1 { max-width: 18ch; font-family: var(--font-display); font-size: clamp(2.5rem, 5.5vw, 5rem); font-weight: 500; line-height: 1.04; }
-  .article__summary { max-width: 58ch; margin-top: var(--space-xl); color: var(--text-muted); font-size: 1.08rem; }
+  h1 { font-family: var(--font-display); font-size: 44px; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
+  .article__summary { margin-top: var(--space-lg); color: var(--text-muted); font-size: 18px; line-height: 1.8; }
   .article__meta { display: flex; flex-wrap: wrap; gap: var(--space-md); margin-top: var(--space-xl); color: var(--text-faint); font-family: var(--mono); font-size: 12px; }
   .article__meta span + span::before { content: "/"; margin-right: var(--space-md); color: var(--border-strong); }
   .article__cover img { width: 100%; height: auto; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); object-fit: contain; }
-  .article__layout { display: grid; grid-template-columns: 172px minmax(0, 720px); justify-content: center; gap: var(--space-3xl); padding-top: var(--space-2xl); }
-  /* 无目录时收起预留的目录列，避免正文掉进 172px 的窄列 */
-  .article__layout--no-toc { grid-template-columns: minmax(0, 720px); }
-  .article__toc { position: sticky; top: calc(var(--nav-height) + var(--space-lg)); align-self: start; border-left: 1px solid var(--border-subtle); padding-left: var(--space-md); font-family: var(--mono); font-size: 12px; }
-  .article__toc > p { color: var(--text-faint); }
+  .article__layout { position: relative; max-width: calc(var(--maxw-prose) + 2 * var(--page-gutter)); padding-top: 32px; }
+  .article__toc { position: absolute; left: calc(100% + 8px); top: 32px; bottom: 0; width: 176px; font-family: var(--font-body); font-size: 13px; }
+  .article__toc-disclosure { position: sticky; top: calc(var(--nav-height) + 32px); max-height: calc(100dvh - var(--nav-height) - 64px); overflow-y: auto; padding-left: 16px; border-left: 1px solid var(--border); }
+  .article__toc summary { color: var(--text); font-weight: 500; cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 8px; }
+  .article__toc summary::before { content: '+'; color: var(--text-muted); }
+  .article__toc details[open] summary::before { content: '−'; }
   .article__toc ol { display: grid; gap: var(--space-sm); margin: var(--space-md) 0 0; padding: 0; list-style: none; }
-  .article__toc a { display: inline-block; color: var(--text-muted); line-height: 1.45; transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); }
+  .article__toc a { display: block; padding: 5px 0; color: var(--text-muted); line-height: 1.6; overflow-wrap: anywhere; transition: color var(--dur-fast) var(--ease-out); }
   .article__toc a:hover { color: var(--accent); }
   /* 激活项：变橙 + 左侧 2px accent 竖线（box-shadow 不占布局，无位移） */
   .article__toc a.is-active { color: var(--accent); box-shadow: -2px 0 0 var(--accent); }
@@ -303,12 +324,14 @@ const formatDate = dotDate;
   .article__content {
     min-width: 0;
     padding-bottom: var(--space-4xl);
-    /* 中文阅读区：与「造物」简介同配方 —— 无衬线、1.7 行高、不两端对齐。
-       黑体 + justify 会拉出灰斑；1.85 对大字号衬线友好，对黑体则松散 */
-    line-height: 1.7;
-    letter-spacing: 0.01em;
+    font-family: var(--font-body);
+    font-size: 18px;
+    line-height: 1.9;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+    color: var(--text);
   }
-  .article__pagination { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xl); padding-top: var(--space-xl); padding-bottom: var(--space-4xl); }
+  .article__pagination { max-width: calc(var(--maxw-prose) + 2 * var(--page-gutter)); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xl); padding-top: var(--space-xl); padding-bottom: var(--space-2xl); border-top: 1px solid var(--border); overflow-wrap: anywhere; }
   .article__pagination a { display: grid; gap: var(--space-sm); color: var(--text-muted); }
   .article__pagination a:hover strong { color: var(--accent); }
   .article__pagination span { color: var(--text-faint); font-family: var(--mono); font-size: 11.5px; }
@@ -319,8 +342,8 @@ const formatDate = dotDate;
   }
   .article__pagination-next { text-align: right; border-left: 1px solid var(--border-subtle); padding-left: var(--space-xl); }
   :global(.article__content > :first-child) { margin-top: 0; }
-  :global(.article__content h2) { margin-top: var(--space-3xl); font-family: 'Google Sans', var(--font-zh); font-size: clamp(1.6rem, 3vw, 2.25rem); font-weight: 400; scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
-  :global(.article__content h3) { margin-top: var(--space-2xl); font-family: 'Google Sans', var(--font-zh); font-size: 1.3rem; font-weight: 400; scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
+  :global(.article__content h2) { margin-top: 56px; font-family: var(--font-body); font-size: 28px; font-weight: 600; line-height: 1.4; scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
+  :global(.article__content h3) { margin-top: 40px; font-family: var(--font-body); font-size: 22px; font-weight: 600; line-height: 1.45; scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
   :global(.article__content p), :global(.article__content ul), :global(.article__content ol) { margin-top: var(--space-lg); }
   :global(.article__content li + li) { margin-top: var(--space-sm); }
   :global(.article__content a) { color: var(--accent); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent); text-underline-offset: 3px; }
@@ -332,6 +355,13 @@ const formatDate = dotDate;
   :global(.article__content pre code),
   :global(.article__content pre span) { font-family: var(--mono) !important; }
   :global(.article__content pre code) { font-size: inherit; background: none; border: 0; padding: 0; }
+  :global(.article__content .astro-code) { background: var(--code-bg); color: var(--shiki-dark); }
+  :global(.article__content .astro-code span) { color: var(--shiki-dark); }
+  :global(html[data-theme='light'] .article__content .astro-code),
+  :global(html[data-theme='light'] .article__content .astro-code span) { color: var(--shiki-light); }
+  :global(.article__content table) { display: block; width: 100%; overflow-x: auto; border-collapse: collapse; font-size: 15px; margin-block: 24px; }
+  :global(.article__content th), :global(.article__content td) { padding: 12px 16px; border-bottom: 1px solid var(--border); text-align: left; min-width: 100px; }
+  :global(.article__content th) { background: var(--surface-2); font-weight: 600; }
   :global(.article__content code) { font-family: var(--mono); }
   :global(.article__content :not(pre) > code) { border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; background: var(--accent-soft); font-size: 0.88em; }
   /* 数学公式：KaTeX 输出与正文同色；块级公式随正文列宽溢出时横向滚动，
@@ -352,7 +382,7 @@ const formatDate = dotDate;
     left: var(--space-lg);
     font-family: var(--mono);
     font-size: 10.5px;
-    letter-spacing: 0.04em;
+    letter-spacing: 0;
     color: var(--text-faint);
   }
   :global(.code-copy) {
@@ -368,16 +398,25 @@ const formatDate = dotDate;
     font-family: var(--mono);
     font-size: 11px;
     cursor: pointer;
-    opacity: 0.55;
+    opacity: 1;
+    min-height: 36px;
     transition: opacity var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
   }
   :global(.codeblock:hover .code-copy) { opacity: 1; }
   :global(.code-copy:hover), :global(.code-copy:focus-visible) { color: var(--accent); border-color: var(--border-strong); opacity: 1; }
-  @media (max-width: 800px) {
-    .article__header { padding-top: var(--space-3xl); }
-    .article__layout { grid-template-columns: minmax(0, 720px); padding-top: var(--space-xl); }
-    .article__toc { position: static; border-left: 0; border-bottom: 1px solid var(--border-subtle); padding: 0 0 var(--space-lg); }
-    .article__toc ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (max-width: 1279px) {
+    .article__toc { position: static; width: auto; margin-bottom: 32px; border-block: 1px solid var(--border); }
+    .article__toc-disclosure { position: static; border: 0; padding: 8px 0; max-height: 320px; }
+    .article__toc ol { margin-top: 8px; padding-bottom: 16px; }
+    .article__toc a { padding-block: 10px; }
+  }
+  @media (max-width: 640px) {
+    .article__header { padding-top: 32px; padding-bottom: 24px; }
+    h1 { font-size: 32px; }
+    .article__summary { font-size: 17px; }
+    .article__content { font-size: 17px; line-height: 1.85; padding-bottom: 48px; }
+    :global(.article__content h2) { font-size: 25px; }
+    :global(.article__content pre) { padding-inline: 16px; }
   }
   @media (max-width: 520px) {
     .article__pagination { grid-template-columns: 1fr; }

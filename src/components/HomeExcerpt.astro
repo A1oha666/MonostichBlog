@@ -1,0 +1,44 @@
+---
+import { excerpts } from '../data/excerpts';
+
+const excerpt = excerpts[0];
+---
+
+{excerpt && (
+  <aside class="home-excerpt container" aria-label="摘抄" data-excerpts={JSON.stringify(excerpts)}>
+    <figure>
+      <blockquote>{excerpt.text}</blockquote>
+      <figcaption hidden={!excerpt.author && !excerpt.source}>{[excerpt.author, excerpt.source].filter(Boolean).join(' / ')}</figcaption>
+    </figure>
+  </aside>
+)}
+
+<script>
+  import type { Excerpt } from '../data/excerpts';
+
+  function setupExcerpt() {
+    const host = document.querySelector<HTMLElement>('[data-excerpts]');
+    if (!host || host.dataset.bound) return;
+    host.dataset.bound = 'true';
+    const entries: Excerpt[] = JSON.parse(host.dataset.excerpts ?? '[]');
+    if (!entries.length) return;
+    const date = new Date();
+    const day = Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000);
+    const entry = entries[day % entries.length];
+    host.querySelector('blockquote')!.textContent = entry.text;
+    const caption = host.querySelector('figcaption')!;
+    caption.textContent = [entry.author, entry.source].filter(Boolean).join(' / ');
+    caption.hidden = !caption.textContent;
+  }
+  document.addEventListener('astro:page-load', setupExcerpt);
+  setupExcerpt();
+</script>
+
+<style>
+  .home-excerpt { padding-block: 32px 8px; }
+  figure { max-width: 52ch; margin: 0 auto; text-align: center; }
+  blockquote { margin: 0; color: var(--text-muted); font-size: 14px; font-weight: 400; line-height: 1.9; text-wrap: pretty; overflow-wrap: anywhere; }
+  figcaption { margin-top: 8px; color: var(--text-faint); font-size: 12px; line-height: 1.6; }
+  :global(html[data-theme='dark']) figure { max-width: 60ch; margin-left: 0; text-align: left; }
+  :global(html[data-theme='dark']) blockquote { font-size: 13px; }
+</style>

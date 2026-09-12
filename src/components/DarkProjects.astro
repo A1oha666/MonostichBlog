@@ -1,0 +1,90 @@
+---
+import { projects } from "../data/projects.js";
+---
+
+<section class="section container" id="projects-dark" aria-labelledby="dark-work-heading">
+  <div class="module-head" data-reveal>
+    <h2 id="dark-work-heading"><span class="module-head__no">03</span> 项目</h2>
+    <a href="https://github.com/A1oha666" target="_blank" rel="noopener">GitHub ↗</a>
+  </div>
+
+  <ol class="work-list">
+    {
+      projects.map((project, index) => {
+        // 尚无公开仓库（repo 为 "#"）时渲染静态行，避免假链接
+        const linked = project.repo && project.repo !== "#";
+        const reveal = `--reveal-delay: ${Math.min(index * 60, 180)}ms`;
+        const inner = (
+          <>
+            <span class="work-row__name">{project.name}</span>
+            <span class="work-row__desc">{project.desc}</span>
+            <span class:list={["work-row__status", { "work-row__status--live": project.status === "active" }]}>
+              [{project.status}]
+            </span>
+          </>
+        );
+        return (
+          <li data-reveal style={reveal}>
+            {linked ? (
+              <a class="work-row" href={project.repo} target="_blank" rel="noopener">
+                {inner}
+              </a>
+            ) : (
+              <div class="work-row work-row--static">{inner}</div>
+            )}
+          </li>
+        );
+      })
+    }
+  </ol>
+</section>
+
+<style>
+  /* .module-head / .section 样式在 global.css 统一维护 */
+
+  /* ===== 造物：无卡片，三栏一行 —— 名 / 述 / 状态 ===== */
+  .work-list { margin: 0; padding: 0; list-style: none; }
+  .work-list > li { border-bottom: 1px solid var(--border-subtle); }
+  .work-row {
+    display: grid;
+    grid-template-columns: 190px minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 24px;
+    padding-block: 22px;
+  }
+  .work-row__name {
+    font-family: var(--mono);
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text);
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+  .work-row__desc {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .work-row__status {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0;
+    color: var(--text-faint);
+    white-space: nowrap;
+  }
+  /* 进行中的项目：不点灯、不描边，只换一点磷光 */
+  .work-row__status--live { color: var(--accent); }
+
+  .work-row--static { cursor: default; }
+  @media (hover: hover) {
+    a.work-row:hover .work-row__name { color: var(--accent); }
+  }
+  a.work-row:focus-visible .work-row__name { color: var(--accent); }
+
+  @media (max-width: 700px) {
+    .work-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; padding-block: 18px; }
+    .work-row__desc { grid-column: 1 / -1; white-space: normal; }
+  }
+</style>

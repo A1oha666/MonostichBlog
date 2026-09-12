@@ -159,6 +159,8 @@ export function pocketBaseLoader(type: 'notes' | 'thinkings' | 'moments'): Conte
           remarkPlugins: [remarkMath],
           rehypePlugins: [rehypeKatex],
           shikiConfig: {
+            themes: { light: 'github-light', dark: 'github-dark' },
+            defaultColor: false,
             langAlias: {
               golang: 'go',
               Java: 'java',

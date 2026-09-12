@@ -12,7 +12,7 @@ const entries = notes.sort((a, b) => safeDate(b.data.date).valueOf() - safeDate(
   <section class="page-head container">
     <a class="back-home" href="/" data-reveal><span aria-hidden="true">←</span> 返回主页</a>
     <p class="eyebrow" data-reveal style="--reveal-delay: 60ms">/ notes</p>
-    <h1 data-reveal style="--reveal-delay: 120ms" data-scramble>Notes</h1>
+    <h1 data-reveal style="--reveal-delay: 120ms">笔记</h1>
     <p data-reveal style="--reveal-delay: 200ms">一些简单的笔记整理。</p>
   </section>
 
@@ -46,7 +46,7 @@ const entries = notes.sort((a, b) => safeDate(b.data.date).valueOf() - safeDate(
   .note { display: grid; grid-template-columns: 112px minmax(0, 1fr) 20px; gap: var(--space-lg); padding-block: var(--space-xl); }
   time, .note__arrow { color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
   .note__arrow { padding-top: 4px; transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-spring); }
-  h2 { font-family: 'Google Sans', var(--font-zh); font-size: clamp(1.3rem, 2.2vw, 1.65rem); font-weight: 400; transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-out); }
+  h2 { font-family: var(--font-body); font-size: 23px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; transition: color var(--dur-fast) var(--ease-out); }
   .note__body > p { max-width: 65ch; margin-top: var(--space-sm); color: var(--text-muted); font-size: 0.98rem; }
   @media (hover: hover) {
     .notes__list > li:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }

@@ -2,34 +2,38 @@
 const year = new Date().getFullYear();
 ---
 
-<footer class="footer container">
+<footer class="footer">
+  <slot />
+  <div class="footer__inner container">
   <p>© {year} Aloha</p>
-  <div>
+  <div class="footer__links">
     <a href="https://github.com/A1oha666" target="_blank" rel="noopener">GitHub ↗<span class="sr-only">（在新窗口打开）</span></a>
     <a href="/rss.xml">RSS</a>
     <a href="mailto:292081295@qq.com">Email</a>
     <a href="https://admin.monostich.cloud/editor/" title="写文章">写作</a>
     <a href="https://admin.monostich.cloud/_/" title="内容后台">管理</a>
   </div>
+  </div>
 </footer>
 
 <style>
   .footer {
+    margin-top: var(--space-3xl);
+    background: var(--surface-2);
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  .footer__inner {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-lg);
-    margin-top: var(--space-4xl);
     padding-top: var(--space-lg);
-    padding-bottom: var(--space-2xl);
-    border-top: 1px solid var(--border-subtle);
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--text-faint);
+    padding-bottom: var(--space-lg);
   }
-  .footer div { display: flex; flex-wrap: wrap; gap: var(--space-sm) var(--space-lg); }
+  .footer__links { display: flex; flex-wrap: wrap; gap: var(--space-sm) var(--space-lg); }
   /* :lang(zh-CN) 直接命中链接元素，mono 不能只靠 .footer 的继承 */
-  .footer a { color: var(--text-faint); font-family: var(--mono); transition: color var(--dur-fast) var(--ease-out); }
+  .footer a { display: inline-flex; align-items: center; min-height: 44px; color: var(--text-muted); font-family: var(--font-body); transition: color var(--dur-fast) var(--ease-out); }
   .footer a:hover { color: var(--accent); }
 </style>

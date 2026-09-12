@@ -1,14 +1,14 @@
 ---
 import { projects } from "../data/projects.js";
+import { ChevronLeft, ChevronRight } from '@lucide/astro';
 ---
 
 <section class="section container" id="projects" aria-labelledby="work-heading">
   <div class="module-head" data-reveal>
-    <h2 id="work-heading"><span class="module-head__no">03</span> 造物</h2>
-    <a href="https://github.com/A1oha666" target="_blank" rel="noopener">GitHub ↗</a>
+    <h2 id="work-heading" data-scramble>项目</h2>
   </div>
 
-  <ol class="work-list">
+  <ol class="work-list" id="project-list" tabindex="0" aria-label="项目列表">
     {
       projects.map((project, index) => {
         // 尚无公开仓库（repo 为 "#"）时渲染静态行，避免假链接
@@ -19,7 +19,7 @@ import { projects } from "../data/projects.js";
             <span class="work-row__name">{project.name}</span>
             <span class="work-row__desc">{project.desc}</span>
             <span class:list={["work-row__status", { "work-row__status--live": project.status === "active" }]}>
-              [{project.status}]
+              {project.status === 'active' ? '进行中' : project.status === 'developing' ? '开发中' : project.status === 'archived' ? '已归档' : project.status}
             </span>
           </>
         );
@@ -37,40 +37,80 @@ import { projects } from "../data/projects.js";
       })
     }
   </ol>
+  <div class="work-controls" hidden>
+    <button type="button" data-project-direction="-1" aria-label="上一个项目" title="上一个项目" aria-controls="project-list"><ChevronLeft size={18} aria-hidden="true" /></button>
+    <button type="button" data-project-direction="1" aria-label="下一个项目" title="下一个项目" aria-controls="project-list"><ChevronRight size={18} aria-hidden="true" /></button>
+  </div>
 </section>
+
+<script>
+  function setupProjects() {
+    const list = document.querySelector<HTMLElement>('#project-list');
+    const controls = document.querySelector<HTMLElement>('.work-controls');
+    if (!list || !controls || list.dataset.bound) return;
+    list.dataset.bound = 'true';
+    const buttons = [...controls.querySelectorAll<HTMLButtonElement>('button')];
+    const update = () => {
+      const max = list.scrollWidth - list.clientWidth;
+      controls.hidden = max <= 2;
+      buttons[0].disabled = list.scrollLeft <= 2;
+      buttons[1].disabled = list.scrollLeft >= max - 2;
+    };
+    const move = (direction: number) => list.scrollBy({
+      left: direction * (list.firstElementChild?.getBoundingClientRect().width ?? list.clientWidth),
+      behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+    });
+    buttons.forEach(button => button.addEventListener('click', () => move(Number(button.dataset.projectDirection))));
+    list.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      event.preventDefault();
+      move(event.key === 'ArrowLeft' ? -1 : 1);
+    });
+    list.addEventListener('scroll', update, { passive: true });
+    const observer = new ResizeObserver(update);
+    observer.observe(list);
+    document.addEventListener('astro:before-swap', () => observer.disconnect(), { once: true });
+    update();
+  }
+  document.addEventListener('astro:page-load', setupProjects);
+  setupProjects();
+</script>
 
 <style>
   /* .module-head / .section 样式在 global.css 统一维护 */
 
   /* ===== 造物：无卡片，三栏一行 —— 名 / 述 / 状态 ===== */
-  .work-list { margin: 0; padding: 0; list-style: none; }
-  .work-list > li { border-bottom: 1px solid var(--border-subtle); }
+  .work-list { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(210px, 1fr); max-width: 100%; margin: 0 auto; padding: 8px 0 16px; list-style: none; text-align: center; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+  .work-list > li { scroll-snap-align: start; border-right: 1px solid var(--border); min-width: 0; }
+  .work-list > li:last-child { border-right: 0; }
   .work-row {
-    display: grid;
-    grid-template-columns: 190px minmax(0, 1fr) auto;
-    align-items: baseline;
-    gap: 24px;
-    padding-block: 22px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    height: 100%;
+    padding: 20px;
   }
   .work-row__name {
-    font-family: var(--mono);
-    font-size: 0.95rem;
+    font-family: var(--font-body);
+    font-size: 18px;
     font-weight: 500;
     color: var(--text);
     transition: color var(--dur-fast) var(--ease-out);
   }
   .work-row__desc {
+    max-width: 30ch;
     color: var(--text-muted);
-    font-size: 0.95rem;
+    font-size: 14px;
     line-height: 1.6;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
   }
   .work-row__status {
+    margin-top: auto;
+    padding-top: 8px;
     font-family: var(--mono);
     font-size: 11px;
-    letter-spacing: 0.08em;
+    letter-spacing: 0;
     color: var(--text-faint);
     white-space: nowrap;
   }
@@ -82,9 +122,14 @@ import { projects } from "../data/projects.js";
     a.work-row:hover .work-row__name { color: var(--accent); }
   }
   a.work-row:focus-visible .work-row__name { color: var(--accent); }
+  .work-controls { display: flex; justify-content: center; gap: 8px; margin-top: 12px; }
+  .work-controls[hidden] { display: none; }
+  .work-controls button { display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: var(--surface-2); color: var(--text); cursor: pointer; transition: background 160ms ease, opacity 160ms ease; }
+  .work-controls button:hover { background: var(--surface-3); }
+  .work-controls button:disabled { opacity: 0.35; cursor: default; }
 
   @media (max-width: 700px) {
-    .work-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; padding-block: 18px; }
-    .work-row__desc { grid-column: 1 / -1; white-space: normal; }
+    .work-list { grid-auto-columns: minmax(210px, 80%); }
+    .work-row { gap: 10px; padding: 20px; }
   }
 </style>

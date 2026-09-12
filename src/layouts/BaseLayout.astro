@@ -16,6 +16,7 @@ import "@fontsource/noto-sans-sc/chinese-simplified-700.css";
 // KaTeX 渲染数学公式所需样式（$...$ / $$...$$）；字体文件随包内联进构建产物
 import "katex/dist/katex.min.css";
 import "../styles/global.css";
+import "../styles/dark.css";
 
 interface Props {
   title?: string;
@@ -33,7 +34,7 @@ const {
 ---
 
 <!doctype html>
-<html lang={lang}>
+<html lang={lang} data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -45,13 +46,13 @@ const {
     <ClientRouter />
     <script is:inline>
       (function () {
-        var THEME_COLOR = { dark: "#101216", light: "#f4f3ee" };
+        var THEME_COLOR = { dark: "#101216", light: "#ffffff" };
         var applyTheme = function () {
           var t;
           try {
             t = localStorage.getItem("theme");
           } catch (e) {}
-          if (t !== "light" && t !== "dark") t = "dark";
+          if (t !== "light" && t !== "dark") t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
           document.documentElement.dataset.theme = t;
           // 移动浏览器 UI 跟随页面主题，避免浅色主题下地址栏仍是黑色
           var meta = document.querySelector('meta[name="theme-color"]');
@@ -79,36 +80,65 @@ const {
       <slot />
     </main>
     <script>
-      // Scroll-reveal: fade+rise items marked with [data-reveal] once, when
-      // they enter the viewport. Play-once (no reverse) avoids re-triggering
-      // on every scroll direction change. Rescanned on astro:page-load so it
-      // keeps working under view transitions.
+      let revealObserver: IntersectionObserver | undefined;
+      let revealRoot: Element | null = null;
+      let revealTheme: string | undefined;
+      const revealAnimations = new Set<Animation>();
+      const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+      function cleanReveal() {
+        revealObserver?.disconnect();
+        revealAnimations.forEach(animation => animation.cancel());
+        revealAnimations.clear();
+        document.querySelectorAll('.is-reveal-pending').forEach(el => el.classList.remove('is-reveal-pending'));
+      }
+      motionPreference.addEventListener('change', () => { if (motionPreference.matches) cleanReveal(); });
+      document.addEventListener('astro:before-swap', () => { cleanReveal(); revealRoot = null; });
       function setupReveal() {
+        const root = document.getElementById('main');
+        if (root === revealRoot && revealTheme === document.documentElement.dataset.theme) return;
+        cleanReveal();
+        revealRoot = root;
+        revealTheme = document.documentElement.dataset.theme;
+        const home = document.body.classList.contains('home');
         const items = document.querySelectorAll("[data-reveal]:not(.is-revealed)");
-        if (!("IntersectionObserver" in window)) {
+        if (!("IntersectionObserver" in window) || motionPreference.matches) {
           items.forEach((el) => el.classList.add("is-revealed"));
           return;
         }
-        const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        const observer = new IntersectionObserver(
+        revealObserver = new IntersectionObserver(
           (entries) => {
             for (const entry of entries) {
               if (!entry.isIntersecting) continue;
               entry.target.classList.add("is-revealed");
-              observer.unobserve(entry.target);
+              entry.target.classList.remove('is-reveal-pending');
+              revealObserver?.unobserve(entry.target);
+              // Keep reading headers and keyboard targets immediately available.
+              if (entry.target.closest('.article__header') || entry.target.contains(document.activeElement)) continue;
+              const delay = Math.min(180, parseFloat(getComputedStyle(entry.target).getPropertyValue('--reveal-delay')) || 0);
+              const animation = entry.target.animate([
+                { opacity: 0, transform: 'translateY(14px)' },
+                { opacity: 1, transform: 'translateY(0)' },
+              ], { duration: home ? 1200 : 800, delay: delay + (home ? 100 : 0), easing: 'cubic-bezier(0.22, 0.61, 0.36, 1)', fill: 'backwards' });
+              revealAnimations.add(animation);
+              animation.onfinish = () => revealAnimations.delete(animation);
             }
           },
-          { rootMargin: "0px 0px -8% 0px", threshold: 0.05 },
+          { rootMargin: `0px 0px -${home ? Math.min(120, window.innerHeight * 0.12) : 24}px 0px`, threshold: 0.05 },
         );
         for (const el of items) {
-          if (reducedMotion) {
-            el.classList.add("is-revealed");
-          } else {
-            observer.observe(el);
-          }
+          if (home) el.classList.add('is-reveal-pending');
+          revealObserver.observe(el);
         }
       }
       document.addEventListener("astro:page-load", setupReveal);
+      document.addEventListener('themechange', setupReveal);
+      document.addEventListener('focusin', (event) => {
+        const item = (event.target as Element).closest('.is-reveal-pending');
+        if (!item) return;
+        item.classList.remove('is-reveal-pending');
+        item.classList.add('is-revealed');
+        revealObserver?.unobserve(item);
+      });
       // runs now too (module scripts are deferred); setupReveal is idempotent
       setupReveal();
     </script>

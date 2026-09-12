@@ -15,6 +15,20 @@
 - `editor/` — 单页文章编辑器（Vite + React + ByteMD），独立子工程，见 `editor/README.md`
 - `pb/` — 本地 PocketBase（`pb_hooks`/`pb_migrations` 软链到 MonostichPB）
 
+## 首页摘抄
+
+编辑 `src/data/excerpts.ts`，在 `excerpts` 数组中添加记录即可，无需修改页面组件：
+
+```ts
+{
+  text: '摘抄原文',
+  author: '作者',
+  source: '《作品名》',
+},
+```
+
+`text` 必填，`author` 和 `source` 可省略。首页页脚上方每天展示一条，按访客本地日期从列表中循环选取；浅色与深色共用内容。删除记录即可移除摘抄，清空数组会隐藏整个区域。内容修改后需要重新构建发布，本地开发模式会自动更新。
+
 ## 部署
 
 push 到 `main` 触发 `.github/workflows/deploy.yml`，一次流水线发布两个产物：

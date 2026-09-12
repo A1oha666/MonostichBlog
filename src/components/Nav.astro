@@ -1,208 +1,174 @@
 ---
-// 当前页判断：SSR 侧用 Astro.url.pathname 输出 aria-current；
-// transition:persist 让 nav 跨页面导航不重挂载，因此客户端导航后
-// 由下方脚本按 location.pathname 重新同步，避免高亮滞留。
-const pathname = Astro.url.pathname.replace(/\/$/, "") || "/";
-const isActive = (base: string) => pathname === base || pathname.startsWith(`${base}/`);
-
-// 带 data-nav-base 的链接参与当前页高亮（SSR 输出 + 客户端 syncCurrentPage）；
-// Work 是首页锚点，不参与。
+import { Sun, Moon, Menu, X, Search, ArrowUpRight } from '@lucide/astro';
+const pathname = Astro.url.pathname.replace(/\/$/, '') || '/';
 const links = [
-  { href: "/archive", label: "Archive", base: "/archive" },
-  { href: "/notes", label: "Notes", base: "/notes" },
-  { href: "/thinkings", label: "Thinkings", base: "/thinkings" },
-  { href: "/#projects", label: "Work" },
-  { href: "/lab", label: "Lab", base: "/lab" },
-  { href: "/about", label: "About", base: "/about" },
+  { href: '/notes', label: '笔记', darkLabel: 'Notes', base: '/notes' },
+  { href: '/thinkings', label: '随想', darkLabel: 'Thinkings', base: '/thinkings' },
+  { href: '/archive', label: '归档', darkLabel: 'Archive', base: '/archive' },
+  { href: '/#projects', label: '项目', darkLabel: 'Work' },
+  { href: '/lab', label: '实验室', darkLabel: 'Lab', base: '/lab' },
+  { href: '/about', label: '关于', darkLabel: 'About', base: '/about' },
 ];
 ---
-
-<nav class="nav" aria-label="Primary" transition:persist="nav">
-    <div class="nav__inner container">
-      <a class="nav__brand" href="/">Aloha.</a>
-      <div class="nav__links">
-        {
-          links.map((link) => (
-            <a
-              href={link.href}
-              data-nav-base={link.base}
-              aria-current={link.base && isActive(link.base) ? "page" : undefined}
-            >
-              {link.label}
-            </a>
-          ))
-        }
-      </div>
-      <button
-        class="nav__theme"
-        id="theme-toggle"
-        type="button"
-        aria-label="Switch to light theme"
-        title="Toggle theme"
-      >
-        <svg class="ic ic--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="4"></circle>
-          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
-        </svg>
-        <svg class="ic ic--moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
-        </svg>
+<nav class="nav" aria-label="主导航" transition:persist="nav">
+  <div class="nav__inner container">
+    <a class="nav__brand" href="/">Aloha.</a>
+    <div class="nav__links" id="primary-links">
+      {links.map((link, index) => (
+        <a href={link.href} style={`--menu-index: ${index}`} data-nav-base={link.base} data-project-link={!link.base || undefined} aria-current={link.base && (pathname === link.base || pathname.startsWith(`${link.base}/`)) ? 'page' : undefined}><span class="nav__label-light">{link.label}</span><span class="nav__label-dark">{link.darkLabel}</span><ArrowUpRight class="nav__link-arrow" size={20} aria-hidden="true" /></a>
+      ))}
+    </div>
+    <div class="nav__tools">
+      <a class="nav__search" href="/archive/?search=1" aria-label="搜索文章" title="搜索文章"><Search size={17} aria-hidden="true" /></a>
+      <button class="nav__theme" id="theme-toggle" type="button" aria-label="切换主题" title="切换主题">
+        <Sun class="ic--sun" size={18} aria-hidden="true" />
+        <Moon class="ic--moon" size={18} aria-hidden="true" />
+      </button>
+      <button class="nav__menu" id="menu-toggle" type="button" aria-label="打开导航" aria-expanded="false" aria-controls="primary-links" title="打开导航">
+        <Menu class="ic--menu" size={21} aria-hidden="true" />
+        <X class="ic--close" size={21} aria-hidden="true" />
       </button>
     </div>
+  </div>
 </nav>
 
 <script>
-  // Re-bound on astro:page-load so the handler survives view-transition swaps.
-  function bindThemeToggle() {
-    const btn = document.getElementById("theme-toggle");
-    if (!btn || btn.dataset.themeBound) return;
-    btn.dataset.themeBound = "true";
-    // SSR 文案按默认深色输出；本地存储为浅色时（BaseLayout 的 head 内联
-    // 脚本执行时按钮尚未存在）在这里同步一次按钮名称
-    if (document.documentElement.dataset.theme === "light") {
-      btn.setAttribute("aria-label", "Switch to dark theme");
-    }
-    btn.addEventListener("click", () => {
-      const root = document.documentElement;
-      const next = root.dataset.theme === "light" ? "dark" : "light";
-      root.dataset.theme = next;
-      try { localStorage.setItem("theme", next); } catch {}
-      // 与 BaseLayout 的 applyTheme 保持一致：按钮名称反映下一步动作，
-      // 浅色主题下移动浏览器 UI 也跟着换色
-      btn.setAttribute("aria-label", next === "light" ? "Switch to dark theme" : "Switch to light theme");
-      const meta = document.querySelector('meta[name="theme-color"]');
-      if (meta) meta.setAttribute("content", next === "dark" ? "#101216" : "#f4f3ee");
+  let scrollQueued = false;
+  function syncNavSize() {
+    const root = document.documentElement;
+    // Hysteresis avoids repeated transitions near the scroll threshold.
+    if (window.scrollY > 80) root.setAttribute('data-nav-compact', '');
+    else if (window.scrollY < 24) root.removeAttribute('data-nav-compact');
+  }
+  window.addEventListener('scroll', () => {
+    if (scrollQueued) return;
+    scrollQueued = true;
+    requestAnimationFrame(() => { scrollQueued = false; syncNavSize(); });
+  }, { passive: true });
+
+  function setupNav() {
+    syncNavSize();
+    const nav = document.querySelector<HTMLElement>('.nav');
+    const theme = document.getElementById('theme-toggle');
+    const menu = document.getElementById('menu-toggle');
+    if (!nav || !theme || !menu) return;
+    const closeMenu = () => {
+      nav.removeAttribute('data-open');
+      document.documentElement.removeAttribute('data-menu-open');
+      if (window.matchMedia('(max-width: 700px)').matches) nav.querySelector<HTMLElement>('.nav__links')?.setAttribute('inert', '');
+      menu.setAttribute('aria-expanded', 'false');
+      menu.setAttribute('aria-label', '打开导航');
+      menu.title = '打开导航';
+    };
+    const syncTheme = (restoreAnchor = true) => {
+      const dark = document.documentElement.dataset.theme === 'dark';
+      const label = dark ? '切换到浅色主题' : '切换到深色主题';
+      theme.setAttribute('aria-label', label);
+      theme.title = label;
+      nav.querySelector('[data-project-link]')?.setAttribute('href', dark ? '/#projects-dark' : '/#projects');
+      if (restoreAnchor && location.pathname === '/' && ['#projects', '#projects-dark'].includes(location.hash)) {
+        const hash = dark ? '#projects-dark' : '#projects';
+        if (location.hash !== hash) history.replaceState(history.state, '', hash);
+        requestAnimationFrame(() => document.querySelector(hash)?.scrollIntoView({ behavior: 'instant' }));
+      }
+    };
+    closeMenu();
+    if (window.matchMedia('(min-width: 701px)').matches) nav.querySelector('.nav__links')?.removeAttribute('inert');
+    syncTheme();
+    const path = location.pathname.replace(/\/$/, '') || '/';
+    nav.querySelectorAll<HTMLAnchorElement>('a[data-nav-base]').forEach((link) => {
+      const base = link.dataset.navBase ?? '';
+      if (base && (path === base || path.startsWith(`${base}/`))) link.setAttribute('aria-current', 'page');
+      else link.removeAttribute('aria-current');
+    });
+    if (nav.dataset.bound) return;
+    nav.dataset.bound = 'true';
+    theme.addEventListener('click', () => {
+      const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+      document.documentElement.dataset.theme = next;
+      try { localStorage.setItem('theme', next); } catch {}
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', next === 'dark' ? '#101216' : '#ffffff');
+      syncTheme(false);
+      if (document.body.classList.contains('home')) {
+        if (location.hash) history.replaceState(history.state, '', location.pathname + location.search);
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }
+      document.dispatchEvent(new Event('themechange'));
+    });
+    menu.addEventListener('click', () => {
+      if (nav.hasAttribute('data-open')) return closeMenu();
+      nav.setAttribute('data-open', '');
+      document.documentElement.setAttribute('data-menu-open', '');
+      nav.querySelector('.nav__links')?.removeAttribute('inert');
+      menu.setAttribute('aria-expanded', 'true');
+      menu.setAttribute('aria-label', '关闭导航');
+      menu.title = '关闭导航';
+    });
+    nav.addEventListener('click', (event) => {
+      if ((event.target as Element).closest('a')) closeMenu();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && nav.hasAttribute('data-open')) { closeMenu(); menu.focus(); }
+      if (event.key === 'Tab' && nav.hasAttribute('data-open')) {
+        const focusable = [...nav.querySelectorAll<HTMLElement>('a, button')].filter(el => el.getClientRects().length > 0);
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }
+    });
+    document.addEventListener('click', (event) => {
+      if (!nav.contains(event.target as Node)) closeMenu();
+    });
+    window.matchMedia('(min-width: 701px)').addEventListener('change', (event) => {
+      closeMenu();
+      if (event.matches) nav.querySelector('.nav__links')?.removeAttribute('inert');
     });
   }
-
-  // nav 被 transition:persist 保留，SSR 写入的 aria-current 不会随页面
-  // 换新；这里在每次客户端导航后按当前路径重算（Work 锚点链接除外）。
-  function syncCurrentPage() {
-    const path = location.pathname.replace(/\/$/, "") || "/";
-    document.querySelectorAll<HTMLAnchorElement>(".nav__links a[data-nav-base]").forEach((a) => {
-      const base = a.dataset.navBase ?? "";
-      const active = base !== "" && (path === base || path.startsWith(`${base}/`));
-      if (active) a.setAttribute("aria-current", "page");
-      else a.removeAttribute("aria-current");
-    });
-  }
-
-  document.addEventListener("astro:page-load", () => {
-    bindThemeToggle();
-    syncCurrentPage();
-  });
-  bindThemeToggle();
-  syncCurrentPage();
+  document.addEventListener('astro:page-load', setupNav);
+  setupNav();
 </script>
 
 <style>
-  .nav {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    border-bottom: 1px solid var(--border-subtle);
-    background: var(--nav-bg);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
+  .nav__label-dark { display: none; }
+  :global(html[data-theme='dark']) .nav__label-dark { display: inline; }
+  :global(html[data-theme='dark']) .nav__label-light { display: none; }
+  .nav { position: fixed; top: 8px; left: 0; right: 0; z-index: 30; pointer-events: none; }
+  .nav__inner { display: flex; align-items: center; gap: 24px; width: calc(100% - 48px); max-width: 1140px; min-height: 48px; padding-inline: 16px; margin-inline: auto; border: 1px solid transparent; border-radius: 100px; pointer-events: auto; transition: max-width 480ms cubic-bezier(0.22, 1, 0.36, 1), width 480ms cubic-bezier(0.22, 1, 0.36, 1), background-color 300ms ease, border-color 300ms ease, box-shadow 300ms ease; }
+  :global(html[data-nav-compact]) .nav__inner { max-width: 980px; background: color-mix(in srgb, var(--bg) 72%, transparent); border-color: var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: 0 2px 12px rgb(0 0 0 / 3%); }
+  .nav__brand { font: 650 21px var(--font-body); color: var(--text); flex: 0 0 88px; padding-left: 0; transition: padding-left 480ms cubic-bezier(0.22, 1, 0.36, 1); }
+  :global(html[data-nav-compact]) .nav__brand { padding-left: 12px; }
+  .nav__links { display: flex; flex: 1; justify-content: center; align-items: center; gap: 32px; margin-left: auto; }
+  :global(.nav__link-arrow) { display: none; }
+  .nav__links a { display: flex; align-items: center; min-height: 44px; font: 13px var(--font-body); color: var(--text-muted); white-space: nowrap; }
+  .nav__links a:hover, .nav__links a[aria-current='page'] { color: var(--accent); }
+  .nav__links a[aria-current='page'] { text-decoration: underline; text-underline-offset: 7px; }
+  .nav__tools { display: flex; flex: 0 0 auto; }
+  button, .nav__search { display: grid; place-items: center; width: 44px; height: 44px; border: 0; padding: 0; background: none; color: var(--text-muted); cursor: pointer; transition: color 200ms ease; }
+  button:hover, .nav__search:hover { color: var(--text); }
+  button :global(svg) { grid-area: 1 / 1; }
+  .nav__menu, :global(.ic--moon), :global(.ic--close) { display: none; }
+  :global(html[data-theme='light']) :global(.ic--moon) { display: block; }
+  :global(html[data-theme='light']) :global(.ic--sun) { display: none; }
+  @media (max-width: 700px) {
+    .nav__brand { flex-basis: 80px; }
+    :global(html[data-nav-compact]) .nav__brand { padding-left: 6px; }
+    .nav__inner { justify-content: space-between; gap: 8px; width: calc(100% - 48px); padding-inline: 12px; }
+    .nav__menu { display: grid; }
+    .nav__links { display: flex; flex-direction: column; align-items: stretch; justify-content: start; gap: 0; visibility: hidden; pointer-events: none; position: absolute; top: 56px; left: 0; right: 0; height: calc(100dvh - 64px); overflow-y: auto; padding: 24px 40px 48px; background: var(--bg); margin: 0; clip-path: inset(0 0 100%); transition: clip-path 420ms cubic-bezier(0.22, 1, 0.36, 1), visibility 420ms; }
+    .nav__links a { justify-content: space-between; min-height: 60px; font-size: 28px; font-weight: 600; color: var(--text); opacity: 0; transform: translateY(-10px); transition: opacity 150ms ease, transform 150ms ease; }
+    .nav[data-open]::before { content: ''; position: absolute; inset: -8px 0 0; background: var(--bg); z-index: -1; }
+    .nav[data-open] .nav__inner { background: var(--bg); border-color: transparent; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+    .nav[data-open] .nav__links { visibility: visible; pointer-events: auto; clip-path: inset(0); }
+    .nav[data-open] .nav__links a { opacity: 1; transform: none; transition: opacity 360ms ease, transform 360ms var(--ease-out); transition-delay: calc(70ms + var(--menu-index) * 30ms); }
+    :global(.nav__link-arrow) { display: block; color: var(--text-faint); }
+    .nav[data-open] :global(.ic--menu) { display: none; }
+    .nav[data-open] :global(.ic--close) { display: block; }
+    :global(html:not(.js)) .nav__inner { flex-wrap: wrap; }
+    :global(html:not(.js)) .nav { position: static; }
+    :global(html:not(.js)) .nav__links { display: flex; flex-direction: row; flex-wrap: wrap; visibility: visible; pointer-events: auto; clip-path: none; height: auto; position: static; order: 3; flex-basis: 100%; padding: 0 0 12px; gap: 0 24px; }
+    :global(html:not(.js)) .nav__links a { opacity: 1; transform: none; font-size: 16px; }
+    :global(html:not(.js)) :global(.nav__link-arrow) { display: none; }
+    :global(html:not(.js)) .nav__tools { display: none; }
   }
-  .nav__inner {
-    /* 与样例一致：品牌与链接都收进 1080px container，不做全宽铺开。
-       gap 保证链接区与主题按钮之间保持原设计 26px 间距
-       （宽屏下 margin-left:auto 吸收品牌侧空间，窄屏下 gap 是最小间隔） */
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 26px;
-    min-height: calc(var(--nav-height) - 1px);
-    font-family: var(--mono);
-    font-size: 13px;
-  }
-  .nav__brand { color: var(--accent); font-weight: 700; /* 显式声明：zh-CN 页面的 :lang 规则会直接命中元素，靠继承拿不到 mono */ font-family: var(--mono); }
-  /* 链接区用 margin-left:auto 靠向主题按钮。不要用 justify-content:
-     flex-end —— 它与横向溢出组合会把左端条目挤出可滚动范围（flexbox
-     的 start-edge 数据丢失问题） */
-  .nav__links {
-    display: flex;
-    min-width: 0;
-    margin-left: auto;
-    align-items: center;
-    gap: 26px;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .nav__links::-webkit-scrollbar { display: none; }
-  @media (max-width: 520px) {
-    .nav__links {
-      gap: var(--space-md);
-      font-size: 12px;
-      /* 链接放不进窄屏单行：允许内部横向滑动（滚动能力已在基础样式声明）；
-         margin-inline 负值让滑动区域延伸到视口边缘 */
-      margin-inline: calc(-1 * var(--space-md));
-      padding-inline: var(--space-md);
-      /* 两侧渐隐暗示该区域可横向滑动（内容两侧有 16px padding，
-         静止时渐隐只落在留白上，不裁切首尾链接） */
-      -webkit-mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
-      mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
-    }
-  }
-  .nav__links a {
-    position: relative;
-    color: var(--text-muted);
-    /* :lang(zh-CN) 会直接命中链接元素，mono 必须在此显式声明而非依赖继承 */
-    font-family: var(--mono);
-    transition: color var(--dur-fast) var(--ease-out);
-  }
-  .nav__links a::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: -8px;
-    height: 1px;
-    background: var(--accent);
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform var(--dur-base) var(--ease-out);
-  }
-  @media (hover: hover) {
-    .nav__links a:hover { color: var(--accent); }
-    .nav__links a:hover::after { transform: scaleX(1); }
-  }
-  /* 当前页常驻态：下划线常驻、颜色提亮 */
-  .nav__links a[aria-current="page"] { color: var(--text); }
-  .nav__links a[aria-current="page"]::after { transform: scaleX(1); }
-
-  .nav__theme {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 30px;
-    height: 30px;
-    padding: 0;
-    background: none;
-    border: 0;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
-  }
-  .nav__theme:hover { color: var(--accent); }
-  .nav__theme:active { transform: scale(0.92); }
-  /* extend the tap area to ~44px without enlarging the visible control */
-  .nav__theme::after {
-    content: "";
-    position: absolute;
-    inset: -8px;
-    border-radius: 50%;
-  }
-  .ic {
-    position: absolute;
-    width: 14px;
-    height: 14px;
-    transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
-  }
-  .ic--sun { opacity: 1; transform: none; }
-  .ic--moon { opacity: 0; transform: rotate(-90deg) scale(0.6); }
-  :global(html[data-theme="light"]) .ic--moon { opacity: 1; transform: none; }
-  :global(html[data-theme="light"]) .ic--sun { opacity: 0; transform: rotate(90deg) scale(0.6); }
 </style>

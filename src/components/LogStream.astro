@@ -50,6 +50,7 @@ const { paths } = Astro.props;
   let teardownLogStream: (() => void) | null = null;
 
   function setupLogStream() {
+    if (document.documentElement.dataset.theme !== 'dark') return;
     const canvas = document.querySelector<HTMLCanvasElement>("canvas.logstream");
     if (!canvas) return;
     if (canvas.dataset.bound === "1") return;
@@ -335,7 +336,7 @@ const { paths } = Astro.props;
       rafId = requestAnimationFrame(loop);
     }
     function start() {
-      if (rafId || reducedMotion) return;
+      if (rafId || reducedMotion || paused || document.hidden) return;
       lastNow = performance.now();
       // 首次访问灌一波开机瀑布（sessionStorage 保证同一会话只播一次；
       // 存储不可用时静默退回环境速率）
@@ -367,6 +368,12 @@ const { paths } = Astro.props;
       attributes: true,
       attributeFilter: ["data-theme"]
     });
+    const viewportObserver = new IntersectionObserver(([entry]) => {
+      paused = !entry.isIntersecting;
+      if (paused) stop();
+      else start();
+    });
+    viewportObserver.observe(canvas);
     // 字体加载完成后重测字符宽并重新对齐，避免首屏用回退字体度量
     if (document.fonts && document.fonts.ready) {
       document.fonts.ready.then(function () {
@@ -394,6 +401,7 @@ const { paths } = Astro.props;
     teardownLogStream = function () {
       stop();
       themeObserver.disconnect();
+      viewportObserver.disconnect();
       window.removeEventListener("resize", onResize);
       document.removeEventListener("visibilitychange", onVisibility);
       burstTimers.forEach(clearTimeout);
@@ -403,6 +411,16 @@ const { paths } = Astro.props;
   }
 
   document.addEventListener("astro:page-load", setupLogStream);
+  document.addEventListener('themechange', () => {
+    teardownLogStream?.();
+    teardownLogStream = null;
+    setupLogStream();
+  });
+  window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', () => {
+    teardownLogStream?.();
+    teardownLogStream = null;
+    setupLogStream();
+  });
   document.addEventListener("astro:before-swap", function () {
     if (teardownLogStream) {
       teardownLogStream();

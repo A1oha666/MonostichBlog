@@ -1,226 +1,81 @@
 ---
-import LogStream from "./LogStream.astro";
-import HeroGlow from "./HeroGlow.astro";
-import FlickerTitle from "./FlickerTitle.astro";
-
-interface PathWeight {
-  p: string;
-  w: number;
-}
-interface Props {
-  logPaths?: PathWeight[];
-  notesCount?: string;
-  projectsCount?: string;
-  updatedLabel?: string;
-}
-const {
-  logPaths = [],
-  notesCount = "05",
-  projectsCount = "08",
-  updatedLabel = "09.05",
-} = Astro.props;
+import { ArrowRight } from '@lucide/astro';
+import { dotDate, isoDate } from '../lib/format';
+import FlickerTitle from './FlickerTitle.astro';
+interface Props { notesCount: number; projectsCount: number; latestDate?: Date; }
+const { notesCount, projectsCount, latestDate } = Astro.props;
 ---
 
-<header class="hero">
-  <HeroGlow />
-  <LogStream paths={logPaths} />
-  <div class="hero__colophon container">
-    <p>
-      <span class="hero__prompt">aloha@monostich</span><span class="hero__sep">:</span><span class="hero__path">~</span><span class="hero__dollar">$</span>
-    </p>
+<header class="intro">
+  <div class="intro__content container">
+  <a href="/about" class="intro__portrait" aria-label="关于 Aloha">
+    <img src="https://github.com/A1oha666.png?size=128" data-github-avatar alt="Aloha 的头像" width="56" height="56" fetchpriority="high" referrerpolicy="no-referrer" />
+  </a>
+  <h1><span data-scramble>Aloha.</span></h1>
+  <p class="intro__tagline"><span class="hero__line">Explore and build.<FlickerTitle /><span class="intro__cursor" aria-hidden="true">_</span></span></p>
+  <p class="intro__description" lang="zh-CN" data-reveal>记录一些想法与实践。</p>
+  <div class="intro__actions" data-reveal style="--reveal-delay: 120ms">
+    <a class="intro__link intro__link--primary" href="/about">关于我 <ArrowRight size={16} aria-hidden="true" /></a>
   </div>
-  <div class="hero__layout container">
-    <div class="hero__inner">
-      <p class="hero__eyebrow">// blog & notes</p>
-      <h1 class="hero__title">
-        <span class="hero__line" style="--line-index: 0">explore<br />and build.<FlickerTitle /><span class="hero__cursor" aria-hidden="true">_</span></span>
-      </h1>
-      <p class="hero__intro" lang="zh-CN" style="--line-index: 1">记录一些想法与实践。</p>
-    </div>
-    <aside class="hero__status" aria-label="Site status">
-      <p class="hero__status-label">monostich.cloud</p>
-      <p class="hero__status-state"><span class="hero__led" aria-hidden="true"></span>online</p>
-      <dl><div><dt>notes</dt><dd>{notesCount}</dd></div><div><dt>projects</dt><dd>{projectsCount}</dd></div><div><dt>updated</dt><dd>{updatedLabel}</dd></div></dl>
-    </aside>
+  </div>
+  <div class="intro__meta container" aria-label="站点统计">
+    <a href="/archive">{notesCount} 篇记录</a>
+    <span aria-hidden="true">·</span>
+    <a href="#projects">{projectsCount} 个项目</a>
+    {latestDate && <><span aria-hidden="true">·</span><span>更新于 <time datetime={isoDate(latestDate)}>{dotDate(latestDate)}</time></span></>}
   </div>
 </header>
 
+<script>
+  function setupAvatar() {
+    const image = document.querySelector<HTMLImageElement>('[data-github-avatar]');
+    if (!image || image.dataset.bound) return;
+    image.dataset.bound = 'true';
+    const fallback = () => { image.src = '/avatar.png'; };
+    if (image.complete && image.naturalWidth === 0) fallback();
+    else image.addEventListener('error', fallback, { once: true });
+  }
+  document.addEventListener('astro:page-load', setupAvatar);
+  setupAvatar();
+</script>
+
 <style>
-  .hero {
-    /* Hero 专属版心：spec §4 要求 1200px / 5vw gutter，不动全局 token */
-    --maxw: 1200px;
-    --page-gutter: clamp(20px, 5vw, 64px);
-    min-height: min(820px, 88vh);
-    display: flex;
-    flex-direction: column;
-    position: relative;
-    overflow: clip;
-    isolation: isolate;
+  .intro { display: grid; grid-template-rows: minmax(min-content, 1fr) auto; min-height: calc(100svh - var(--nav-height) - 80px); background: var(--surface-2); text-align: center; }
+  .intro__content { align-self: center; padding-block: 56px; }
+  .intro__portrait { display: block; width: 56px; height: 56px; margin: 0 auto 16px; border-radius: 50%; transition: transform 400ms var(--ease-out); }
+  .intro__portrait:hover { transform: scale(1.07); }
+  .intro__portrait img { border-radius: 50%; object-fit: cover; }
+  h1 { font-family: var(--font-display); font-size: 76px; font-weight: 650; line-height: 1.05; }
+  .intro__tagline { margin-top: 12px; font-size: 28px; font-weight: 500; line-height: 1.4; }
+  .hero__line { position: relative; display: inline-block; }
+  .intro__cursor { position: absolute; left: 100%; color: var(--accent); animation: cursor-blink 1.6s steps(1) infinite; }
+  :global(html[data-theme='light']) .hero__line :global(.fk-ch) { filter: none !important; opacity: clamp(0.08, var(--fk, 1), 1); }
+  .intro__description { margin-top: 8px; font-size: 18px; color: var(--text-muted); }
+  .intro__actions { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px 24px; margin-top: 24px; }
+  .intro__link { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; color: var(--accent); font-size: 15px; }
+  .intro__link--primary { padding: 0 22px; border-radius: 24px; background: var(--accent); color: var(--on-accent); transition: background 200ms ease; }
+  .intro__link--primary:hover { background: var(--accent-deep); }
+  .intro__link:not(.intro__link--primary):hover { text-decoration: underline; text-underline-offset: 4px; }
+  .intro__link :global(svg) { transition: transform 250ms var(--ease-out); }
+  .intro__link:hover :global(svg) { transform: translateX(3px); }
+  .intro__meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 12px; padding-block: 12px 24px; color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .intro__meta a { display: inline-flex; align-items: center; min-height: 32px; }
+  .intro__meta a:hover { color: var(--accent); }
+  @media (max-width: 640px) {
+    .intro__content { padding-block: 40px; }
+    h1 { font-size: 56px; }
+    .intro__tagline { font-size: 23px; }
+    .intro__description { font-size: 16px; }
+    .intro__meta { gap: 2px 8px; font-size: 11px; padding-bottom: 16px; }
   }
-  @supports not (overflow: clip) {
-    .hero { overflow: hidden; }
-  }
-
-  /* 日志瀑布 canvas 沉在最底层，文字内容抬到其上 */
-  .hero__colophon,
-  .hero__layout {
-    position: relative;
-    z-index: 1;
-  }
-
-  /* 顶部 colophon：只剩一行 shell 提示符；online 状态由状态卡单独负责 */
-  .hero__colophon {
-    display: flex;
-    justify-content: space-between;
-    gap: var(--space-md);
-    padding-top: 32px;
-    font-family: var(--mono);
-    font-size: 12px;
-    letter-spacing: 0.02em;
-    color: var(--text-faint);
-  }
-  .hero__prompt { color: var(--text-muted); }
-  .hero__sep { color: var(--text-faint); }
-  .hero__path { color: var(--text-muted); }
-  /* 全页仅有的两处磷光之一：提示符的 $ */
-  .hero__dollar { color: var(--accent); margin-left: 8px; }
-
-  /* 状态灯：一粒琥珀 LED，硬闪烁 —— 机器活着的信号 */
-  .hero__led {
-    display: inline-block;
-    width: 7px;
-    height: 7px;
-    margin-right: 9px;
-    border-radius: 50%;
-    background: var(--accent);
-    box-shadow: 0 0 6px var(--accent-glow), 0 0 14px var(--accent-glow);
-    animation: led-blink 2.1s steps(1) infinite;
-  }
-  @keyframes led-blink {
-    0%, 64% { opacity: 1; }
-    65%, 100% { opacity: 0.12; }
-  }
-
-  /* 主内容与状态卡同一 grid 行、底部对齐 —— 共享一条基线，
-     不再是两个互不相干的模块 */
-  .hero__layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 220px;
-    align-items: end;
-    gap: 80px;
-    margin-top: auto;
-    padding-bottom: 10vh;
-  }
-
-  .hero__inner { position: relative; z-index: 2; }
-
-  /* 内容保护区：标题/说明/CTA 背后垫一层由实到虚的底色，
-     背景日志与辉光不许进入阅读路径 */
-  .hero__inner::before {
-    content: "";
-    position: absolute;
-    inset: -24px -40px;
-    z-index: -1;
-    background: linear-gradient(
-      90deg,
-      var(--bg) 0%,
-      color-mix(in srgb, var(--bg) 88%, transparent) 55%,
-      transparent 100%
-    );
-  }
-
-  .hero__eyebrow { margin-bottom: var(--space-lg); color: var(--accent); font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; }
-
-  .hero__title {
-    max-width: 560px;
-    font-family: var(--mono);
-    font-weight: 500;
-    /* 从海报尺度回落到可阅读的编辑尺度：两行正好放下 */
-    font-size: clamp(3rem, 5.6vw, 5.2rem);
-    letter-spacing: -0.045em;
-    line-height: 0.98;
-    /* 磷光余晖，不纯白；亮色主题由 token 回落正文色 */
-    color: var(--hero-title);
-  }
-
-  .hero__line { display: block; }
-
-  /* 全页仅有的两处磷光之二：句尾硬闪烁下划线光标 */
-  .hero__cursor {
-    color: var(--accent);
-    /* FlickerTitle 的空壳组件后会保留一个折叠空白，收回它让光标紧贴 build. */
-    margin-left: -0.54em;
-    animation: cursor-blink 1.6s steps(1) infinite;
-  }
-
-  /* 中文介绍：无衬线、弱色、收紧 —— 与「造物」简介同一套阅读配方，
-     在 mono 大标题下不抢戏、安静地完成过渡 */
-  .hero__intro {
-    margin-top: 24px;
-    color: var(--text-muted);
-    max-width: 25ch;
-    font-family: 'Google Sans', var(--font-zh);
-    font-size: 15px;
-    line-height: 1.7;
-    letter-spacing: 0.01em;
-  }
-
-  /* 状态卡：足够的纸面感 —— 边框更明确，底色更接近 surface */
-  .hero__status {
-    width: 210px;
-    padding: 18px;
-    border: 1px solid var(--border-strong);
-    background: color-mix(in srgb, var(--surface) 85%, transparent);
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text-faint);
-  }
-  .hero__status-label { color: var(--text-muted); margin-bottom: 14px; }
-  .hero__status-state { color: var(--accent); margin-bottom: 18px; }
-  .hero__status .hero__led { width: 6px; height: 6px; margin-right: 7px; }
-  .hero__status dl { margin: 0; }
-  .hero__status dl div { display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px solid var(--border-subtle); }
-  .hero__status dt, .hero__status dd { margin: 0; }
-  .hero__status dd { color: var(--text-muted); }
-
-  /* 进场只有慢速的模糊消散，无位移、无色散；
-     全局 reduced-motion 规则会兜底关掉所有动画。
-     有 JS 时灯管闪烁（FlickerTitle）接管 .hero__line 的进场；
-     视图过渡下 html.js 可能丢失，所以用组件打上的 class 让位 */
-  .hero__intro {
-    animation: hero-in 1400ms var(--ease-out) both;
-    animation-delay: calc(160ms + var(--line-index, 0) * 260ms);
-  }
-  html:not(.js) .hero__line:not(.hero__line--flicker) {
-    animation: hero-in 1400ms var(--ease-out) both;
-    animation-delay: 160ms;
-  }
-
-  @keyframes hero-in {
-    from { opacity: 0; filter: blur(10px); }
-    to { opacity: 1; filter: blur(0); }
-  }
-
-  /* 601–1100px：状态卡收窄、间距收紧，仍与标题同行并置 */
-  @media (max-width: 1100px) and (min-width: 601px) {
-    .hero__layout { grid-template-columns: minmax(0, 1fr) 180px; gap: 48px; }
-    .hero__status { width: 180px; padding: 14px; }
-  }
-
-  @media (max-width: 600px) {
-    .hero { min-height: 82vh; }
-    .hero__layout { grid-template-columns: 1fr; gap: 40px; padding-bottom: 8vh; align-items: start; }
-    /* 10 个字符的 "and build._" 按 0.62em 均宽 + 负字距测算：
-       11vw @375px ≈ 41px，两行恰好放下且不破词 */
-    .hero__title { font-size: clamp(1.9rem, 11vw, 3.2rem); }
-    .hero__status { width: auto; padding: 12px 14px; }
-    .hero__status-label, .hero__status-state { display: inline; margin: 0 18px 0 0; }
-    .hero__status dl { display: inline-flex; gap: 14px; }
-    .hero__status dl div { border: 0; padding: 0; gap: 4px; }
-  }
-
-  /* ≤420px：状态条缩写为 notes 05 · projects 08 · 09.05 */
-  @media (max-width: 420px) {
-    .hero__status dl div:last-child dt { display: none; }
+  @media (max-height: 700px) {
+    .intro__content { padding-block: 20px; }
+    .intro__portrait { width: 48px; height: 48px; margin-bottom: 12px; }
+    .intro__portrait img { width: 48px; height: 48px; }
+    h1 { font-size: 56px; }
+    .intro__tagline { font-size: 23px; }
+    .intro__description { font-size: 16px; }
+    .intro__actions { margin-top: 20px; }
+    .intro__meta { padding-block: 8px 12px; }
   }
 </style>

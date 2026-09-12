@@ -56,7 +56,7 @@ const momentContents = new Map(renderedMoments.map(({ entry, content }) => [entr
   <section class="page-head container">
     <a class="back-home" href="/" data-reveal><span aria-hidden="true">←</span> 返回主页</a>
     <p class="eyebrow" data-reveal style="--reveal-delay: 60ms">/ thinkings</p>
-    <h1 data-reveal style="--reveal-delay: 120ms" data-scramble>Thinkings</h1>
+    <h1 data-reveal style="--reveal-delay: 120ms">随想</h1>
     <p data-reveal style="--reveal-delay: 200ms">思绪需要一些出口。</p>
   </section>
 
@@ -96,7 +96,7 @@ const momentContents = new Map(renderedMoments.map(({ entry, content }) => [entr
 <style>
   /* .page-head / .back-home / .eyebrow / h1 字号在 global.css 统一维护；
      斜体是 Thinkings 栏目有意保留的性格差异 */
-  .page-head h1 { font-weight: 400; font-style: italic; }
+  .page-head h1 { font-weight: 600; }
   .thinking-list { border-top: 1px solid var(--border-strong); }
   .thinking { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: var(--space-2xl); padding-block: var(--space-3xl); border-bottom: 1px solid var(--border-subtle); transition: background var(--dur-fast) var(--ease-out); scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
   .thinking__meta { padding-top: 7px; font-family: var(--mono); font-size: 12px; }
@@ -105,9 +105,9 @@ const momentContents = new Map(renderedMoments.map(({ entry, content }) => [entr
   .thinking__kind { color: var(--text-faint) !important; }
   time { display: block; margin-top: var(--space-sm); color: var(--text-faint); font-family: var(--mono); }
   .thinking__body { position: relative; max-width: 720px; }
-  .thinking__number { position: absolute; top: 7px; right: 0; color: var(--text-faint); font-family: var(--mono); font-size: 12px; }
+  .thinking__number { display: none; }
   /* thinking 标题与小记标题：小标题走 Google Sans（拉丁）+ Noto Sans SC（中文） */
-  h2 { max-width: 20ch; padding-right: var(--space-2xl); font-family: 'Google Sans', var(--font-zh); font-size: clamp(1.7rem, 3.5vw, 2.7rem); font-weight: 400; line-height: 1.08; }
+  h2 { font-family: var(--font-body); font-size: 26px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
   h2 a { display: inline-block; transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-out); }
   .thinking__body > p { max-width: 58ch; margin-top: var(--space-lg); color: var(--text-muted); }
   .thinking__read { display: inline-flex; gap: var(--space-sm); margin-top: var(--space-xl); color: var(--text); font-family: var(--mono); font-size: 12.5px; }
@@ -122,14 +122,14 @@ const momentContents = new Map(renderedMoments.map(({ entry, content }) => [entr
      Noto Sans SC、弱色、1.7 行高、左对齐（与「造物」简介同一套） */
   .thinking__body .prose-zh {
     font-family: var(--font-body);
-    font-size: 0.95rem;
-    line-height: 1.7;
-    letter-spacing: 0.01em;
-    color: var(--text-muted);
+    font-size: 17px;
+    line-height: 1.85;
+    letter-spacing: 0;
+    color: var(--text);
   }
 
   /* 小记：无详情页，标题弱化为条目级、正文直接内联展示 */
-  .thinking__moment-title { padding-right: 0; font-size: clamp(1.35rem, 2.5vw, 1.85rem); font-weight: 400; line-height: 1.2; }
+  .thinking__moment-title { padding-right: 0; font-size: 22px; font-weight: 500; line-height: 1.45; }
   .thinking__moment-content { max-width: 65ch; margin-top: var(--space-md); color: var(--text-muted); }
   .thinking__moment-content :global(> :first-child) { margin-top: 0; }
   .thinking__moment-content :global(p + p) { margin-top: var(--space-md); }

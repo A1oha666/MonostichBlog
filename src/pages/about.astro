@@ -35,13 +35,14 @@ import SiteFooter from "../components/SiteFooter.astro";
   /* .page-head / .back-home / .eyebrow 样式在 global.css 统一维护 */
   .about { padding-bottom: var(--space-4xl); }
   h1 {
-    font-family: var(--mono);
-    font-size: clamp(2.2rem, 5vw, 3.6rem);
+    font-family: var(--font-body);
+    font-size: 48px;
     font-weight: 500;
     line-height: 1.1;
   }
   /* 终端式硬闪烁光标，节奏与首页 Hero 横线光标一致（2.6s steps(1)） */
   .about__cursor {
+    display: none;
     margin-left: 2px;
     color: var(--accent);
     animation: cursor-blink 2.6s steps(1) infinite;

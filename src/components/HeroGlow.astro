@@ -79,6 +79,7 @@
   let teardownHeroGlow: (() => void) | null = null;
 
   function setupHeroGlow() {
+    if (document.documentElement.dataset.theme !== 'dark') return;
     const canvas = document.querySelector<HTMLCanvasElement>("canvas.hero-glow");
     if (!canvas || canvas.dataset.bound === "1") return;
 
@@ -112,6 +113,10 @@
       canvas.width = rw;
       canvas.height = rh;
       ps.resize(rw, rh);
+      if (reduced) {
+        warmLeft = 90;
+        if (visible) start();
+      }
     }
 
     let raf = 0;
@@ -145,7 +150,7 @@
       }
     }
     function start() {
-      if (running) return;
+      if (running || document.hidden || (reduced && warmLeft === 0)) return;
       running = true;
       last = performance.now();
       raf = requestAnimationFrame(tick);
@@ -186,6 +191,16 @@
   }
 
   document.addEventListener("astro:page-load", setupHeroGlow);
+  document.addEventListener('themechange', () => {
+    teardownHeroGlow?.();
+    teardownHeroGlow = null;
+    setupHeroGlow();
+  });
+  window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', () => {
+    teardownHeroGlow?.();
+    teardownHeroGlow = null;
+    setupHeroGlow();
+  });
   document.addEventListener("astro:before-swap", function () {
     if (teardownHeroGlow) {
       teardownHeroGlow();

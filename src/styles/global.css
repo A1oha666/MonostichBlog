@@ -1,5 +1,5 @@
 /* =========================================================
-   Design tokens — phosphor amber / dark & light dual theme
+   Shared color tokens for dark and light themes
    ========================================================= */
 :root,
 :root[data-theme="dark"] {
@@ -41,30 +41,30 @@
 }
 
 :root[data-theme="light"] {
-  --bg: #f4f3ee;
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f2f0e8;
-  --surface-3: #e7e4d8;
-  --text: #202126;
-  --text-muted: #5d5e66;
-  --text-faint: #7b7c83;
-  --accent: #b45309;          /* deep amber for contrast on paper */
-  --accent-deep: #92400e;
-  --accent-soft: rgba(180, 83, 9, 0.1);
-  --accent-dim: rgba(180, 83, 9, 0.55);
-  --accent-glow: rgba(180, 83, 9, 0.3);
+  --surface-2: #f5f5f7;
+  --surface-3: #e8e8ed;
+  --text: #1d1d1f;
+  --text-muted: #626267;
+  --text-faint: #6e6e73;
+  --accent: #0066cc;
+  --accent-deep: #004f9e;
+  --accent-soft: rgba(0, 102, 204, 0.07);
+  --accent-dim: #0066cc;
+  --accent-glow: transparent;
   --border-subtle: rgba(32, 33, 38, 0.06);
   --border: rgba(32, 33, 38, 0.1);
   --border-strong: rgba(32, 33, 38, 0.22);
-  --code-bg: #efede4;
+  --code-bg: #f5f5f7;
   --code-green: #4e7a4e;
   --code-str: #a0622d;
   --code-fn: #8a5a3b;
-  --on-accent: #fffaf0;
-  --nav-bg: rgba(244, 243, 238, 0.85);
-  --shadow-sm: 0 1px 2px rgba(58, 42, 24, 0.1);
-  --shadow-md: 0 8px 24px rgba(58, 42, 24, 0.12);
-  --shadow-lg: 0 24px 60px rgba(58, 42, 24, 0.16);
+  --on-accent: #ffffff;
+  --nav-bg: rgba(250, 250, 252, 0.9);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.08);
   --crt-line-strong: rgba(88, 57, 30, 0.055);
   --crt-noise-opacity: 0.025;
   --crt-vignette: rgba(92, 55, 24, 0.12);
@@ -127,10 +127,10 @@
 }
 
 :root {
-  --font-body: 'Google Sans', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
-  --font-zh: 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  --font-zh: 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
   /* 标题专用：拉丁 Fraunces + 中文华文中宋 —— 仅大标题 h1 使用 */
-  --font-display: 'Fraunces', 'STZhongsong', '华文中宋', Georgia, 'Times New Roman', serif;
+  --font-display: var(--font-body);
   --mono: 'JetBrains Mono', 'Cascadia Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /* spacing scale */
@@ -145,14 +145,14 @@
 
   /* radius */
   --radius-sm: 8px;
-  --radius: 14px;
-  --radius-lg: 20px;
+  --radius: 8px;
+  --radius-lg: 8px;
 
   /* layout */
-  --nav-height: 59px;
-  --page-gutter: clamp(20px, 4vw, 64px);
-  --maxw: 1080px;
-  --maxw-prose: 720px;
+  --nav-height: 64px;
+  --page-gutter: 32px;
+  --maxw: 1044px;
+  --maxw-prose: 704px;
 
   /* motion tokens — decelerate on arrival, fast micro-feedback */
   --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
@@ -161,6 +161,9 @@
   --dur-base: 240ms;
   --dur-reveal: 480ms;
 }
+
+:root[data-nav-compact] { --nav-height: 64px; }
+:root[data-menu-open] { overflow: hidden; }
 
 /* =========================================================
    Reset & base
@@ -171,6 +174,7 @@ html { scroll-behavior: smooth; }
 
 body {
   margin: 0;
+  padding-top: var(--nav-height);
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
@@ -187,7 +191,7 @@ h1, h2, h3, h4 {
   font-family: inherit;
   font-weight: 400;
   line-height: 1.15;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   margin: 0;
   text-wrap: balance;
 }
@@ -199,7 +203,7 @@ p { margin: 0; }
    也切给 Noto Sans SC —— 正文英文必须始终是 Google Sans */
 :lang(zh),
 :lang(zh-CN) {
-  font-family: 'Google Sans', var(--font-zh);
+  font-family: var(--font-body);
 }
 
 a { color: inherit; text-decoration: none; }
@@ -227,23 +231,36 @@ img, svg { display: block; max-width: 100%; }
   padding-inline: var(--page-gutter);
 }
 
+.home { background: var(--surface-2); }
+.home main { background: var(--bg); }
+.home .module-head {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  margin-bottom: 32px;
+}
+.home .footer__inner { flex-direction: column; justify-content: center; gap: 4px; text-align: center; }
+.home .footer__links { justify-content: center; }
+
 .prose { max-width: var(--maxw-prose); }
 
 /* 中文阅读区：与「造物」简介同一配方 —— Noto Sans SC + 弱色 + 1.7 行高，
    不两端对齐（justify 会把黑体的字距撕出不均匀的灰斑）；字重略降、
    字号略收，长段落才有 thinkings 之外那种干净的灰度 */
 .prose-zh {
-  font-family: 'Google Sans', var(--font-zh);
-  font-size: 0.95rem;
-  line-height: 1.7;
-  letter-spacing: 0.01em;
-  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.85;
+  letter-spacing: 0;
+  color: var(--text);
 }
 
 .eyebrow {
-  font-family: var(--mono);
+  font-family: var(--font-body);
   font-size: 13px;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
   color: var(--text-muted);
 }
 
@@ -253,7 +270,7 @@ img, svg { display: block; max-width: 100%; }
    页面内不再保留本地副本）
    ========================================================= */
 .page-head {
-  padding-top: var(--space-4xl);
+  padding-top: var(--space-3xl);
   padding-bottom: var(--space-2xl);
 }
 .page-head .eyebrow {
@@ -272,8 +289,7 @@ img, svg { display: block; max-width: 100%; }
   transition: color var(--dur-fast) var(--ease-out);
 }
 /* 命令式按钮：无边框无底色的 […]，括号贴住文字，hover 整行染琥珀 */
-.back-home::before { content: "["; color: var(--text-faint); margin-right: 4px; transition: color var(--dur-fast) var(--ease-out); }
-.back-home::after { content: "]"; color: var(--text-faint); margin-left: 4px; transition: color var(--dur-fast) var(--ease-out); }
+.back-home::before, .back-home::after { content: none; }
 .back-home span { color: var(--accent); }
 .back-home:hover,
 .back-home:hover::before,
@@ -281,9 +297,10 @@ img, svg { display: block; max-width: 100%; }
 .page-head h1 {
   /* 标题回到原来的栈：拉丁 Fraunces + 中文华文中宋衬线，与 ArticleLayout h1 一致 */
   font-family: var(--font-display);
-  font-size: clamp(3rem, 6vw, 5.5rem);
-  font-weight: 500;
-  line-height: 1;
+  font-size: 56px;
+  font-weight: 600;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
 }
 .page-head > p:last-child {
   max-width: 54ch;
@@ -300,36 +317,39 @@ img, svg { display: block; max-width: 100%; }
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-md);
-  margin-bottom: var(--space-sm);
+  margin-bottom: var(--space-lg);
 }
 .module-head h2 {
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  color: var(--text-faint);
+  font-family: var(--font-body);
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--text);
 }
 .module-head h2::before {
-  content: "//";
+  content: none;
   color: var(--accent-dim);
   margin-right: 10px;
 }
-.module-head__no { margin-right: 10px; }
+.module-head__no { display: none; }
 .module-head a {
-  color: var(--text-faint);
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.06em;
+  color: var(--accent);
+  font-family: var(--font-body);
+  font-size: 14px;
+  letter-spacing: 0;
   transition: color var(--dur-fast) var(--ease-out);
 }
 .module-head a:hover { color: var(--accent); }
 
 .section {
-  padding-block: 84px;
+  padding-block: 56px;
   scroll-margin-top: calc(var(--nav-height) + var(--space-lg));
 }
 @media (max-width: 640px) {
-  .section { padding-block: 64px; }
+  :root { --page-gutter: 24px; }
+  .section { padding-block: 40px; }
+  .page-head h1 { font-size: 40px; }
+  .module-head h2 { font-size: 24px; }
 }
 
 /* =========================================================
@@ -355,20 +375,9 @@ img, svg { display: block; max-width: 100%; }
    when JS is available (html.js), so no-JS visitors and
    crawlers always see content.
    ========================================================= */
-html.js [data-reveal] {
-  opacity: 0;
-  transform: translateY(10px);
-}
-
-html.js [data-reveal].is-revealed {
-  opacity: 1;
-  transform: none;
-  transition:
-    opacity var(--dur-reveal) var(--ease-out),
-    transform var(--dur-reveal) var(--ease-out);
-  /* stagger is set per item via --reveal-delay; capped so long lists stay snappy */
-  transition-delay: var(--reveal-delay, 0ms);
-}
+/* Content remains visible if scripting fails; entrance animations are opt-in. */
+[data-reveal] { opacity: 1; transform: none; }
+html.js .is-reveal-pending { opacity: 0; transform: translateY(14px); }
 
 @media (prefers-reduced-motion: reduce) {
   html.js [data-reveal],
@@ -395,7 +404,7 @@ html.js [data-reveal].is-revealed {
   font-family: var(--mono);
   font-size: 14px;
   font-weight: 500;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
   cursor: pointer;
   transition: color var(--dur-fast) var(--ease-out);
 }
