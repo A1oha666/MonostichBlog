@@ -85,6 +85,42 @@ const { recent, latestMoment, notesCount, projectsCount, updatedLabel, uptimeDay
   }
   .dhome__hero :global(.dhero__layout) { flex: 1; }
 
+  /* 首屏 → 内容的过渡带：光谱余晖向下渐隐，消除割裂感 */
+  .dhome__hero::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 26%;
+    z-index: 1;
+    pointer-events: none;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(10, 12, 18, 0.28) 34%,
+      rgba(10, 12, 18, 0.72) 68%,
+      var(--bg) 100%
+    );
+  }
+  /* 内容区顶部再压一道细光线，像光谱在地平线上的收束 */
+  .dhome > section:first-of-type {
+    position: relative;
+  }
+  .dhome > section:first-of-type::before {
+    content: '';
+    position: absolute;
+    top: -1px; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(122, 148, 255, 0.22) 30%,
+      rgba(255, 178, 36, 0.28) 52%,
+      rgba(122, 148, 255, 0.22) 74%,
+      transparent 100%
+    );
+    pointer-events: none;
+  }
+
   /* 深色下 footer 细节（dark.css 的全局规则已含 mono 字体，这里补背景与边线） */
   .dhome :global(.footer) { background: transparent; margin-top: var(--space-4xl); }
   .dhome :global(.footer__inner) { border-top: 1px solid var(--border-subtle); padding-bottom: var(--space-2xl); }
