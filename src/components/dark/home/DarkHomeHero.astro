@@ -1,0 +1,358 @@
+---
+/**
+ * DarkHomeHero —— 深色首页 Hero 区块
+ *
+ * 左：HUD 命令行 + 磁力大标题 + 中文独白 + CTA + 滚动提示
+ * 右：SINGULARITY 状态控制台（实时时钟 / 滚动深度 / 指针坐标 / 熵值）
+ * 底：从视口右缘流向信号核的曲线星图连线（SVG，虚线流动）
+ *
+ * 背景（SignalCore / DarkGrain）由父级 DarkHome 提供，这里只管内容。
+ */
+import { ArrowRight } from '@lucide/astro';
+
+interface Props {
+  notesCount: number;
+  projectsCount: number;
+  updatedLabel: string;
+  uptimeDays: number;
+}
+const { notesCount, projectsCount, updatedLabel, uptimeDays } = Astro.props;
+const pad2 = (n: number) => String(n).padStart(2, '0');
+---
+
+<div class="dhero container">
+  <p class="dhero__colophon">
+    <span class="dhero__prompt">aloha@monostich</span><span class="dhero__faint">:</span><span class="dhero__path">~</span><span class="dhero__dollar">$</span>
+    <span class="dhero__cmd"> ./boot --mode=explore</span>
+  </p>
+
+  <div class="dhero__layout">
+    <div class="dhero__inner">
+      <p class="dhero__eyebrow">// blog &amp; notes — signal over noise</p>
+      <h1 class="dhero__title">
+        <span class="dhero__line" data-magnet="14">explore</span>
+        <span class="dhero__line" data-magnet="14">and&nbsp;build<span class="dhero__dot">.</span><span class="dhero__cursor">_</span></span>
+      </h1>
+      <p class="dhero__intro" lang="zh-CN">记录一些想法与实践 —— 后端、分布式，以及 LLM 时代的造物。</p>
+      <div class="dhero__actions">
+        <a class="dhero__link dhero__link--primary" href="#recent">阅读记录 <ArrowRight size={15} aria-hidden="true" /></a>
+        <a class="dhero__link dhero__link--ghost" href="/about">关于我</a>
+      </div>
+      <p class="dhero__scrollhint" aria-hidden="true"><span class="dhero__scrollline"></span>scroll</p>
+    </div>
+
+    <aside class="dhero__panel" aria-label="站点实时状态">
+      <p class="dhero__panel-title"><span class="dhero__led" aria-hidden="true"></span>SINGULARITY v3.1</p>
+      <dl class="dhero__panel-grid">
+        <div><dt>UPTIME</dt><dd>{uptimeDays}d</dd></div>
+        <div><dt>ENTRIES</dt><dd>{pad2(notesCount)}</dd></div>
+        <div><dt>PROJECTS</dt><dd>{pad2(projectsCount)}</dd></div>
+        <div><dt>UPDATED</dt><dd>{updatedLabel}</dd></div>
+        <div><dt>CLOCK</dt><dd data-clock>--:--:--</dd></div>
+        <div><dt>SCROLL</dt><dd data-scroll-depth>000%</dd></div>
+        <div class="dhero__panel-wide"><dt>POINTER</dt><dd data-pointer-xy>+0.000 / +0.000</dd></div>
+        <div class="dhero__panel-wide">
+          <dt>ENTROPY</dt>
+          <dd class="dhero__entropy"><span class="dhero__entropy-bar"><span data-entropy-bar></span></span><span data-entropy-val>0.42</span></dd>
+        </div>
+      </dl>
+    </aside>
+  </div>
+
+  <!-- 星图连线：从右缘向信号核输送数据的三条曲线 -->
+  <svg class="dhero__links" viewBox="0 0 600 400" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M600,60 C460,60 420,150 330,175" />
+    <path d="M600,210 C480,205 430,195 340,190" />
+    <path d="M600,350 C470,340 420,250 330,205" />
+  </svg>
+</div>
+
+<style>
+  .dhero { position: relative; z-index: 2; }
+
+  /* ---------- 命令行眉批 ---------- */
+  .dhero__colophon {
+    padding-top: 34px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-faint);
+  }
+  .dhero__prompt { color: var(--text-muted); }
+  .dhero__faint { color: var(--text-faint); }
+  .dhero__path { color: var(--text-muted); }
+  .dhero__dollar { color: var(--accent); margin-left: 8px; }
+  .dhero__cmd { color: var(--text-faint); }
+  @media (max-width: 600px) { .dhero__cmd { display: none; } }
+
+  /* ---------- 布局 ---------- */
+  .dhero__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 236px;
+    align-items: end;
+    gap: 72px;
+    padding-top: clamp(72px, 13vh, 150px);
+    padding-bottom: clamp(64px, 11vh, 130px);
+  }
+
+  .dhero__eyebrow {
+    margin-bottom: var(--space-lg);
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+  }
+
+  .dhero__title {
+    margin: 0;
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: clamp(46px, 8.2vw, 96px);
+    line-height: 0.98;
+    letter-spacing: -0.02em;
+    color: var(--hero-title);
+    text-shadow: 0 0 34px rgba(120, 150, 255, 0.16);
+  }
+  .dhero__line { display: block; will-change: transform; }
+  .dhero__dot { color: var(--accent); }
+  .dhero__cursor { margin-left: 0.04em; color: var(--accent); animation: cursor-blink 1.6s steps(1) infinite; }
+
+  .dhero__intro {
+    margin-top: 26px;
+    max-width: 30ch;
+    font-family: 'Google Sans', var(--font-zh);
+    font-size: 15px;
+    line-height: 1.8;
+    color: var(--text-muted);
+  }
+
+  /* ---------- CTA ---------- */
+  .dhero__actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+  .dhero__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 42px;
+    padding: 0 18px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+    transition: border-color var(--dur-base) var(--ease-out), background var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+  }
+  .dhero__link--primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .dhero__link--primary:hover { background: var(--accent-deep); border-color: var(--accent-deep); transform: translateY(-1px); }
+  .dhero__link--primary :global(svg) { transition: transform 250ms var(--ease-out); }
+  .dhero__link--primary:hover :global(svg) { transform: translateX(3px); }
+  .dhero__link--ghost { color: var(--text-muted); background: transparent; }
+  .dhero__link--ghost:hover { color: var(--text); border-color: var(--text-muted); transform: translateY(-1px); }
+
+  /* ---------- 滚动提示 ---------- */
+  .dhero__scrollhint {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: clamp(40px, 7vh, 80px);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    color: var(--text-faint);
+    text-transform: uppercase;
+  }
+  .dhero__scrollline {
+    position: relative;
+    width: 54px;
+    height: 1px;
+    background: var(--border-strong);
+    overflow: hidden;
+  }
+  .dhero__scrollline::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    width: 22px;
+    background: var(--accent);
+    animation: scroll-sweep 2.2s var(--ease-out) infinite;
+  }
+  @keyframes scroll-sweep {
+    0% { transform: translateX(-24px); }
+    70%, 100% { transform: translateX(56px); }
+  }
+  @media (prefers-reduced-motion: reduce) { .dhero__scrollline::after { animation: none; } }
+
+  /* ---------- 状态控制台 ---------- */
+  .dhero__panel {
+    padding: 16px 18px;
+    border: 1px solid var(--border-strong);
+    background: color-mix(in srgb, var(--surface) 72%, transparent);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+  .dhero__panel-title {
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+    margin-bottom: 14px;
+  }
+  .dhero__led {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent-glow), 0 0 14px var(--accent-glow);
+    animation: led-blink 2.1s steps(1) infinite;
+  }
+  @keyframes led-blink { 0%, 64% { opacity: 1; } 65%, 100% { opacity: 0.12; } }
+  .dhero__panel-grid { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 9px 18px; }
+  .dhero__panel-grid > div { display: flex; flex-direction: column; gap: 1px; padding-top: 7px; border-top: 1px solid var(--border-subtle); }
+  .dhero__panel-wide { grid-column: 1 / -1; }
+  .dhero__panel dt, .dhero__panel dd { margin: 0; }
+  .dhero__panel dt { font-size: 9px; letter-spacing: 0.22em; color: var(--text-faint); }
+  .dhero__panel dd { font-size: 13px; color: var(--text); font-variant-numeric: tabular-nums; }
+  .dhero__entropy { display: flex; align-items: center; gap: 8px; }
+  .dhero__entropy-bar {
+    flex: 1;
+    height: 3px;
+    background: var(--surface-3);
+    overflow: hidden;
+  }
+  .dhero__entropy-bar span {
+    display: block;
+    height: 100%;
+    width: 42%;
+    background: linear-gradient(90deg, #4d6cff, var(--accent));
+    transition: width 500ms var(--ease-out);
+  }
+  @media (prefers-reduced-motion: reduce) { .dhero__led { animation: none; } }
+
+  /* ---------- 星图连线 ---------- */
+  .dhero__links {
+    position: absolute;
+    right: -48px;
+    top: 12%;
+    width: min(46vw, 600px);
+    height: 60%;
+    pointer-events: none;
+    opacity: 0.5;
+  }
+  .dhero__links path {
+    fill: none;
+    stroke: var(--border-strong);
+    stroke-width: 1;
+    stroke-dasharray: 3 9;
+    animation: dash-flow 7s linear infinite;
+  }
+  .dhero__links path:nth-child(2) { animation-duration: 9s; animation-delay: -3s; }
+  .dhero__links path:nth-child(3) { animation-duration: 11s; animation-delay: -6s; }
+  @keyframes dash-flow { to { stroke-dashoffset: -120; } }
+  @media (prefers-reduced-motion: reduce) { .dhero__links path { animation: none; } }
+  @media (max-width: 900px) { .dhero__links { display: none; } }
+
+  /* ---------- 响应式 ---------- */
+  @media (max-width: 1100px) and (min-width: 601px) {
+    .dhero__layout { grid-template-columns: minmax(0, 1fr) 200px; gap: 36px; }
+  }
+  @media (max-width: 600px) {
+    .dhero__layout { grid-template-columns: 1fr; gap: 40px; padding-top: 96px; padding-bottom: 56px; align-items: start; }
+    .dhero__panel { max-width: 340px; }
+    .dhero__intro { max-width: 26ch; }
+  }
+</style>
+
+<script>
+  // 控制台实时数据：时钟 / 滚动深度 / 指针坐标 / 熵。
+  // 低频（≤10Hz），单 rAF 节流，before-swap 全量清理。
+  let teardownHud: (() => void) | null = null;
+
+  function setupHeroHud() {
+    if (document.documentElement.dataset.theme !== 'dark') return;
+    const root = document.querySelector<HTMLElement>('.dhero');
+    if (!root || root.dataset.hudBound === '1') return;
+    root.dataset.hudBound = '1';
+
+    const clockEl = root.querySelector<HTMLElement>('[data-clock]');
+    const scrollEl = root.querySelector<HTMLElement>('[data-scroll-depth]');
+    const xyEl = root.querySelector<HTMLElement>('[data-pointer-xy]');
+    const entBar = root.querySelector<HTMLElement>('[data-entropy-bar]');
+    const entVal = root.querySelector<HTMLElement>('[data-entropy-val]');
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    let raf = 0;
+    let lastTick = 0;
+    let entropy = 0.42;
+    let px = 0, py = 0;
+    let inView = true;
+
+    function pad(n: number) { return String(n).padStart(2, '0'); }
+
+    function tick(now: number) {
+      raf = 0;
+      // 时钟 1Hz
+      if (clockEl && now - lastTick > 1000) {
+        const d = new Date();
+        clockEl.textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      }
+      // 其余 8Hz
+      if (now - lastTick > 125) {
+        lastTick = now;
+        if (scrollEl) {
+          const max = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
+          const pct = Math.min(Math.round((window.scrollY / max) * 100), 999);
+          scrollEl.textContent = `${String(pct).padStart(3, '0')}%`;
+        }
+        if (xyEl) {
+          const sx = (px >= 0 ? '+' : '−') + Math.abs(px).toFixed(3);
+          const sy = (py >= 0 ? '+' : '−') + Math.abs(py).toFixed(3);
+          xyEl.textContent = `${sx} / ${sy}`;
+        }
+        // 熵：均值回归 + 鼠标注入 + 噪声
+        entropy += (0.42 - entropy) * 0.04 + (Math.random() - 0.5) * 0.03;
+        entropy = Math.min(0.99, Math.max(0.05, entropy));
+        if (entBar) entBar.style.width = `${(entropy * 100).toFixed(1)}%`;
+        if (entVal) entVal.textContent = entropy.toFixed(2);
+      }
+      schedule();
+    }
+    function schedule() {
+      if (!raf && inView && !document.hidden) raf = requestAnimationFrame(tick);
+    }
+    function onPointer(e: PointerEvent) {
+      px = (e.clientX / window.innerWidth) * 2 - 1;
+      py = (e.clientY / window.innerHeight) * 2 - 1;
+      entropy = Math.min(0.99, entropy + 0.004);
+    }
+    function onVis() { if (!document.hidden) schedule(); }
+    const io = new IntersectionObserver(([entry]) => {
+      inView = entry.isIntersecting;
+      if (inView) schedule();
+    });
+    io.observe(root);
+
+    if (!reduced) {
+      window.addEventListener('pointermove', onPointer, { passive: true });
+      document.addEventListener('visibilitychange', onVis);
+    }
+    // 静态初值（reduced-motion 也有内容）
+    const d0 = new Date();
+    if (clockEl) clockEl.textContent = `${pad(d0.getHours())}:${pad(d0.getMinutes())}:${pad(d0.getSeconds())}`;
+    schedule();
+
+    teardownHud = () => {
+      if (raf) cancelAnimationFrame(raf);
+      io.disconnect();
+      window.removeEventListener('pointermove', onPointer);
+      document.removeEventListener('visibilitychange', onVis);
+      delete root.dataset.hudBound;
+    };
+  }
+
+  document.addEventListener('astro:page-load', setupHeroHud);
+  document.addEventListener('themechange', () => { teardownHud?.(); teardownHud = null; setupHeroHud(); });
+  document.addEventListener('astro:before-swap', () => { teardownHud?.(); teardownHud = null; });
+  setupHeroHud();
+</script>

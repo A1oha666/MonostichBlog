@@ -1,0 +1,336 @@
+---
+/**
+ * DarkAbout —— 深色 About：dmesg 启动日志 + 数字灵魂
+ *
+ * 页面即一段内核引导序列：[时间戳] 级别逐行滚出，行末落 "OK"；
+ * 正文区是手写 Canvas 2D 像素解体肖像 —— 鼠标掠过处，字符像素被吹散，
+ * 以 spring 物理回弹归位。底部 facts 表格 + 签名行。
+ *
+ * 性能：Canvas 以 cell 网格降采样渲染；pointer 事件直接写共享状态，
+ * 单 rAF 驱动；离屏暂停；before-swap 释放全部监听与动画帧。
+ */
+const GLYPHS = '01<>[]{}#$%&*+=/\\';
+---
+
+<div class="dabout" data-dabout data-glyphs={GLYPHS}>
+  <!-- 启动序列：dmesg 风格逐行滚出 -->
+  <ol class="dabout__boot" aria-hidden="true">
+    <li style="--i:0"><span class="ok">[ <b>OK</b> ]</span> mounted /dev/curiosity</li>
+    <li style="--i:1"><span class="ok">[ <b>OK</b> ]</span> started backend.service</li>
+    <li style="--i:2"><span class="ok">[ <b>OK</b> ]</span> reached target distributed systems</li>
+    <li style="--i:3"><span class="ok">[ <b>OK</b> ]</span> listening on :443 — thoughts exposed</li>
+    <li style="--i:4"><span class="warn">[<b>WARN</b>]</span> sleep.service not found — skipping</li>
+  </ol>
+
+  <h1 class="dabout__title"><span data-scramble>Aloha</span><span class="dabout__cursor" aria-hidden="true">_</span></h1>
+  <p class="dabout__line" data-scramble>learning backend development.</p>
+
+  <!-- 数字灵魂：字符解体肖像 -->
+  <div class="dabout__soul-wrap">
+    <canvas class="dabout__soul" data-soul aria-label="Aloha 的字符解体肖像" role="img"></canvas>
+    <p class="dabout__soul-cap" aria-hidden="true">// move your cursor through the noise</p>
+  </div>
+
+  <dl class="dabout__facts" data-reveal>
+    <div class="dabout__fact">
+      <dt>email</dt>
+      <dd><a href="mailto:292081295@qq.com">292081295@qq.com</a></dd>
+    </div>
+    <div class="dabout__fact">
+      <dt>github</dt>
+      <dd><a href="https://github.com/A1oha666" target="_blank" rel="noopener">@A1oha666</a></dd>
+    </div>
+    <div class="dabout__fact">
+      <dt>stack</dt>
+      <dd>go · distributed systems · llm agents</dd>
+    </div>
+    <div class="dabout__fact">
+      <dt>now</dt>
+      <dd>building &amp; writing — monostich.cloud</dd>
+    </div>
+  </dl>
+
+  <p class="dabout__sig" aria-hidden="true">~ exit 0</p>
+</div>
+
+<style>
+  .dabout {
+    position: relative;
+    max-width: var(--maxw-prose);
+    padding-bottom: var(--space-3xl);
+  }
+
+  /* ---------- dmesg 启动序列 ---------- */
+  .dabout__boot {
+    list-style: none;
+    margin: 0 0 var(--space-2xl);
+    padding: 0 0 var(--space-lg);
+    border-bottom: 1px solid var(--border-subtle);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 2.1;
+    color: var(--text-faint);
+  }
+  .dabout__boot li { opacity: 0; animation: boot-line 420ms var(--ease-out) forwards; animation-delay: calc(var(--i) * 130ms + 200ms); }
+  .dabout__boot .ok b { color: var(--code-green); font-weight: 500; }
+  .dabout__boot .warn b { color: var(--accent); font-weight: 500; }
+  @keyframes boot-line {
+    from { opacity: 0; transform: translateX(-6px); }
+    to { opacity: 1; transform: none; }
+  }
+  html:not(.js) .dabout__boot li { opacity: 1; animation: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .dabout__boot li { animation: none; opacity: 1; }
+  }
+
+  .dabout__title {
+    font-family: var(--mono);
+    font-size: clamp(40px, 6vw, 56px);
+    font-weight: 500;
+    line-height: 1.1;
+  }
+  .dabout__cursor { color: var(--accent); animation: cursor-blink 2.6s steps(1) infinite; }
+  @media (prefers-reduced-motion: reduce) { .dabout__cursor { animation: none; } }
+
+  .dabout__line {
+    margin-top: var(--space-lg);
+    max-width: 46ch;
+    font-family: var(--mono);
+    font-size: 0.95rem;
+    color: var(--text);
+  }
+
+  /* ---------- 数字灵魂画布 ---------- */
+  .dabout__soul-wrap { margin-top: var(--space-2xl); }
+  .dabout__soul {
+    display: block;
+    width: 100%;
+    max-width: 560px;
+    aspect-ratio: 56 / 30;
+    border: 1px solid var(--border-strong);
+    background: color-mix(in srgb, var(--surface) 70%, transparent);
+    touch-action: pan-y;
+  }
+  .dabout__soul-cap {
+    margin-top: 10px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--text-faint);
+  }
+
+  /* ---------- facts ---------- */
+  .dabout__facts {
+    margin: var(--space-3xl) 0 0;
+    display: grid;
+    gap: var(--space-md);
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+  .dabout__fact { display: flex; gap: var(--space-xl); align-items: baseline; }
+  .dabout__fact dt, .dabout__fact dd, .dabout__fact a { font-family: var(--mono); }
+  .dabout__fact dt { width: 5.5ch; flex-shrink: 0; color: var(--text-faint); }
+  .dabout__fact dd { margin: 0; color: var(--text-muted); }
+  .dabout__fact a { color: var(--text); text-decoration: none; border-bottom: 1px solid var(--border-strong); transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); }
+  .dabout__fact a:hover { color: var(--accent); border-color: var(--accent); }
+
+  .dabout__sig {
+    margin-top: var(--space-3xl);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+    letter-spacing: 0.14em;
+  }
+</style>
+
+<script>
+  // ============================================================
+  // 数字灵魂：文字 → 离屏采样 → 字符网格；鼠标力场吹散 + spring 归位
+  // ============================================================
+  let teardownSoul: (() => void) | null = null;
+
+  function setupSoul() {
+    if (document.documentElement.dataset.theme !== 'dark') return;
+    const canvas = document.querySelector<HTMLCanvasElement>('[data-soul]');
+    const root = document.querySelector<HTMLElement>('[data-dabout]');
+    if (!canvas || !root || canvas.dataset.bound === '1') return;
+    canvas.dataset.bound = '1';
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const GLYPHS = root.dataset.glyphs || '01<>[]{}#$%&*+=/\\';
+
+    interface Cell {
+      gx: number; gy: number;   // 网格坐标（像素，相对画布）
+      x: number; y: number;     // 当前位置
+      vx: number; vy: number;
+      ch: string;               // 显示字符
+      lum: number;              // 采样亮度 0..1
+    }
+    let cells: Cell[] = [];
+    let W = 0, H = 0, dpr = 1;
+    let cell = 14;              // 网格步长（CSS px）
+
+    // 指针力场状态
+    let px = -9999, py = -9999, pvx = 0, pvy = 0, lastPx = 0, lastPy = 0;
+
+    function build() {
+      const rect = canvas.getBoundingClientRect();
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = Math.max(2, Math.floor(rect.width));
+      H = Math.max(2, Math.floor(rect.height));
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      // 离屏渲染文字，逐 cell 采样亮度
+      const off = document.createElement('canvas');
+      off.width = W; off.height = H;
+      const octx = off.getContext('2d', { willReadFrequently: true })!;
+      octx.fillStyle = '#000';
+      octx.fillRect(0, 0, W, H);
+      const fontSize = Math.min(W * 0.16, 96);
+      octx.font = `700 ${fontSize}px "JetBrains Mono", monospace`;
+      octx.textAlign = 'center';
+      octx.textBaseline = 'middle';
+      octx.fillStyle = '#fff';
+      octx.fillText('ALOHA', W / 2, H / 2 + fontSize * 0.04);
+      const img = octx.getImageData(0, 0, W, H).data;
+
+      cell = W < 420 ? 10 : 13;
+      cells = [];
+      for (let y = cell / 2; y < H; y += cell) {
+        for (let x = cell / 2; x < W; x += cell) {
+          const i = ((Math.floor(y) * W) + Math.floor(x)) * 4;
+          const lum = img[i] / 255;
+          // 字形区高密度字符；背景留稀疏环境字符（氛围噪点）
+          if (lum > 0.12) {
+            cells.push({
+              gx: x, gy: y, x, y, vx: 0, vy: 0,
+              ch: GLYPHS[Math.floor(Math.random() * GLYPHS.length)],
+              lum,
+            });
+          } else if (Math.random() < 0.014) {
+            cells.push({
+              gx: x, gy: y, x, y, vx: 0, vy: 0,
+              ch: Math.random() < 0.5 ? '0' : '1',
+              lum: 0.05,
+            });
+          }
+        }
+      }
+    }
+
+    function drawStatic() {
+      ctx!.clearRect(0, 0, W, H);
+      ctx!.font = `${cell * 0.82}px "JetBrains Mono", monospace`;
+      ctx!.textAlign = 'center';
+      ctx!.textBaseline = 'middle';
+      for (const c of cells) {
+        const a = c.lum > 0.12 ? 0.24 + c.lum * 0.72 : 0.10;
+        ctx!.fillStyle = c.lum > 0.86 ? `rgba(255,178,36,${a})` : `rgba(190,205,235,${a})`;
+        ctx!.fillText(c.ch, c.gx, c.gy);
+      }
+    }
+
+    let raf = 0;
+    let running = false;
+    let inView = true;
+    const RADIUS = 90;
+    const K = 0.055, DAMP = 0.86;
+
+    function frame() {
+      if (!running) return;
+      // 指针速度（用于方向性吹散）
+      const mvx = px - lastPx, mvy = py - lastPy;
+      lastPx = px; lastPy = py;
+      pvx += (mvx - pvx) * 0.3; pvy += (mvy - pvy) * 0.3;
+
+      ctx!.clearRect(0, 0, W, H);
+      ctx!.font = `${cell * 0.82}px "JetBrains Mono", monospace`;
+      ctx!.textAlign = 'center';
+      ctx!.textBaseline = 'middle';
+
+      for (const c of cells) {
+        const dx = c.x - px, dy = c.y - py;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < RADIUS * RADIUS) {
+          const d = Math.sqrt(d2) || 1;
+          const f = (1 - d / RADIUS);
+          // 径向推力 + 指针速度投影
+          c.vx += (dx / d) * f * 3.2 + pvx * f * 0.24;
+          c.vy += (dy / d) * f * 3.2 + pvy * f * 0.24;
+        }
+        // spring 归位 + 阻尼
+        c.vx = (c.vx + (c.gx - c.x) * K) * DAMP;
+        c.vy = (c.vy + (c.gy - c.y) * K) * DAMP;
+        c.x += c.vx; c.y += c.vy;
+
+        const displaced = Math.abs(c.x - c.gx) + Math.abs(c.y - c.gy);
+        const base = c.lum > 0.12 ? 0.24 + c.lum * 0.72 : 0.10;
+        // 被吹散的字符短暂提亮，像受激的磷光
+        const glow = Math.min(displaced / 26, 1);
+        const a = Math.min(base + glow * 0.5, 1);
+        ctx!.fillStyle = (c.lum > 0.86 || glow > 0.4)
+          ? `rgba(255,178,36,${a})`
+          : `rgba(190,205,235,${a})`;
+        ctx!.fillText(c.ch, c.x, c.y);
+      }
+      raf = requestAnimationFrame(frame);
+    }
+    function start() {
+      if (running || !inView || document.hidden) return;
+      running = true;
+      raf = requestAnimationFrame(frame);
+    }
+    function stop() { running = false; cancelAnimationFrame(raf); raf = 0; }
+
+    function onPointer(e: PointerEvent) {
+      const r = canvas.getBoundingClientRect();
+      px = e.clientX - r.left;
+      py = e.clientY - r.top;
+    }
+    function onLeave() { px = -9999; py = -9999; pvx = pvy = 0; }
+    function onResize() { build(); if (reduced) drawStatic(); }
+    function onVis() { if (document.hidden) stop(); else start(); }
+
+    const io = new IntersectionObserver(([entry]) => {
+      inView = entry.isIntersecting;
+      if (inView) start(); else stop();
+    }, { threshold: 0.05 });
+    io.observe(canvas);
+    const ro = new ResizeObserver(onResize);
+    ro.observe(canvas);
+
+    build();
+    if (reduced) {
+      drawStatic();
+    } else {
+      canvas.addEventListener('pointermove', onPointer, { passive: true });
+      canvas.addEventListener('pointerleave', onLeave);
+      document.addEventListener('visibilitychange', onVis);
+      start();
+    }
+    // 字体就绪后重建网格（mono 字形度量变化）
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(() => { build(); if (reduced) drawStatic(); });
+    }
+
+    teardownSoul = () => {
+      stop();
+      io.disconnect();
+      ro.disconnect();
+      canvas.removeEventListener('pointermove', onPointer);
+      canvas.removeEventListener('pointerleave', onLeave);
+      document.removeEventListener('visibilitychange', onVis);
+      delete canvas.dataset.bound;
+    };
+  }
+
+  document.addEventListener('astro:page-load', setupSoul);
+  document.addEventListener('themechange', () => { teardownSoul?.(); teardownSoul = null; setupSoul(); });
+  document.addEventListener('astro:before-swap', () => { teardownSoul?.(); teardownSoul = null; });
+  setupSoul();
+</script>

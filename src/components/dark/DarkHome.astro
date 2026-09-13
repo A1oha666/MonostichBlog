@@ -1,0 +1,315 @@
+---
+/**
+ * DarkHome —— 深色首页完整体验（信号核控制台）
+ *
+ * 组合：SignalCore WebGL 场景 + Hero HUD + Bento 随想/终端 + 文章/项目/实验室。
+ * 附带全局微交互：spotlight 变量广播、标题磁力、视差、Konami 彩蛋、微声效。
+ *
+ * 仅深色主题由 index.astro 条件渲染；浅色分支完全不包含这些 DOM 与脚本。
+ */
+import SignalCore from './SignalCore.astro';
+import DarkCursor from './DarkCursor.astro';
+import DarkGrain from './DarkGrain.astro';
+import DarkHomeHero from './home/DarkHomeHero.astro';
+import DarkHomeOneline from './home/DarkHomeOneline.astro';
+import DarkHomeRecent from './home/DarkHomeRecent.astro';
+import DarkHomeWork from './home/DarkHomeWork.astro';
+import DarkHomeLab from './home/DarkHomeLab.astro';
+import SiteFooter from '../SiteFooter.astro';
+import HomeExcerpt from '../HomeExcerpt.astro';
+
+interface RecentItem {
+  key: string;
+  date: Date;
+  title: string;
+  summary: string;
+  category: string;
+  href: string;
+}
+interface Moment {
+  id: string;
+  date: Date;
+  text: string;
+}
+interface Props {
+  recent: RecentItem[];
+  latestMoment?: Moment;
+  notesCount: number;
+  projectsCount: number;
+  updatedLabel: string;
+  uptimeDays: number;
+}
+const { recent, latestMoment, notesCount, projectsCount, updatedLabel, uptimeDays } = Astro.props;
+---
+
+<div class="dhome" data-dhome>
+  <DarkCursor />
+  <DarkGrain />
+
+  <header class="dhome__hero">
+    <SignalCore />
+    <DarkHomeHero
+      notesCount={notesCount}
+      projectsCount={projectsCount}
+      updatedLabel={updatedLabel}
+      uptimeDays={uptimeDays}
+    />
+  </header>
+
+  <DarkHomeOneline moment={latestMoment} />
+  <DarkHomeRecent items={recent} />
+  <DarkHomeWork />
+  <DarkHomeLab />
+
+  <SiteFooter><HomeExcerpt /></SiteFooter>
+</div>
+
+<style>
+  .dhome { position: relative; }
+
+  .dhome__hero {
+    position: relative;
+    isolation: isolate;
+    /* Hero 专属版心：不动全局 token */
+    --maxw: 1200px;
+    --page-gutter: 48px;
+    min-height: calc(100svh - var(--nav-height));
+    overflow: clip;
+    display: flex;
+    flex-direction: column;
+  }
+  .dhome__hero :global(.dhero) {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+  .dhome__hero :global(.dhero__layout) { flex: 1; }
+
+  /* 深色下 footer 细节（dark.css 的全局规则已含 mono 字体，这里补背景与边线） */
+  .dhome :global(.footer) { background: transparent; margin-top: var(--space-4xl); }
+  .dhome :global(.footer__inner) { border-top: 1px solid var(--border-subtle); padding-bottom: var(--space-2xl); }
+  .dhome :global(.footer p), .dhome :global(.footer a) { font-size: 12px; }
+
+  @media (max-width: 1100px) and (min-width: 601px) {
+    .dhome__hero { --page-gutter: 32px; }
+  }
+  @media (max-width: 600px) {
+    .dhome__hero { --page-gutter: 24px; min-height: 88svh; }
+  }
+</style>
+
+<script>
+  import { gsap } from 'gsap';
+
+  // ============================================================
+  // 全局微交互编排：spotlight 广播 / 磁力 / 视差 / Konami / 声效
+  // ============================================================
+  let teardownDarkHome: (() => void) | null = null;
+
+  function setupDarkHome() {
+    if (document.documentElement.dataset.theme !== 'dark') return;
+    const root = document.querySelector<HTMLElement>('[data-dhome]');
+    if (!root || root.dataset.bound === '1') return;
+    root.dataset.bound = '1';
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const fine = window.matchMedia('(pointer: fine)').matches;
+    const cleanups: Array<() => void> = [];
+
+    // ----------------------------------------------------------
+    // 1) Spotlight 变量广播：rAF 节流，把指针位置写进每个 hover 中的卡片
+    // ----------------------------------------------------------
+    let spotRaf = 0;
+    let spotEl: HTMLElement | null = null;
+    function onSpotMove(e: PointerEvent) {
+      const t = (e.target as Element).closest?.('[data-spotlight]') as HTMLElement | null;
+      spotEl = t;
+      if (spotRaf) return;
+      spotRaf = requestAnimationFrame(() => {
+        spotRaf = 0;
+        if (!spotEl) return;
+        const r = spotEl.getBoundingClientRect();
+        spotEl.style.setProperty('--mx', `${e.clientX - r.left}px`);
+        spotEl.style.setProperty('--my', `${e.clientY - r.top}px`);
+      });
+    }
+    if (fine && !reduced) {
+      root.addEventListener('pointermove', onSpotMove, { passive: true });
+      cleanups.push(() => root.removeEventListener('pointermove', onSpotMove));
+    }
+
+    // ----------------------------------------------------------
+    // 2) 磁力标题：data-magnet 元素在指针接近时轻微吸附，离开弹回
+    // ----------------------------------------------------------
+    const magnets: Array<{ el: HTMLElement; qx: (v: number) => void; qy: (v: number) => void }> = [];
+    if (fine && !reduced) {
+      root.querySelectorAll<HTMLElement>('[data-magnet]').forEach((el) => {
+        const strength = parseFloat(el.dataset.magnet || '12');
+        const qx = gsap.quickTo(el, 'x', { duration: 0.9, ease: 'elastic.out(1, 0.38)' });
+        const qy = gsap.quickTo(el, 'y', { duration: 0.9, ease: 'elastic.out(1, 0.38)' });
+        magnets.push({ el, qx, qy });
+        el.dataset.magnetStrength = String(strength);
+      });
+    }
+    function onMagnetMove(e: PointerEvent) {
+      for (const m of magnets) {
+        const r = m.el.getBoundingClientRect();
+        const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        const dx = e.clientX - cx, dy = e.clientY - cy;
+        const dist = Math.hypot(dx, dy);
+        const radius = Math.max(240, r.width * 0.6);
+        if (dist < radius) {
+          const s = parseFloat(m.el.dataset.magnetStrength || '12');
+          const fall = 1 - dist / radius;
+          m.qx(dx * fall * (s / 30));
+          m.qy(dy * fall * (s / 30));
+        } else {
+          m.qx(0); m.qy(0);
+        }
+      }
+    }
+    if (magnets.length) {
+      root.addEventListener('pointermove', onMagnetMove, { passive: true });
+      cleanups.push(() => {
+        root.removeEventListener('pointermove', onMagnetMove);
+        magnets.forEach((m) => gsap.set(m.el, { clearProps: 'transform' }));
+      });
+    }
+
+    // ----------------------------------------------------------
+    // 3) 标题视差：滚动时轻微漂浮（gsap quickTo，替代滚动监听抖动）
+    // ----------------------------------------------------------
+    let parallaxTween: gsap.core.Tween | null = null;
+    const heroTitle = root.querySelector<HTMLElement>('.dhero__title');
+    if (heroTitle && !reduced) {
+      const obj = { y: 0, o: 1 };
+      const setY = gsap.quickTo(heroTitle, 'y', { duration: 0.55, ease: 'power2.out' });
+      const setO = gsap.quickTo(heroTitle, 'opacity', { duration: 0.55, ease: 'power2.out' });
+      let scheduled = false;
+      const onScroll = () => {
+        if (scheduled) return;
+        scheduled = true;
+        requestAnimationFrame(() => {
+          scheduled = false;
+          const y = Math.min(window.scrollY, 480);
+          obj.y = y;
+          setY(y * 0.16);
+          setO(Math.max(1 - y / 430, 0));
+        });
+      };
+      window.addEventListener('scroll', onScroll, { passive: true });
+      cleanups.push(() => {
+        window.removeEventListener('scroll', onScroll);
+        parallaxTween?.kill();
+        gsap.set(heroTitle, { clearProps: 'transform,opacity' });
+      });
+    }
+
+    // ----------------------------------------------------------
+    // 4) 微声效：WebAudio 合成（hover tick / click blip），无任何音频资源
+    //    默认关闭；按 M 切换，状态存 localStorage('mono-audio')。
+    // ----------------------------------------------------------
+    let audioOn = false;
+    try { audioOn = localStorage.getItem('mono-audio') === '1'; } catch {}
+    let actx: AudioContext | null = null;
+    let master: GainNode | null = null;
+    function ensureCtx() {
+      if (actx) return;
+      const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!AC) return;
+      actx = new AC();
+      master = actx.createGain();
+      master.gain.value = 0.05;
+      master.connect(actx.destination);
+    }
+    function blip(freq: number, dur: number, type: OscillatorType, gain = 1) {
+      if (!audioOn || !actx || !master) return;
+      if (actx.state === 'suspended') actx.resume();
+      const t = actx.currentTime;
+      const osc = actx.createOscillator();
+      const g = actx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(gain, t + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      osc.connect(g); g.connect(master);
+      osc.start(t); osc.stop(t + dur + 0.02);
+    }
+    const tick = () => blip(2600 + Math.random() * 400, 0.05, 'square', 0.5);
+    const clickBlip = () => { blip(740, 0.09, 'sine', 1); blip(1480, 0.07, 'triangle', 0.5); };
+    const bootSweep = () => {
+      if (!audioOn || !actx || !master) return;
+      if (actx.state === 'suspended') actx.resume();
+      const t = actx.currentTime;
+      const osc = actx.createOscillator();
+      const g = actx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(90, t);
+      osc.frequency.exponentialRampToValueAtTime(660, t + 0.28);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.7, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.34);
+      osc.connect(g); g.connect(master);
+      osc.start(t); osc.stop(t + 0.4);
+    };
+    let lastTickAt = 0;
+    function onHoverTick(e: PointerEvent) {
+      if (!audioOn) return;
+      const interactive = !!(e.target as Element).closest?.('a, button');
+      if (!interactive) return;
+      const now = performance.now();
+      if (now - lastTickAt < 90) return;
+      lastTickAt = now;
+      ensureCtx();
+      tick();
+    }
+    function onClickBlip(e: MouseEvent) {
+      if (!audioOn) return;
+      if (!(e.target as Element).closest?.('a, button')) return;
+      ensureCtx();
+      clickBlip();
+    }
+    root.addEventListener('pointermove', onHoverTick, { passive: true });
+    root.addEventListener('click', onClickBlip);
+    cleanups.push(() => {
+      root.removeEventListener('pointermove', onHoverTick);
+      root.removeEventListener('click', onClickBlip);
+      actx?.close().catch(() => {});
+      actx = null; master = null;
+    });
+
+    // ----------------------------------------------------------
+    // 5) Konami 彩蛋：↑↑↓↓←→←→BA → 终端小剧场 + 信号核激励脉冲
+    // ----------------------------------------------------------
+    const SEQ = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+    let progress = 0;
+    function onKey(e: KeyboardEvent) {
+      const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+      progress = key === SEQ[progress] ? progress + 1 : key === SEQ[0] ? 1 : 0;
+      if (progress === SEQ.length) {
+        progress = 0;
+        document.dispatchEvent(new CustomEvent('konami'));
+        if (audioOn) { ensureCtx(); bootSweep(); }
+      }
+      if (key === 'm') {
+        audioOn = !audioOn;
+        try { localStorage.setItem('mono-audio', audioOn ? '1' : '0'); } catch {}
+        if (audioOn) { ensureCtx(); bootSweep(); }
+      }
+    }
+    document.addEventListener('keydown', onKey);
+    cleanups.push(() => document.removeEventListener('keydown', onKey));
+
+    teardownDarkHome = () => {
+      cleanups.forEach((fn) => fn());
+      if (spotRaf) cancelAnimationFrame(spotRaf);
+      delete root.dataset.bound;
+    };
+  }
+
+  document.addEventListener('astro:page-load', setupDarkHome);
+  document.addEventListener('themechange', () => { teardownDarkHome?.(); teardownDarkHome = null; setupDarkHome(); });
+  document.addEventListener('astro:before-swap', () => { teardownDarkHome?.(); teardownDarkHome = null; });
+  setupDarkHome();
+</script>

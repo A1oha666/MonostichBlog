@@ -1,0 +1,970 @@
+---
+/**
+ * SignalCore —— 信号核
+ *
+ * 首页深色模式的 Hero 视觉奇观：一颗悬浮的奇点（引力透镜 + 体积辉光 + FBM
+ * 色带），被两圈嵌套二十面体线框牢笼约束，外围环绕引力透镜星场与辉光尘埃，
+ * 底部一道透视网格地平线。全部用原生 WebGL2 手写实现：无引擎、无依赖，
+ * 顶点/片元着色器全部内联。
+ *
+ * 数学内核：
+ *  - 奇点片元着色器：射线-球求交得到法线，菲涅尔边缘项 + 洛伦兹吸引子
+ *    色带（xz 平面相空间映射）+ 4 octave FBM 湍流；未命中射线施瓦西
+ *    弯折后采样程序银河 + 哈希星尘，事件视界边缘浮现吸积盘灼热环。
+ *  - 牢笼：IcosahedronGeometry(1,1) 手抄顶点表，外框加法混合、内框反向
+ *    旋转并做呼吸缩放，顶点经 curl-ish 噪声位移，鼠标接近时整体张力升高。
+ *  - 星场：2×512 实例化广告牌，闭式轨道积分（GPU 无状态），RGB 通道
+ *    按弯折方向做横向色散，模拟引力透镜的色差。
+ *  - 尘埃：96 点，径向 billboard 拉伸，缓慢公转。
+ *  - 地平线：xz 平面网格线，y 方向 FBM 起伏 + 远景雾衰减。
+ *
+ * 性能与生命周期：
+ *  - DPR 封顶 1.75，自适应质量（帧耗 EMA 超预算逐级降 DPR/隐藏尘埃）。
+ *  - IntersectionObserver 离屏暂停、visibilitychange 后台暂停、
+ *    themechange（切浅色）整体拆除；astro:before-swap 释放全部 GL 资源。
+ *  - prefers-reduced-motion：渲染单帧静帧，不进入动画循环。
+ */
+---
+
+<div class="signal-core" aria-hidden="true" data-signal-core></div>
+
+<style>
+  .signal-core {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: clip;
+  }
+  .signal-core :global(canvas) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  /* 浅色主题不渲染此组件（首页深色分支根本不会被服务端输出） */
+  html[data-theme='light'] .signal-core { display: none; }
+</style>
+
+<script>
+  // ============================================================
+  // 视图过渡生命周期：astro:page-load 幂等初始化，before-swap 全量清理
+  // ============================================================
+  let teardownCore: (() => void) | null = null;
+
+  function setupSignalCore() {
+    if (document.documentElement.dataset.theme !== 'dark') return;
+    const host = document.querySelector<HTMLElement>('[data-signal-core]');
+    if (!host || host.dataset.bound === '1') return;
+    host.dataset.bound = '1';
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const canvas = document.createElement('canvas');
+    host.appendChild(canvas);
+
+    const gl = canvas.getContext('webgl2', {
+      alpha: false,
+      antialias: true,
+      depth: false,
+      stencil: false,
+      preserveDrawingBuffer: true, // 便于截图/排障，实测对帧耗影响可忽略
+      powerPreference: 'high-performance',
+    }) as WebGL2RenderingContext | null;
+
+    if (!gl) { host.removeChild(canvas); delete host.dataset.bound; return; }
+
+    // ----------------------------------------------------------
+    // 小型 GL 工具
+    // ----------------------------------------------------------
+    function compile(type: number, src: string): WebGLShader | null {
+      const s = gl!.createShader(type);
+      if (!s) return null;
+      gl!.shaderSource(s, src);
+      gl!.compileShader(s);
+      if (!gl!.getShaderParameter(s, gl!.COMPILE_STATUS)) {
+        console.warn('[signal-core] shader:', gl!.getShaderInfoLog(s));
+        gl!.deleteShader(s);
+        return null;
+      }
+      return s;
+    }
+    function program(vsSrc: string, fsSrc: string): WebGLProgram | null {
+      const vs = compile(gl!.VERTEX_SHADER, vsSrc);
+      const fs = compile(gl!.FRAGMENT_SHADER, fsSrc);
+      if (!vs || !fs) return null;
+      const p = gl!.createProgram()!;
+      gl!.attachShader(p, vs);
+      gl!.attachShader(p, fs);
+      gl!.linkProgram(p);
+      gl!.deleteShader(vs);
+      gl!.deleteShader(fs);
+      if (!gl!.getProgramParameter(p, gl!.LINK_STATUS)) {
+        console.warn('[signal-core] link:', gl!.getProgramInfoLog(p));
+        gl!.deleteProgram(p);
+        return null;
+      }
+      return p;
+    }
+
+    // ----------------------------------------------------------
+    // 共享着色器库：旋转矩阵、哈希、单纯形噪声、FBM
+    // ----------------------------------------------------------
+    const GLSL_LIB = /* glsl */ `
+      mat3 rotY(float a){float c=cos(a),s=sin(a);return mat3(c,0.,s,0.,1.,0.,-s,0.,c);}
+      mat3 rotX(float a){float c=cos(a),s=sin(a);return mat3(1.,0.,0.,0.,c,-s,0.,s,c);}
+      mat3 rotZ(float a){float c=cos(a),s=sin(a);return mat3(c,-s,0.,s,c,0.,0.,0.,1.);}
+      float hash11(float p){p=fract(p*.1031);p*=p+33.33;p*=p+p;return fract(p);}
+      float hash12(vec2 p){vec3 p3=fract(vec3(p.xyx)*.1031);p3+=dot(p3,p3.yzx+33.33);return fract((p3.x+p3.y)*p3.z);}
+      vec3 hash33(vec3 p){
+        p=fract(p*vec3(.1031,.1030,.0973));
+        p+=dot(p,p.yxz+33.33);
+        return fract((p.xxy+p.yxx)*p.zyx);
+      }
+      float snoise(vec3 v){
+        const vec2 C=vec2(1./6.,1./3.);
+        const vec4 D=vec4(0.,.5,1.,2.);
+        vec3 i=floor(v+dot(v,C.yyy));
+        vec3 x0=v-i+dot(i,C.xxx);
+        vec3 g=step(x0.yzx,x0.xyz);
+        vec3 l=1.-g;
+        vec3 i1=min(g.xyz,l.zxy);
+        vec3 i2=max(g.xyz,l.zxy);
+        vec3 x1=x0-i1+C.xxx;
+        vec3 x2=x0-i2+C.yyy;
+        vec3 x3=x0-D.yyy;
+        i=mod(i,289.);
+        vec4 p=permute(permute(permute(
+          i.z+vec4(0.,i1.z,i2.z,1.))
+          +i.y+vec4(0.,i1.y,i2.y,1.))
+          +i.x+vec4(0.,i1.x,i2.x,1.));
+        float n_=1./7.;
+        vec3 ns=n_*D.wyz-D.xzx;
+        vec4 j=p-49.*floor(p*ns.z*ns.z);
+        vec4 x_=floor(j*ns.z);
+        vec4 y_=floor(j-7.*x_);
+        vec4 x=x_*ns.x+ns.yyyy;
+        vec4 y=y_*ns.x+ns.yyyy;
+        vec4 h=1.-abs(x)-abs(y);
+        vec4 b0=vec4(x.xy,y.xy);
+        vec4 b1=vec4(x.zw,y.zw);
+        vec4 s0=floor(b0)*2.+1.;
+        vec4 s1=floor(b1)*2.+1.;
+        vec4 sh=-step(h,vec4(0.));
+        vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy;
+        vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
+        vec3 p0=vec3(a0.xy,h.x);
+        vec3 p1=vec3(a0.zw,h.y);
+        vec3 p2=vec3(a1.xy,h.z);
+        vec3 p3=vec3(a1.zw,h.w);
+        vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
+        p0*=norm.x;p1*=norm.y;p2*=norm.z;p3*=norm.w;
+        vec4 m=max(.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.);
+        m=m*m;
+        return 42.*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
+      }
+      vec4 permute(vec4 x){return mod(((x*34.)+1.)*x,289.);}
+      vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-0.85373472095314*r;}
+      float fbm(vec3 p){
+        float f=0.,a=.5;
+        for(int i=0;i<4;i++){f+=a*snoise(p);p*=2.03;a*=.5;}
+        return f;
+      }
+    `;
+    // permute / taylorInvSqrt 在使用前声明：把声明挪到库前面
+    const GLSL_LIB_FIXED = /* glsl */ `
+      vec4 permute(vec4 x){return mod(((x*34.)+1.)*x,289.);}
+      vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-0.85373472095314*r;}
+      mat3 rotY(float a){float c=cos(a),s=sin(a);return mat3(c,0.,s,0.,1.,0.,-s,0.,c);}
+      mat3 rotX(float a){float c=cos(a),s=sin(a);return mat3(1.,0.,0.,0.,c,-s,0.,s,c);}
+      mat3 rotZ(float a){float c=cos(a),s=sin(a);return mat3(c,-s,0.,s,c,0.,0.,0.,1.);}
+      float hash11(float p){p=fract(p*.1031);p*=p+33.33;p*=p+p;return fract(p);}
+      float hash12(vec2 p){vec3 p3=fract(vec3(p.xyx)*.1031);p3+=dot(p3,p3.yzx+33.33);return fract((p3.x+p3.y)*p3.z);}
+      vec3 hash33(vec3 p){
+        p=fract(p*vec3(.1031,.1030,.0973));
+        p+=dot(p,p.yxz+33.33);
+        return fract((p.xxy+p.yxx)*p.zyx);
+      }
+      float snoise(vec3 v){
+        const vec2 C=vec2(1./6.,1./3.);
+        const vec4 D=vec4(0.,.5,1.,2.);
+        vec3 i=floor(v+dot(v,C.yyy));
+        vec3 x0=v-i+dot(i,C.xxx);
+        vec3 g=step(x0.yzx,x0.xyz);
+        vec3 l=1.-g;
+        vec3 i1=min(g.xyz,l.zxy);
+        vec3 i2=max(g.xyz,l.zxy);
+        vec3 x1=x0-i1+C.xxx;
+        vec3 x2=x0-i2+C.yyy;
+        vec3 x3=x0-D.yyy;
+        i=mod(i,289.);
+        vec4 p=permute(permute(permute(
+          i.z+vec4(0.,i1.z,i2.z,1.))
+          +i.y+vec4(0.,i1.y,i2.y,1.))
+          +i.x+vec4(0.,i1.x,i2.x,1.));
+        float n_=1./7.;
+        vec3 ns=n_*D.wyz-D.xzx;
+        vec4 j=p-49.*floor(p*ns.z*ns.z);
+        vec4 x_=floor(j*ns.z);
+        vec4 y_=floor(j-7.*x_);
+        vec4 x=x_*ns.x+ns.yyyy;
+        vec4 y=y_*ns.x+ns.yyyy;
+        vec4 h=1.-abs(x)-abs(y);
+        vec4 b0=vec4(x.xy,y.xy);
+        vec4 b1=vec4(x.zw,y.zw);
+        vec4 s0=floor(b0)*2.+1.;
+        vec4 s1=floor(b1)*2.+1.;
+        vec4 sh=-step(h,vec4(0.));
+        vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy;
+        vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
+        vec3 p0=vec3(a0.xy,h.x);
+        vec3 p1=vec3(a0.zw,h.y);
+        vec3 p2=vec3(a1.xy,h.z);
+        vec3 p3=vec3(a1.zw,h.w);
+        vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
+        p0*=norm.x;p1*=norm.y;p2*=norm.z;p3*=norm.w;
+        vec4 m=max(.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.);
+        m=m*m;
+        return 42.*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
+      }
+      float fbm(vec3 p){
+        float f=0.,a=.5;
+        for(int i=0;i<4;i++){f+=a*snoise(p);p*=2.03;a*=.5;}
+        return f;
+      }
+      float fbm6(vec3 p){
+        float f=0.,a=.5;
+        for(int i=0;i<6;i++){f+=a*snoise(p);p*=2.03;a*=.5;}
+        return f;
+      }
+    `;
+
+    const VS_FULLSCREEN = /* glsl */ `#version 300 es
+      layout(location=0) in vec2 aPos;
+      void main(){ gl_Position = vec4(aPos, 0., 1.); }
+    `;
+
+    // ----------------------------------------------------------
+    // 1) 背景：深空 FBM 星云 + 暗角
+    // ----------------------------------------------------------
+    const FS_BG = /* glsl */ `#version 300 es
+      precision highp float;
+      uniform vec2 uRes;
+      uniform float uTime;
+      uniform vec2 uPar;
+      out vec4 fragColor;
+      ${GLSL_LIB_FIXED}
+      void main(){
+        vec2 uv = gl_FragCoord.xy / uRes;
+        vec2 p = (uv - .5) * vec2(uRes.x/uRes.y, 1.);
+        // 极低速呼吸星云（两层反向漂移的域扭曲 FBM）
+        vec3 q = vec3(p*1.4 + uPar*0.06, uTime*0.012);
+        float w1 = fbm(q + fbm(q + vec3(0.0,0.0,uTime*0.008))*0.8);
+        float w2 = fbm(q*1.9 - fbm(q*0.7 + vec3(3.1))*0.6 + 7.7);
+        float nebA = smoothstep(0.05, 0.85, w1*0.5+0.5);
+        float nebB = smoothstep(0.1, 0.9, w2*0.5+0.5);
+        vec3 col = vec3(0.016, 0.018, 0.026);                    // 深空底色
+        col += vec3(0.055, 0.075, 0.16) * nebA * 0.55;           // 幽蓝
+        col += vec3(0.10, 0.055, 0.17) * nebB * 0.38;            // 暗紫
+        col += vec3(0.13, 0.09, 0.05) * pow(nebA*nebB, 2.4)*0.5; // 琥珀余温
+        // 向核心方向的微弱引力辉光
+        float d = length(p - uPar*0.05);
+        col += vec3(0.10, 0.12, 0.22) * 0.10 / (1.0 + d*d*10.0);
+        // 暗角
+        col *= 1.0 - smoothstep(0.45, 1.25, length(p)) * 0.62;
+        // 抖动去色带
+        col += (hash12(gl_FragCoord.xy + fract(uTime)*17.0) - 0.5) * (1.5/255.0);
+        fragColor = vec4(col, 1.0);
+      }
+    `;
+
+    // ----------------------------------------------------------
+    // 2) 奇点：引力透镜 + 菲涅尔球体 + 洛伦兹色带 + 吸积环
+    // ----------------------------------------------------------
+    const FS_CORE = /* glsl */ `#version 300 es
+      precision highp float;
+      uniform vec2 uRes;
+      uniform float uTime;
+      uniform vec2 uPar;      // 视差后的相机偏移
+      uniform float uBoost;   // 鼠标接近激励
+      out vec4 fragColor;
+      ${GLSL_LIB_FIXED}
+
+      const float RS = 0.42;          // 事件视界半径（视觉用，非物理）
+      const float DISK_IN  = 0.55;
+      const float DISK_OUT = 1.45;
+
+      // 程序银河背景（被弯折射线采样）
+      vec3 galaxy(vec3 rd){
+        vec3 col = vec3(0.012, 0.014, 0.022);
+        // 银河带：绕一条倾斜大圆的衰减
+        vec3 axis = normalize(vec3(0.35, 1.0, 0.18));
+        float band = 1.0 - abs(dot(rd, axis));
+        float neb = fbm(rd*3.1 + vec3(0.0, uTime*0.004, 0.0));
+        col += vec3(0.10, 0.13, 0.24) * pow(band, 3.0) * (0.35 + 0.65*smoothstep(-0.2, 0.8, neb));
+        col += vec3(0.16, 0.09, 0.22) * pow(band, 7.0) * 0.5;
+        // 哈希星尘：三维格点星
+        vec3 g = rd * 90.0;
+        vec3 id = floor(g);
+        vec3 f = fract(g) - 0.5;
+        vec3 rnd = hash33(id);
+        float star = smoothstep(0.28, 0.0, length(f + (rnd-0.5)*0.55));
+        float twinkle = 0.72 + 0.28*sin(uTime*(1.0+rnd.y*3.0) + rnd.x*40.0);
+        col += vec3(0.8, 0.85, 1.0) * step(0.992, rnd.z) * star * twinkle * 1.4;
+        col += vec3(1.0, 0.85, 0.6) * step(0.9975, rnd.z) * star * 2.2;
+        return col;
+      }
+
+      // 施瓦西近似弯折（一阶后牛顿）
+      vec3 bend(vec3 rd, vec3 ro){
+        float b = length(cross(ro, rd)) / length(ro);   // 碰撞参数（单位化）
+        float k = 1.35 * RS / max(b*b, RS*RS*0.8);
+        return normalize(rd + k * normalize(-ro));
+      }
+
+      // 吸积盘：灼热内缘 + FBM 湍流环带，多普勒亮侧
+      vec3 disk(vec3 ro, vec3 rd){
+        // 与 y=0 平面求交
+        if (abs(rd.y) < 1e-4) return vec3(0.0);
+        float t = -ro.y / rd.y;
+        if (t < 0.0) return vec3(0.0);
+        vec3 p = ro + rd * t;
+        float r = length(p.xz);
+        if (r < DISK_IN || r > DISK_OUT) return vec3(0.0);
+        float ang = atan(p.z, p.x);
+        // 开普勒差速旋转
+        float rot = uTime * 0.55 / pow(r, 1.5);
+        float turb = fbm6(vec3(p.x*2.6, 0.35, p.z*2.6) + vec3(cos(rot), 0.0, sin(rot))*1.4);
+        float ring = smoothstep(DISK_IN, DISK_IN+0.12, r) * smoothstep(DISK_OUT, DISK_IN+0.3, r);
+        float heat = pow((DISK_OUT - r) / (DISK_OUT - DISK_IN), 2.1);
+        // 多普勒：朝向观察者的运动侧更亮
+        vec3 vel = normalize(vec3(-p.z, 0.0, p.x));
+        float dop = 0.65 + 0.6 * dot(vel, -rd);
+        vec3 hot  = vec3(1.0, 0.72, 0.38);
+        vec3 cold = vec3(0.30, 0.22, 0.42);
+        vec3 c = mix(cold, hot, clamp(heat + turb*0.18, 0.0, 1.0));
+        return c * ring * (0.35 + 0.65*smoothstep(-0.4, 0.9, turb)) * dop * 1.35;
+      }
+
+      void main(){
+        vec2 frag = gl_FragCoord.xy;
+        vec2 uv = (frag - 0.5*uRes) / uRes.y;
+        // 相机：微距低角度，视差撬动
+        vec3 ro = vec3(uPar.x*0.55, 0.16 + uPar.y*0.34, 4.3);
+        vec3 ta = vec3(0.0, 0.02, 0.0);
+        vec3 fw = normalize(ta - ro);
+        vec3 ri = normalize(cross(fw, vec3(0.0,1.0,0.0)));
+        vec3 up = cross(ri, fw);
+        vec3 rd = normalize(fw*1.9 + ri*uv.x + up*uv.y);
+
+        vec3 col = vec3(0.0);
+        float b2 = dot(cross(ro, rd), cross(ro, rd));   // 碰撞参数平方
+        float b = sqrt(b2);
+
+        // 光线被弯折后的背景（透镜）
+        vec3 rdB = bend(rd, ro);
+        vec3 bg = galaxy(rdB);
+
+        if (b < RS) {
+          // —— 命中视界：菲涅尔壳层 + 洛伦兹相空间色带 + FBM 湍流 ——
+          float tca = -dot(ro, rd);
+          float thc = sqrt(max(RS*RS - b2, 0.0));
+          vec3 p = ro + rd*(tca - thc);
+          vec3 n = normalize(p);
+          float fres = pow(1.0 - clamp(dot(n, -rd), 0.0, 1.0), 2.6);
+          // 洛伦兹吸引子相空间（xz 投影）映射为色带坐标
+          float sigma=10.0, rho=28.0, beta=8.0/3.0;
+          vec3 lp = n * 9.0;
+          float lob = atan(lp.z, lp.x + sigma*0.02);
+          float band = sin(lob*3.0 + rho*0.11 + fbm(n*2.4 + vec3(0.0,0.0,uTime*0.05))*4.0 + uTime*0.22);
+          float turb = fbm6(n*3.2 + vec3(uTime*0.03, uTime*0.021, 0.0));
+          vec3 deep  = vec3(0.015, 0.02, 0.045);
+          vec3 blue  = vec3(0.16, 0.34, 0.78);
+          vec3 violet= vec3(0.38, 0.20, 0.72);
+          vec3 amber = vec3(1.0, 0.62, 0.20);
+          vec3 shell = mix(blue, violet, smoothstep(-1.0, 1.0, band + turb*0.9));
+          shell = mix(shell, amber, smoothstep(0.55, 1.0, band*turb + uBoost*0.22)*0.5);
+          col = deep + shell * (fres*1.5 + 0.06) * (0.8 + 0.4*turb);
+          // 视界边缘的引力红移辉光
+          col += vec3(0.9, 0.5, 0.22) * pow(fres, 6.0) * (0.9 + uBoost*0.8);
+        } else {
+          // —— 未命中：透镜背景 + 近界光子环增亮 + 吸积盘 ——
+          float ringGlow = exp(-pow((b - RS*1.04)*26.0, 2.0));
+          col = bg;
+          col += vec3(1.0, 0.74, 0.42) * ringGlow * (0.9 + 0.35*sin(uTime*0.7) + uBoost*0.6);
+          col += disk(ro, rdB);   // 盘本身也被弯折采样
+          // 远景晕
+          col += vec3(0.12, 0.14, 0.26) * 0.16 / (1.0 + b2*7.0);
+        }
+        // 色调映射 + 抖动
+        col = col / (1.0 + col*0.55);
+        col += (hash12(frag + fract(uTime)*23.0) - 0.5) * (1.5/255.0);
+        fragColor = vec4(col, 1.0);
+      }
+    `;
+
+    // ----------------------------------------------------------
+    // 3) 网格地平线
+    // ----------------------------------------------------------
+    const VS_GRID = /* glsl */ `#version 300 es
+      layout(location=0) in vec2 aXZ;
+      uniform mat4 uMVP;
+      uniform float uTime;
+      uniform vec2 uPar;
+      ${GLSL_LIB_FIXED}
+      out float vFade;
+      void main(){
+        vec3 p = vec3(aXZ.x, 0.0, aXZ.y - uTime*0.55);
+        float warp = fbm(vec3(p.x*0.16, p.z*0.16, uTime*0.05));
+        p.y = -1.5 + warp*0.34 + uPar.y*0.12;
+        vFade = smoothstep(14.0, 2.0, abs(aXZ.y)) * smoothstep(11.0, 5.0, abs(aXZ.x));
+        gl_Position = uMVP * vec4(p, 1.0);
+      }
+    `;
+    const FS_GRID = /* glsl */ `#version 300 es
+      precision highp float;
+      in float vFade;
+      out vec4 fragColor;
+      void main(){
+        vec3 c = mix(vec3(0.10, 0.16, 0.34), vec3(0.16, 0.11, 0.30), vFade);
+        fragColor = vec4(c * vFade * 0.5, 1.0);
+      }
+    `;
+
+    // ----------------------------------------------------------
+    // 4) 牢笼线框（内外两圈共用，靠 uniform 区分）
+    // ----------------------------------------------------------
+    const VS_CAGE = /* glsl */ `#version 300 es
+      layout(location=0) in vec3 aPos;
+      uniform mat4 uMVP;
+      uniform float uTime;
+      uniform float uScale;
+      uniform float uDir;      // 旋转方向 ±1
+      uniform float uBoost;
+      ${GLSL_LIB_FIXED}
+      out float vGlow;
+      void main(){
+        vec3 p = aPos;
+        // 顶点呼吸位移：沿法线（球面即位置方向）的噪声脉动
+        float n = snoise(normalize(p)*2.3 + vec3(0.0, uTime*0.16*uDir, uTime*0.07));
+        float breath = 1.0 + 0.035*sin(uTime*0.6 + uDir) + n*(0.05 + uBoost*0.10);
+        p *= uScale * breath;
+        p = rotY(uTime*0.11*uDir) * rotX(0.35 + sin(uTime*0.07*uDir)*0.18) * p;
+        vGlow = 0.55 + 0.45*n;
+        gl_Position = uMVP * vec4(p, 1.0);
+      }
+    `;
+    const FS_CAGE = /* glsl */ `#version 300 es
+      precision highp float;
+      in float vGlow;
+      uniform vec3 uTint;
+      uniform float uAlpha;
+      out vec4 fragColor;
+      void main(){
+        fragColor = vec4(uTint * (0.55 + vGlow), uAlpha);
+      }
+    `;
+
+    // ----------------------------------------------------------
+    // 5) 实例化星场（引力透镜色散）
+    // ----------------------------------------------------------
+    const VS_STARS = /* glsl */ `#version 300 es
+      layout(location=0) in vec2 aCorner;
+      layout(location=1) in vec4 aSeed;   // xyzw 哈希种子
+      layout(location=2) in float aSize;
+      uniform mat4 uMVP;
+      uniform float uTime;
+      uniform vec2 uPar;
+      ${GLSL_LIB_FIXED}
+      out vec2 vCorner;
+      out vec3 vTint;
+      out float vAlpha;
+      void main(){
+        // 闭式轨道：球坐标均匀分布 + 慢速公转
+        float y = aSeed.x*2.0 - 1.0;
+        float rad = sqrt(max(1.0 - y*y, 0.0));
+        float ph = aSeed.y*6.28318 + uTime*(0.008 + aSeed.z*0.02);
+        float r = mix(2.4, 9.5, pow(aSeed.w, 1.6));
+        vec3 center = vec3(cos(ph)*rad*r, y*r, sin(ph)*rad*r);
+        // 引力式横向漂移（透镜色散的方向源）
+        vec3 camRight = normalize(vec3(1.0, 0.0, -uPar.x*0.4));
+        center += camRight * (0.35 / max(length(center.xz), 1.0)) * sin(uTime*0.1 + aSeed.y*9.0);
+        float tw = 0.62 + 0.38*sin(uTime*(0.6+aSeed.z*2.4) + aSeed.x*40.0);
+        vTint = mix(vec3(0.62,0.72,1.0), vec3(1.0,0.82,0.58), step(0.82, aSeed.z));
+        vAlpha = tw * smoothstep(9.5, 4.0, r) ;
+        vCorner = aCorner;
+        vec4 mv = uMVP * vec4(center, 1.0);
+        // 屏幕空间广告牌
+        mv.xy += aCorner * aSize * 0.012 * mv.w;
+        gl_Position = mv;
+      }
+    `;
+    const FS_STARS = /* glsl */ `#version 300 es
+      precision highp float;
+      in vec2 vCorner;
+      in vec3 vTint;
+      in float vAlpha;
+      uniform float uDisp;   // 色散强度（随鼠标速度）
+      out vec4 fragColor;
+      void main(){
+        float d = length(vCorner);
+        float m = smoothstep(1.0, 0.15, d);
+        vec3 c = vTint;
+        // 简单径向色散：外缘偏蓝、内核偏暖
+        c = mix(c, vec3(c.b*1.2, c.g*0.8, c.r*0.6), smoothstep(0.35, 1.0, d)*uDisp);
+        fragColor = vec4(c * m * vAlpha, 1.0);
+      }
+    `;
+
+    // ----------------------------------------------------------
+    // 6) 尘埃（加法混合点精灵，径向拉伸）
+    // ----------------------------------------------------------
+    const VS_DUST = /* glsl */ `#version 300 es
+      layout(location=0) in vec4 aSeed;
+      uniform mat4 uMVP;
+      uniform float uTime;
+      uniform vec2 uRes;
+      out float vA;
+      void main(){
+        float r = mix(0.9, 3.4, aSeed.w);
+        float ph = aSeed.x*6.28318 + uTime*(0.05 + 0.10/r);
+        float y = (aSeed.y*2.0-1.0) * (0.5 + 0.5*sin(aSeed.z*9.0));
+        vec3 p = vec3(cos(ph)*r, y*r*0.35, sin(ph)*r);
+        vA = 0.5 + 0.5*sin(uTime*(0.8+aSeed.z*2.0) + aSeed.x*30.0);
+        vec4 clip = uMVP * vec4(p, 1.0);
+        gl_Position = clip;
+        float px = (1.4 + aSeed.z*2.2) * (uRes.y/900.0);
+        gl_PointSize = px * 320.0 / max(clip.w, 0.1);
+      }
+    `;
+    const FS_DUST = /* glsl */ `#version 300 es
+      precision highp float;
+      in float vA;
+      out vec4 fragColor;
+      void main(){
+        vec2 q = gl_PointCoord - 0.5;
+        float m = smoothstep(0.5, 0.05, length(q));
+        fragColor = vec4(vec3(0.55, 0.62, 0.95) * m * vA * 0.30, 1.0);
+      }
+    `;
+
+    // ----------------------------------------------------------
+    // 编译全部程序
+    // ----------------------------------------------------------
+    const prgBg    = program(VS_FULLSCREEN, FS_BG);
+    const prgCore  = program(VS_FULLSCREEN, FS_CORE);
+    const prgGrid  = program(VS_GRID, FS_GRID);
+    const prgCage  = program(VS_CAGE, FS_CAGE);
+    const prgStars = program(VS_STARS, FS_STARS);
+    const prgDust  = program(VS_DUST, FS_DUST);
+    if (!prgBg || !prgCore || !prgGrid || !prgCage || !prgStars || !prgDust) {
+      host.removeChild(canvas); delete host.dataset.bound; return;
+    }
+
+    const U = (p: WebGLProgram, n: string) => gl!.getUniformLocation(p, n);
+    const uBg    = { res: U(prgBg,'uRes'), time: U(prgBg,'uTime'), par: U(prgBg,'uPar') };
+    const uCore  = { res: U(prgCore,'uRes'), time: U(prgCore,'uTime'), par: U(prgCore,'uPar'), boost: U(prgCore,'uBoost') };
+    const uGrid  = { mvp: U(prgGrid,'uMVP'), time: U(prgGrid,'uTime'), par: U(prgGrid,'uPar') };
+    const uCage  = { mvp: U(prgCage,'uMVP'), time: U(prgCage,'uTime'), scale: U(prgCage,'uScale'), dir: U(prgCage,'uDir'), boost: U(prgCage,'uBoost'), tint: U(prgCage,'uTint'), alpha: U(prgCage,'uAlpha') };
+    const uStars = { mvp: U(prgStars,'uMVP'), time: U(prgStars,'uTime'), par: U(prgStars,'uPar'), disp: U(prgStars,'uDisp') };
+    const uDust  = { mvp: U(prgDust,'uMVP'), time: U(prgDust,'uTime'), res: U(prgDust,'uRes') };
+
+    // ----------------------------------------------------------
+    // 几何：全屏三角形
+    // ----------------------------------------------------------
+    const vaoFS = gl.createVertexArray()!;
+    gl.bindVertexArray(vaoFS);
+    const vbFS = gl.createBuffer()!;
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbFS);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+    // ----------------------------------------------------------
+    // 几何：网格地平线（线条索引）
+    // ----------------------------------------------------------
+    const GR = 56;            // 每边段数
+    const EXT = 14;           // 半宽
+    const gridVerts: number[] = [];
+    const gridIdx: number[] = [];
+    for (let i = 0; i <= GR; i++) {
+      for (let j = 0; j <= GR; j++) {
+        gridVerts.push((i/GR*2-1)*EXT, (j/GR*2-1)*EXT);
+      }
+    }
+    const gidx = (i: number, j: number) => i*(GR+1)+j;
+    for (let i = 0; i <= GR; i++) for (let j = 0; j < GR; j++) {
+      gridIdx.push(gidx(i,j), gidx(i,j+1));  // 横线
+      gridIdx.push(gidx(j,i), gidx(j+1,i));  // 竖线
+    }
+    const vaoGrid = gl.createVertexArray()!;
+    gl.bindVertexArray(vaoGrid);
+    const vbGrid = gl.createBuffer()!;
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbGrid);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(gridVerts), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    const ibGrid = gl.createBuffer()!;
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibGrid);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(gridIdx), gl.STATIC_DRAW);
+    const gridCount = gridIdx.length;
+
+    // ----------------------------------------------------------
+    // 几何：Icosahedron(1,1) 线框（手抄顶点 + 边细分 + 去重）
+    // ----------------------------------------------------------
+    function icosahedronLines(): Float32Array {
+      const t = (1 + Math.sqrt(5)) / 2;
+      const raw: number[][] = [
+        [-1, t, 0],[1, t, 0],[-1,-t, 0],[1,-t, 0],
+        [0,-1, t],[0, 1, t],[0,-1,-t],[0, 1,-t],
+        [ t, 0,-1],[ t, 0, 1],[-t, 0,-1],[-t, 0, 1],
+      ];
+      const V = raw.map(v => {
+        const l = Math.hypot(v[0], v[1], v[2]);
+        return [v[0]/l, v[1]/l, v[2]/l];
+      });
+      const F = [
+        [0,11,5],[0,5,1],[0,1,7],[0,7,10],[0,10,11],
+        [1,5,9],[5,11,4],[11,10,2],[10,7,6],[7,1,8],
+        [3,9,4],[3,4,2],[3,2,6],[3,6,8],[3,8,9],
+        [4,9,5],[2,4,11],[6,2,10],[8,6,7],[9,8,1],
+      ];
+      // 细分一次：每条边取中点，细分为 4 个三角形
+      const cache = new Map<string, number>();
+      const verts: number[][] = V.map(v => [...v]);
+      function mid(a: number, b: number): number {
+        const key = a < b ? `${a}_${b}` : `${b}_${a}`;
+        const hit = cache.get(key);
+        if (hit !== undefined) return hit;
+        const A = verts[a], B = verts[b];
+        const m = [(A[0]+B[0])/2, (A[1]+B[1])/2, (A[2]+B[2])/2];
+        const l = Math.hypot(m[0], m[1], m[2]);
+        verts.push([m[0]/l, m[1]/l, m[2]/l]);
+        cache.set(key, verts.length - 1);
+        return verts.length - 1;
+      }
+      const edgeSet = new Set<string>();
+      const lines: number[] = [];
+      function edge(a: number, b: number) {
+        const key = a < b ? `${a}_${b}` : `${b}_${a}`;
+        if (edgeSet.has(key)) return;
+        edgeSet.add(key);
+        lines.push(...verts[a], ...verts[b]);
+      }
+      for (const [a, b, c] of F) {
+        const ab = mid(a, b), bc = mid(b, c), ca = mid(c, a);
+        const tris = [[a, ab, ca], [b, bc, ab], [c, ca, bc], [ab, bc, ca]];
+        for (const [x, y, z] of tris) { edge(x, y); edge(y, z); edge(z, x); }
+      }
+      return new Float32Array(lines);
+    }
+    const cageData = icosahedronLines();
+    const vaoCage = gl.createVertexArray()!;
+    gl.bindVertexArray(vaoCage);
+    const vbCage = gl.createBuffer()!;
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbCage);
+    gl.bufferData(gl.ARRAY_BUFFER, cageData, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+    const cageCount = cageData.length / 3;
+
+    // ----------------------------------------------------------
+    // 几何：实例化星场
+    // ----------------------------------------------------------
+    const STAR_N = 1024;
+    const starSeeds = new Float32Array(STAR_N * 4);
+    const starSizes = new Float32Array(STAR_N);
+    for (let i = 0; i < STAR_N; i++) {
+      starSeeds[i*4+0] = Math.random();
+      starSeeds[i*4+1] = Math.random();
+      starSeeds[i*4+2] = Math.random();
+      starSeeds[i*4+3] = Math.random();
+      starSizes[i] = 0.6 + Math.pow(Math.random(), 3.0) * 2.4;
+    }
+    const vaoStars = gl.createVertexArray()!;
+    gl.bindVertexArray(vaoStars);
+    const vbStarQuad = gl.createBuffer()!;
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbStarQuad);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, 1,1, -1,-1, 1,1, -1,1]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    const vbStarSeed = gl.createBuffer()!;
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbStarSeed);
+    gl.bufferData(gl.ARRAY_BUFFER, starSeeds, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(1);
+    gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribDivisor(1, 1);
+    const vbStarSize = gl.createBuffer()!;
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbStarSize);
+    gl.bufferData(gl.ARRAY_BUFFER, starSizes, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(2);
+    gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribDivisor(2, 1);
+
+    // ----------------------------------------------------------
+    // 几何：尘埃
+    // ----------------------------------------------------------
+    const DUST_N = 96;
+    const dustSeeds = new Float32Array(DUST_N * 4);
+    for (let i = 0; i < DUST_N * 4; i++) dustSeeds[i] = Math.random();
+    const vaoDust = gl.createVertexArray()!;
+    gl.bindVertexArray(vaoDust);
+    const vbDust = gl.createBuffer()!;
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbDust);
+    gl.bufferData(gl.ARRAY_BUFFER, dustSeeds, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 0, 0);
+
+    gl.bindVertexArray(null);
+
+    // ----------------------------------------------------------
+    // 相机矩阵（极简列主序 mat4）
+    // ----------------------------------------------------------
+    function perspective(fovy: number, aspect: number, near: number, far: number): Float32Array {
+      const f = 1 / Math.tan(fovy / 2);
+      const m = new Float32Array(16);
+      m[0] = f / aspect; m[5] = f;
+      m[10] = (far + near) / (near - far); m[11] = -1;
+      m[14] = (2 * far * near) / (near - far);
+      return m;
+    }
+    function lookAt(eye: number[], c: number[], up: number[]): Float32Array {
+      let zx = eye[0]-c[0], zy = eye[1]-c[1], zz = eye[2]-c[2];
+      let l = Math.hypot(zx, zy, zz); zx/=l; zy/=l; zz/=l;
+      let xx = up[1]*zz - up[2]*zy, xy = up[2]*zx - up[0]*zz, xz = up[0]*zy - up[1]*zx;
+      l = Math.hypot(xx, xy, xz); xx/=l; xy/=l; xz/=l;
+      const yx = zy*xz - zz*xy, yy = zz*xx - zx*xz, yz = zx*xy - zy*xx;
+      const m = new Float32Array(16);
+      m[0]=xx; m[1]=yx; m[2]=zx; m[3]=0;
+      m[4]=xy; m[5]=yy; m[6]=zy; m[7]=0;
+      m[8]=xz; m[9]=yz; m[10]=zz; m[11]=0;
+      m[12]=-(xx*eye[0]+xy*eye[1]+xz*eye[2]);
+      m[13]=-(yx*eye[0]+yy*eye[1]+yz*eye[2]);
+      m[14]=-(zx*eye[0]+zy*eye[1]+zz*eye[2]);
+      m[15]=1;
+      return m;
+    }
+    function mul(a: Float32Array, b: Float32Array): Float32Array {
+      const o = new Float32Array(16);
+      for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) {
+        o[c*4+r] = a[r]*b[c*4] + a[4+r]*b[c*4+1] + a[8+r]*b[c*4+2] + a[12+r]*b[c*4+3];
+      }
+      return o;
+    }
+
+    // ----------------------------------------------------------
+    // 视差与激励状态（物理惯性：spring-damper）
+    // ----------------------------------------------------------
+    const par = { x: 0, y: 0, tx: 0, ty: 0, vx: 0, vy: 0 };
+    let boost = 0, boostT = 0;
+    let disp = 0;
+    let lastMx = 0, lastMy = 0, mouseSpeed = 0;
+    function onPointer(e: PointerEvent) {
+      const w = window.innerWidth, h = window.innerHeight;
+      par.tx = (e.clientX / w) * 2 - 1;
+      par.ty = -((e.clientY / h) * 2 - 1);
+      const dx = e.clientX - lastMx, dy = e.clientY - lastMy;
+      lastMx = e.clientX; lastMy = e.clientY;
+      mouseSpeed = Math.min(Math.hypot(dx, dy) / 30, 1);
+      // 指针越接近核心，激励越强
+      const hero = host.parentElement;
+      if (hero) {
+        const r = hero.getBoundingClientRect();
+        const cx = r.left + r.width * 0.62, cy = r.top + r.height * 0.46;
+        const d = Math.hypot(e.clientX - cx, e.clientY - cy) / Math.max(r.width, 1);
+        boostT = Math.max(0, 1 - d * 2.4);
+      }
+    }
+    window.addEventListener('pointermove', onPointer, { passive: true });
+
+    // ----------------------------------------------------------
+    // 自适应质量与尺寸
+    // ----------------------------------------------------------
+    let dprCap = 1.75;
+    let quality = 2;                 // 2=全量 1=降 DPR 0=再降+隐藏尘埃
+    let frameCost = 16.7;            // 帧耗 EMA
+    let showDust = true;
+    function resize() {
+      const dpr = Math.min(window.devicePixelRatio || 1, dprCap) * (quality === 2 ? 1 : quality === 1 ? 0.8 : 0.62);
+      const w = host.clientWidth, h = host.clientHeight;
+      if (!w || !h) return;
+      canvas.width = Math.max(2, Math.floor(w * dpr));
+      canvas.height = Math.max(2, Math.floor(h * dpr));
+    }
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(host);
+
+    // ----------------------------------------------------------
+    // 渲染
+    // ----------------------------------------------------------
+    let raf = 0;
+    let running = false;
+    let inView = true;
+    const t0 = performance.now();
+
+    function drawFrame(nowMs: number) {
+      const t = (nowMs - t0) / 1000;
+      const W = canvas.width, H = canvas.height;
+      gl!.viewport(0, 0, W, H);
+      gl!.disable(gl!.DEPTH_TEST);
+      gl!.disable(gl!.BLEND);
+
+      // spring-damper 视差（帧率无关）
+      const dt = 1 / 60;
+      const K = 26, D = 9.5;
+      par.vx += ((par.tx - par.x) * K - par.vx * D) * dt;
+      par.vy += ((par.ty - par.y) * K - par.vy * D) * dt;
+      par.x += par.vx * dt; par.y += par.vy * dt;
+      boost += (boostT - boost) * (1 - Math.exp(-dt * 5));
+      mouseSpeed *= 0.92;
+      disp += (mouseSpeed - disp) * 0.08;
+
+      // 1. 背景
+      gl!.useProgram(prgBg);
+      gl!.uniform2f(uBg.res, W, H);
+      gl!.uniform1f(uBg.time, t);
+      gl!.uniform2f(uBg.par, par.x, par.y);
+      gl!.bindVertexArray(vaoFS);
+      gl!.drawArrays(gl!.TRIANGLES, 0, 3);
+
+      // 2. 奇点（覆盖同一片屏幕，加法前的底色已就位）
+      gl!.useProgram(prgCore);
+      gl!.uniform2f(uCore.res, W, H);
+      gl!.uniform1f(uCore.time, t);
+      gl!.uniform2f(uCore.par, par.x, par.y);
+      gl!.uniform1f(uCore.boost, boost);
+      gl!.drawArrays(gl!.TRIANGLES, 0, 3);
+
+      // 之后所有层加法混合
+      gl!.enable(gl!.BLEND);
+      gl!.blendFunc(gl!.ONE, gl!.ONE);
+
+      const aspect = W / H;
+      const proj = perspective(0.72, aspect, 0.1, 60);
+      const eye = [par.x * 0.55, 0.16 + par.y * 0.34, 4.3];
+      const view = lookAt(eye, [0, 0.02, 0], [0, 1, 0]);
+      const vp = mul(proj, view);
+
+      // 3. 地平线
+      gl!.useProgram(prgGrid);
+      gl!.uniformMatrix4fv(uGrid.mvp, false, vp);
+      gl!.uniform1f(uGrid.time, t);
+      gl!.uniform2f(uGrid.par, par.x, par.y);
+      gl!.bindVertexArray(vaoGrid);
+      gl!.drawElements(gl!.LINES, gridCount, gl!.UNSIGNED_INT, 0);
+
+      // 4. 牢笼（外框 + 内框）
+      gl!.useProgram(prgCage);
+      gl!.uniformMatrix4fv(uCage.mvp, false, vp);
+      gl!.uniform1f(uCage.time, t);
+      gl!.uniform1f(uCage.boost, boost);
+      gl!.bindVertexArray(vaoCage);
+      gl!.uniform1f(uCage.scale, 1.55);
+      gl!.uniform1f(uCage.dir, 1);
+      gl!.uniform3f(uCage.tint, 0.35, 0.52, 1.0);
+      gl!.uniform1f(uCage.alpha, 0.16);
+      gl!.drawArrays(gl!.LINES, 0, cageCount);
+      gl!.uniform1f(uCage.scale, 1.02);
+      gl!.uniform1f(uCage.dir, -1);
+      gl!.uniform3f(uCage.tint, 0.72, 0.5, 1.0);
+      gl!.uniform1f(uCage.alpha, 0.20);
+      gl!.drawArrays(gl!.LINES, 0, cageCount);
+
+      // 5. 星场
+      gl!.useProgram(prgStars);
+      gl!.uniformMatrix4fv(uStars.mvp, false, vp);
+      gl!.uniform1f(uStars.time, t);
+      gl!.uniform2f(uStars.par, par.x, par.y);
+      gl!.uniform1f(uStars.disp, 0.3 + disp * 2.2);
+      gl!.bindVertexArray(vaoStars);
+      gl!.drawArraysInstanced(gl!.TRIANGLES, 0, 6, STAR_N);
+
+      // 6. 尘埃
+      if (showDust) {
+        gl!.useProgram(prgDust);
+        gl!.uniformMatrix4fv(uDust.mvp, false, vp);
+        gl!.uniform1f(uDust.time, t);
+        gl!.uniform2f(uDust.res, W, H);
+        gl!.bindVertexArray(vaoDust);
+        gl!.drawArrays(gl!.POINTS, 0, DUST_N);
+      }
+
+      gl!.bindVertexArray(null);
+      gl!.disable(gl!.BLEND);
+    }
+
+    let lastFrame = 0;
+    function loop(now: number) {
+      if (!running) return;
+      const cost = now - lastFrame;
+      lastFrame = now;
+      frameCost += (Math.min(cost, 100) - frameCost) * 0.05;
+      // 每 ~3.5 秒评估一次质量（跳过前几帧暖机）
+      if (now - t0 > 2500 && Math.floor(now / 3500) !== Math.floor((now - cost) / 3500)) {
+        if (frameCost > 27 && quality > 0) {
+          quality--;
+          if (quality === 0) showDust = false;
+          resize();
+        }
+      }
+      drawFrame(now);
+      raf = requestAnimationFrame(loop);
+    }
+    function start() {
+      if (running || !inView || document.hidden) return;
+      running = true;
+      lastFrame = performance.now();
+      raf = requestAnimationFrame(loop);
+    }
+    function stop() {
+      running = false;
+      cancelAnimationFrame(raf);
+      raf = 0;
+    }
+
+    const io = new IntersectionObserver(([entry]) => {
+      inView = entry.isIntersecting;
+      if (inView) start(); else stop();
+    }, { threshold: 0.02 });
+    io.observe(host);
+    function onVis() { if (document.hidden) stop(); else start(); }
+    document.addEventListener('visibilitychange', onVis);
+
+    if (reduced) {
+      drawFrame(performance.now());   // 单帧静帧
+    } else {
+      start();
+    }
+
+    // ----------------------------------------------------------
+    // 全量清理
+    // ----------------------------------------------------------
+    teardownCore = function () {
+      stop();
+      io.disconnect();
+      ro.disconnect();
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('pointermove', onPointer);
+      [vbFS, vbGrid, ibGrid, vbCage, vbStarQuad, vbStarSeed, vbStarSize, vbDust].forEach(b => gl!.deleteBuffer(b));
+      [vaoFS, vaoGrid, vaoCage, vaoStars, vaoDust].forEach(v => gl!.deleteVertexArray(v));
+      [prgBg, prgCore, prgGrid, prgCage, prgStars, prgDust].forEach(p => gl!.deleteProgram(p));
+      const ext = gl!.getExtension('WEBGL_lose_context');
+      ext?.loseContext();
+      host.removeChild(canvas);
+      delete host.dataset.bound;
+    };
+  }
+
+  document.addEventListener('astro:page-load', setupSignalCore);
+  document.addEventListener('themechange', () => {
+    teardownCore?.();
+    teardownCore = null;
+    setupSignalCore();
+  });
+  document.addEventListener('astro:before-swap', () => {
+    teardownCore?.();
+    teardownCore = null;
+  });
+  setupSignalCore();
+</script>
