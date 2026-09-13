@@ -5,12 +5,11 @@
   --font-display: 'Fraunces', 'STZhongsong', Georgia, serif;
   --maxw: 1080px;
   --maxw-prose: 720px;
-  --nav-height: 59px;
+  /* 深色 nav 为贴顶通栏：.nav__inner min-height:58px + top:0（见 dark.css .nav/.nav__inner） */
+  --nav-height: 58px;
   --page-gutter: 40px;
 
   .home { background: var(--bg); }
-  .theme-home--light { display: none; }
-  .theme-home--dark { display: block; }
   .eyebrow { font-family: var(--mono); }
   .page-head { padding-top: var(--space-4xl); }
   .page-head h1 { font-size: 72px; font-weight: 500; line-height: 1.08; }
@@ -20,6 +19,10 @@
   .module-head { flex-direction: row; align-items: baseline; justify-content: space-between; text-align: left; margin-bottom: var(--space-sm); }
   .module-head h2 { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--text-faint); }
   .module-head h2::before { content: '//'; }
+  /* 编号走 data-no 属性而非 DOM span：data-scramble 会把 h2 文本拍平成
+     纯文本节点，span 的 display:none 随之失效，浅色下编号被当正文显示。
+     attr() 只参与 ::before 渲染，不进 scramble 文本流，两主题都安全 */
+  .module-head h2[data-no]::before { content: '// ' attr(data-no) '  '; }
   .module-head__no { display: inline; margin-right: 10px; }
   .module-head a { font-family: var(--mono); font-size: 12px; color: var(--text-faint); }
   .module-head a:hover { color: var(--accent); }
@@ -34,6 +37,8 @@
   .nav__links a:hover { color: var(--accent); }
   .nav__links a::after { content: ''; position: absolute; bottom: 7px; left: 0; right: 0; height: 1px; background: var(--accent); transform: scaleX(0); transform-origin: left; transition: transform 280ms var(--ease-out); }
   .nav__links a:hover::after, .nav__links a[aria-current='page']::after { transform: scaleX(1); }
+  /* 当前页：实心琥珀文字 + 线，与 hover（仅出线、文字不变）区分 */
+  .nav__links a[aria-current='page'] { color: var(--accent); }
 
   .footer { background: transparent; margin-top: var(--space-4xl); }
   .footer__inner { flex-direction: row; justify-content: space-between; gap: 24px; border-top: 1px solid var(--border-subtle); padding-bottom: var(--space-2xl); }
@@ -52,6 +57,8 @@
   .article { max-width: 1200px; margin: var(--space-xl) auto var(--space-3xl); }
   .article__header { max-width: 1080px; padding-top: var(--space-4xl); padding-bottom: var(--space-3xl); border-bottom: 1px solid var(--border-subtle); }
   .article h1 { max-width: 18ch; font-size: 72px; font-weight: 500; line-height: 1.08; }
+  /* 中文无衬线标题字面大：从英文海报尺度回落，行高放开，折行后不挤 */
+  .article h1:lang(zh), .article h1:lang(zh-CN) { font-size: 58px; line-height: 1.18; }
   .article__summary { max-width: 58ch; margin-top: var(--space-xl); font-size: 18px; }
   .article__layout { display: grid; max-width: 1080px; grid-template-columns: 172px minmax(0, 720px); justify-content: center; gap: var(--space-3xl); padding-top: var(--space-2xl); }
   .article__layout--no-toc { grid-template-columns: minmax(0, 720px); }
@@ -90,5 +97,3 @@
     .footer__inner { flex-direction: column; align-items: flex-start; }
   }
 }
-
-:root:not([data-theme="dark"]) .theme-home--dark { display: none; }

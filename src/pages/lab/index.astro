@@ -1,16 +1,19 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import SiteFooter from "../../components/SiteFooter.astro";
 import { lab } from "../../data/lab.js";
 ---
 
 <BaseLayout lang="zh-CN" title="实验室 — Aloha" description="交互演示与小工具。">
-  <section class="section container" aria-labelledby="lab-heading">
-    <div class="module-head">
-      <h1 id="lab-heading">实验室</h1>
-      <a href="/">首页 →</a>
-    </div>
-    <p class="lab-intro" lang="zh-CN">交互演示与小工具。</p>
+  <section class="page-head container">
+    <a class="back-home" href="/" data-reveal><span aria-hidden="true">←</span> 返回主页</a>
+    <p class="eyebrow" data-reveal style="--reveal-delay: 60ms">/ lab</p>
+    <h1 data-reveal style="--reveal-delay: 120ms">实验室</h1>
+    <p data-reveal style="--reveal-delay: 200ms">交互演示与小工具。</p>
+  </section>
 
+  <section class="lab container" aria-label="实验室">
+    <p class="lab__count" data-reveal>{lab.length} 个实验</p>
     <ol class="lab-list">
       {
         lab.map((item, index) => (
@@ -25,17 +28,19 @@ import { lab } from "../../data/lab.js";
       }
     </ol>
   </section>
+  <SiteFooter />
 </BaseLayout>
 
 <style>
-  /* .module-head / .section 样式在 global.css 统一维护 */
+  /* .page-head / .back-home / .eyebrow 样式在 global.css 统一维护 */
 
-  .lab-intro {
-    margin: 0 0 var(--space-sm);
+  .lab__count {
+    padding-bottom: var(--space-md);
+    border-bottom: 1px solid var(--border-strong);
     color: var(--text-faint);
-    font-size: 0.85rem;
+    font-family: var(--mono);
+    font-size: 12.5px;
   }
-  h1 { font-size: 40px; font-weight: 600; }
 
   /* 与造物同一制式：三栏一行 —— 名 / 述 / 门类 */
   .lab-list { margin: 0; padding: 0; list-style: none; }
@@ -58,9 +63,6 @@ import { lab } from "../../data/lab.js";
     color: var(--text-muted);
     font-size: 0.95rem;
     line-height: 1.6;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
   .lab-row__kind {
     font-family: var(--mono);

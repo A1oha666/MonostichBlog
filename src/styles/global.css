@@ -9,7 +9,7 @@
   --surface-3: #24262e;
   --text: #e6e7ea;
   --text-muted: #9a9ba2;
-  --text-faint: #71727b;
+  --text-faint: #85868f;
   --accent: #ffb224;          /* phosphor amber */
   --accent-deep: #eda00e;
   --accent-soft: rgba(255, 178, 36, 0.12);
@@ -148,8 +148,9 @@
   --radius: 8px;
   --radius-lg: 8px;
 
-  /* layout */
-  --nav-height: 64px;
+  /* layout —— nav 实际渲染高度（.nav__inner min-height:48px + top:8px），
+     scroll-margin / body padding 统一引用它，改动一处全局对齐 */
+  --nav-height: 58px;
   --page-gutter: 32px;
   --maxw: 1044px;
   --maxw-prose: 704px;
@@ -162,7 +163,7 @@
   --dur-reveal: 480ms;
 }
 
-:root[data-nav-compact] { --nav-height: 64px; }
+:root[data-nav-compact] { --nav-height: 58px; }
 :root[data-menu-open] { overflow: hidden; }
 
 /* =========================================================

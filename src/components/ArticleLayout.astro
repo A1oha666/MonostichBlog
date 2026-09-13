@@ -53,9 +53,9 @@ const tocHeadings = headings.filter((heading) => heading.depth >= 2 && heading.d
 const formatDate = dotDate;
 ---
 
-<article class="article">
+  <article class="article">
   <div class="article__progress" aria-hidden="true"></div>
-  <header class="article__header container" data-pagefind-body>
+  <header class="article__header container" data-pagefind-body lang="zh-CN">
     <a class="back-link" href={collectionHref} data-reveal><span aria-hidden="true">←</span> 返回{collectionLabel}</a>
     <p class="article__eyebrow" data-reveal style="--reveal-delay: 60ms">/ {collectionLabel.toLowerCase()}</p>
     <h1 data-reveal style="--reveal-delay: 120ms">{title}</h1>
@@ -76,7 +76,7 @@ const formatDate = dotDate;
 
   {cover && <div class="article__cover container"><img src={cover} alt="" /></div>}
 
-  <div class:list={["article__layout container", tocHeadings.length === 0 && "article__layout--no-toc"]}>
+  <div class:list={["article__layout container", tocHeadings.length === 0 && "article__layout--no-toc"]} lang="zh-CN">
     {tocHeadings.length > 0 && (
       <aside class="article__toc" aria-label="文章目录">
         <details class="article__toc-disclosure" open>

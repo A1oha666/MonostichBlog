@@ -1,7 +1,29 @@
 ---
-// 小记已并入 Thinkings（/thinkings/），静态构建下输出 meta-refresh 跳转，
-// 旧链接（含 RSS 历史里的 /moments/#slug）仍可达。
-return Astro.redirect("/thinkings/");
+// 小记已并入 Thinkings（/thinkings/）。静态构建下输出本页做 meta-refresh 兜底跳转，
+// 旧链接（含 RSS 历史里的 /moments/#slug）仍可达。注意：不能用 Astro.redirect() ——
+// 静态构建时它会直接生成 Astro 默认的（无样式）兜底页，把下面这套样式顶掉。
 ---
 
 <meta http-equiv="refresh" content="0;url=/thinkings/" />
+<title>Redirecting… — Aloha</title>
+<style>
+  /* 静态托管下 meta-refresh 兜底页：与深色终端人格一致的一行提示，
+     避免白底紫字的浏览器默认样式破功 */
+  :root { color-scheme: dark; }
+  body {
+    margin: 0;
+    min-height: 100svh;
+    display: grid;
+    place-items: center;
+    background: #101216;
+    color: #9a9ba2;
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    letter-spacing: 0;
+  }
+  a { color: #ffb224; text-decoration: none; }
+  a:hover { text-decoration: underline; text-underline-offset: 3px; }
+</style>
+<body>
+  <p>// redirecting to <a href="/thinkings/">/thinkings/</a> …</p>
+</body>

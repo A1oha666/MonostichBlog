@@ -1,11 +1,15 @@
 ---
 import { projects } from "../data/projects.js";
 import { ChevronLeft, ChevronRight } from '@lucide/astro';
+
+const statusLight = (s: string) =>
+  s === 'active' ? '进行中' : s === 'developing' ? '开发中' : s === 'archived' ? '已归档' : s;
 ---
 
-<section class="section container" id="projects" aria-labelledby="work-heading">
+<section class="section container projects" id="projects" aria-labelledby="work-heading">
   <div class="module-head" data-reveal>
-    <h2 id="work-heading" data-scramble>项目</h2>
+    <h2 id="work-heading" data-scramble data-no="03">项目</h2>
+    <a class="projects__github" href="https://github.com/A1oha666" target="_blank" rel="noopener">GitHub ↗</a>
   </div>
 
   <ol class="work-list" id="project-list" tabindex="0" aria-label="项目列表">
@@ -19,7 +23,8 @@ import { ChevronLeft, ChevronRight } from '@lucide/astro';
             <span class="work-row__name">{project.name}</span>
             <span class="work-row__desc">{project.desc}</span>
             <span class:list={["work-row__status", { "work-row__status--live": project.status === "active" }]}>
-              {project.status === 'active' ? '进行中' : project.status === 'developing' ? '开发中' : project.status === 'archived' ? '已归档' : project.status}
+              <span class="work-row__status-light">{statusLight(project.status)}</span>
+              <span class="work-row__status-dark">[{project.status}]</span>
             </span>
           </>
         );
@@ -51,6 +56,8 @@ import { ChevronLeft, ChevronRight } from '@lucide/astro';
     list.dataset.bound = 'true';
     const buttons = [...controls.querySelectorAll<HTMLButtonElement>('button')];
     const update = () => {
+      // 深色为纵向行号列表，无横向滚动，直接隐藏控件
+      if (document.documentElement.dataset.theme === 'dark') { controls.hidden = true; return; }
       const max = list.scrollWidth - list.clientWidth;
       controls.hidden = max <= 2;
       buttons[0].disabled = list.scrollLeft <= 2;
@@ -63,12 +70,14 @@ import { ChevronLeft, ChevronRight } from '@lucide/astro';
     buttons.forEach(button => button.addEventListener('click', () => move(Number(button.dataset.projectDirection))));
     list.addEventListener('keydown', (event) => {
       if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      if (document.documentElement.dataset.theme === 'dark') return;
       event.preventDefault();
       move(event.key === 'ArrowLeft' ? -1 : 1);
     });
     list.addEventListener('scroll', update, { passive: true });
     const observer = new ResizeObserver(update);
     observer.observe(list);
+    document.addEventListener('themechange', update);
     document.addEventListener('astro:before-swap', () => observer.disconnect(), { once: true });
     update();
   }
@@ -77,59 +86,103 @@ import { ChevronLeft, ChevronRight } from '@lucide/astro';
 </script>
 
 <style>
-  /* .module-head / .section 样式在 global.css 统一维护 */
+  /* =========================================================
+     项目区块 · 单 DOM 双皮肤
+     浅色 = 横向 scroll-snap 卡片 / 深色 = gutter 行号纵向列表
+     ========================================================= */
 
-  /* ===== 造物：无卡片，三栏一行 —— 名 / 述 / 状态 ===== */
-  .work-list { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(210px, 1fr); max-width: 100%; margin: 0 auto; padding: 8px 0 16px; list-style: none; text-align: center; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
-  .work-list > li { scroll-snap-align: start; border-right: 1px solid var(--border); min-width: 0; }
-  .work-list > li:last-child { border-right: 0; }
-  .work-row {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    height: 100%;
-    padding: 20px;
-  }
-  .work-row__name {
-    font-family: var(--font-body);
-    font-size: 18px;
-    font-weight: 500;
-    color: var(--text);
-    transition: color var(--dur-fast) var(--ease-out);
-  }
-  .work-row__desc {
-    max-width: 30ch;
-    color: var(--text-muted);
-    font-size: 14px;
-    line-height: 1.6;
-    white-space: normal;
-  }
-  .work-row__status {
-    margin-top: auto;
-    padding-top: 8px;
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0;
-    color: var(--text-faint);
-    white-space: nowrap;
-  }
-  /* 进行中的项目：不点灯、不描边，只换一点磷光 */
-  .work-row__status--live { color: var(--accent); }
+  .work-row__status-light { display: none; }
+  .work-row__status-dark { display: none; }
 
-  .work-row--static { cursor: default; }
-  @media (hover: hover) {
-    a.work-row:hover .work-row__name { color: var(--accent); }
-  }
-  a.work-row:focus-visible .work-row__name { color: var(--accent); }
-  .work-controls { display: flex; justify-content: center; gap: 8px; margin-top: 12px; }
-  .work-controls[hidden] { display: none; }
-  .work-controls button { display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: var(--surface-2); color: var(--text); cursor: pointer; transition: background 160ms ease, opacity 160ms ease; }
-  .work-controls button:hover { background: var(--surface-3); }
-  .work-controls button:disabled { opacity: 0.35; cursor: default; }
+  /* ---------- 浅色：横向卡片 ---------- */
+  :root:not([data-theme='dark']) {
+    .projects .module-head { justify-content: center; }
+    .projects .module-head .module-head__no { display: none; }
+    .projects .module-head .projects__github { display: none; }
+    .work-row__status-light { display: inline; }
 
-  @media (max-width: 700px) {
-    .work-list { grid-auto-columns: minmax(210px, 80%); }
-    .work-row { gap: 10px; padding: 20px; }
+    .work-list {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(210px, 1fr);
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 8px 0 16px;
+      list-style: none;
+      text-align: center;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      scroll-snap-type: x mandatory;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-strong) transparent;
+    }
+    .work-list > li { scroll-snap-align: start; border-right: 1px solid var(--border); min-width: 0; }
+    .work-list > li:last-child { border-right: 0; }
+    .work-row {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      height: 100%;
+      padding: 20px;
+    }
+    .work-row__name { font-family: var(--font-body); font-size: 18px; font-weight: 500; color: var(--text); transition: color var(--dur-fast) var(--ease-out); }
+    .work-row__desc { max-width: 30ch; color: var(--text-muted); font-size: 14px; line-height: 1.6; }
+    .work-row__status { margin-top: auto; padding-top: 8px; font-family: var(--mono); font-size: 11px; color: var(--text-faint); white-space: nowrap; }
+    .work-row__status--live { color: var(--accent); }
+
+    .work-row--static { cursor: default; }
+    @media (hover: hover) {
+      a.work-row:hover .work-row__name { color: var(--accent); }
+    }
+    a.work-row:focus-visible .work-row__name { color: var(--accent); }
+
+    .work-controls { display: flex; justify-content: center; gap: 8px; margin-top: 12px; }
+    .work-controls[hidden] { display: none; }
+    .work-controls button { display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: var(--surface-2); color: var(--text); cursor: pointer; transition: background 160ms ease, opacity 160ms ease; }
+    .work-controls button:hover { background: var(--surface-3); }
+    .work-controls button:disabled { opacity: 0.35; cursor: default; }
+
+    @media (max-width: 700px) {
+      .work-list { grid-auto-columns: minmax(210px, 80%); }
+      .work-row { gap: 10px; padding: 20px; }
+    }
+  }
+
+  /* ---------- 深色：gutter 行号纵向列表 ---------- */
+  :root[data-theme='dark'] {
+    .work-row__status-dark { display: inline; }
+    .work-controls { display: none; }
+
+    .work-list { margin: 0; padding: 0; list-style: none; }
+    .work-list > li { border-bottom: 1px solid var(--border-subtle); }
+    .work-row {
+      display: grid;
+      grid-template-columns: 190px minmax(0, 1fr) minmax(96px, auto);
+      align-items: baseline;
+      gap: 24px;
+      padding-block: 22px;
+    }
+    .work-row__name { font-family: var(--mono); font-size: 0.95rem; font-weight: 500; color: var(--text); transition: color var(--dur-fast) var(--ease-out); }
+    .work-row__desc {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.6;
+      max-width: 52ch; /* 列间距恒定，标签列不再漂移 */
+    }
+    .work-row__status { justify-self: end; font-family: var(--mono); font-size: 11px; color: var(--text-faint); white-space: nowrap; }
+    .work-row__status--live { color: var(--accent); }
+
+    .work-row--static { cursor: default; }
+    .work-row--static .work-row__name { color: var(--text-muted); } /* 未开源：降一档，明确不可进入 */
+    @media (hover: hover) {
+      a.work-row:hover .work-row__name { color: var(--accent); }
+    }
+    a.work-row:focus-visible .work-row__name { color: var(--accent); }
+
+    @media (max-width: 700px) {
+      .work-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; padding-block: 18px; }
+      .work-row__desc { grid-column: 1 / -1; white-space: normal; max-width: none; }
+    }
   }
 </style>

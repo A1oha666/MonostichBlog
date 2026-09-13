@@ -1,24 +1,74 @@
 ---
 import { ArrowRight } from '@lucide/astro';
 import { dotDate, isoDate } from '../lib/format';
+import LogStream from './LogStream.astro';
+import HeroGlow from './HeroGlow.astro';
 import FlickerTitle from './FlickerTitle.astro';
-interface Props { notesCount: number; projectsCount: number; latestDate?: Date; }
-const { notesCount, projectsCount, latestDate } = Astro.props;
+
+interface PathWeight {
+  p: string;
+  w: number;
+}
+interface Props {
+  notesCount: number;
+  projectsCount: number;
+  latestDate?: Date;
+  logPaths?: PathWeight[];
+}
+const { notesCount, projectsCount, latestDate, logPaths = [] } = Astro.props;
+
+// 深色状态卡用的补零计数与 MM.DD 更新标签
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const updatedLabel = latestDate
+  ? `${pad2(latestDate.getMonth() + 1)}.${pad2(latestDate.getDate())}`
+  : '—';
 ---
 
-<header class="intro">
-  <div class="intro__content container">
-  <a href="/about" class="intro__portrait" aria-label="关于 Aloha">
-    <img src="https://github.com/A1oha666.png?size=128" data-github-avatar alt="Aloha 的头像" width="56" height="56" fetchpriority="high" referrerpolicy="no-referrer" />
-  </a>
-  <h1><span data-scramble>Aloha.</span></h1>
-  <p class="intro__tagline"><span class="hero__line">Explore and build.<FlickerTitle /><span class="intro__cursor" aria-hidden="true">_</span></span></p>
-  <p class="intro__description" lang="zh-CN" data-reveal>记录一些想法与实践。</p>
-  <div class="intro__actions" data-reveal style="--reveal-delay: 120ms">
-    <a class="intro__link intro__link--primary" href="/about">关于我 <ArrowRight size={16} aria-hidden="true" /></a>
+<header class="hero" lang="en">
+  <!-- 深色科技风氛围层：浅色下整体 display:none（见各组件自身样式） -->
+  <HeroGlow />
+  <LogStream paths={logPaths} />
+  <div class="hero__colophon container">
+    <p>
+      <span class="hero__prompt">aloha@monostich</span><span class="hero__sep">:</span><span class="hero__path">~</span><span class="hero__dollar">$</span>
+    </p>
   </div>
+
+  <div class="hero__layout container">
+    <div class="hero__inner">
+      <a href="/about" class="hero__portrait" aria-label="关于 Aloha">
+        <img src="https://github.com/A1oha666.png?size=128" data-github-avatar alt="Aloha 的头像" width="56" height="56" fetchpriority="high" referrerpolicy="no-referrer" />
+      </a>
+      <p class="hero__eyebrow">// blog &amp; notes</p>
+      <!-- 浅色版品牌大标题（深色隐藏） -->
+      <h1 class="hero__brand"><span data-scramble>Aloha.</span></h1>
+      <!-- 浅色版 tagline（深色隐藏）：与深色标题同一句话，纯展示、无灯管 -->
+      <p class="hero__tagline">Explore and build.<span class="hero__cursor" aria-hidden="true">_</span></p>
+      <!-- 深色版终端大标题（浅色隐藏）：灯管闪烁由 FlickerTitle 接管。
+           h1 身份由浅色 .hero__brand 承担，此处用 p + aria-hidden 避免双 H1。 -->
+      <p class="hero__title" aria-hidden="true">
+        <span class="hero__line hero__line--dark">explore<br />and build.<FlickerTitle /><span class="hero__cursor">_</span></span>
+      </p>
+      <p class="hero__intro" lang="zh-CN">记录一些想法与实践。</p>
+      <div class="hero__actions">
+        <a class="hero__link hero__link--primary" href="/about">关于我 <ArrowRight size={16} aria-hidden="true" /></a>
+      </div>
+    </div>
+
+    <!-- 深色状态卡（浅色隐藏） -->
+    <aside class="hero__status" aria-label="Site status">
+      <p class="hero__status-label">monostich.cloud</p>
+      <p class="hero__status-state"><span class="hero__led" aria-hidden="true"></span>online</p>
+      <dl>
+        <div><dt>notes</dt><dd>{pad2(notesCount)}</dd></div>
+        <div><dt>projects</dt><dd>{pad2(projectsCount)}</dd></div>
+        <div><dt>updated</dt><dd>{updatedLabel}</dd></div>
+      </dl>
+    </aside>
   </div>
-  <div class="intro__meta container" aria-label="站点统计">
+
+  <!-- 浅色底部统计行（深色隐藏） -->
+  <div class="hero__meta container" aria-label="站点统计">
     <a href="/archive">{notesCount} 篇记录</a>
     <span aria-hidden="true">·</span>
     <a href="#projects">{projectsCount} 个项目</a>
@@ -40,42 +90,286 @@ const { notesCount, projectsCount, latestDate } = Astro.props;
 </script>
 
 <style>
-  .intro { display: grid; grid-template-rows: minmax(min-content, 1fr) auto; min-height: calc(100svh - var(--nav-height) - 80px); background: var(--surface-2); text-align: center; }
-  .intro__content { align-self: center; padding-block: 56px; }
-  .intro__portrait { display: block; width: 56px; height: 56px; margin: 0 auto 16px; border-radius: 50%; transition: transform 400ms var(--ease-out); }
-  .intro__portrait:hover { transform: scale(1.07); }
-  .intro__portrait img { border-radius: 50%; object-fit: cover; }
-  h1 { font-family: var(--font-display); font-size: 76px; font-weight: 650; line-height: 1.05; }
-  .intro__tagline { margin-top: 12px; font-size: 28px; font-weight: 500; line-height: 1.4; }
-  .hero__line { position: relative; display: inline-block; }
-  .intro__cursor { position: absolute; left: 100%; color: var(--accent); animation: cursor-blink 1.6s steps(1) infinite; }
-  :global(html[data-theme='light']) .hero__line :global(.fk-ch) { filter: none !important; opacity: clamp(0.08, var(--fk, 1), 1); }
-  .intro__description { margin-top: 8px; font-size: 18px; color: var(--text-muted); }
-  .intro__actions { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px 24px; margin-top: 24px; }
-  .intro__link { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; color: var(--accent); font-size: 15px; }
-  .intro__link--primary { padding: 0 22px; border-radius: 24px; background: var(--accent); color: var(--on-accent); transition: background 200ms ease; }
-  .intro__link--primary:hover { background: var(--accent-deep); }
-  .intro__link:not(.intro__link--primary):hover { text-decoration: underline; text-underline-offset: 4px; }
-  .intro__link :global(svg) { transition: transform 250ms var(--ease-out); }
-  .intro__link:hover :global(svg) { transform: translateX(3px); }
-  .intro__meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 12px; padding-block: 12px 24px; color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-  .intro__meta a { display: inline-flex; align-items: center; min-height: 32px; }
-  .intro__meta a:hover { color: var(--accent); }
-  @media (max-width: 640px) {
-    .intro__content { padding-block: 40px; }
-    h1 { font-size: 56px; }
-    .intro__tagline { font-size: 23px; }
-    .intro__description { font-size: 16px; }
-    .intro__meta { gap: 2px 8px; font-size: 11px; padding-bottom: 16px; }
+  /* =========================================================
+     单 DOM 双皮肤：结构一份，浅色 = Apple 居中大气 / 深色 = 终端左对齐
+     ========================================================= */
+
+  .hero {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    flex-direction: column;
   }
-  @media (max-height: 700px) {
-    .intro__content { padding-block: 20px; }
-    .intro__portrait { width: 48px; height: 48px; margin-bottom: 12px; }
-    .intro__portrait img { width: 48px; height: 48px; }
-    h1 { font-size: 56px; }
-    .intro__tagline { font-size: 23px; }
-    .intro__description { font-size: 16px; }
-    .intro__actions { margin-top: 20px; }
-    .intro__meta { padding-block: 8px 12px; }
+
+  /* ---------- 共享元素 ---------- */
+  .hero__intro {
+    color: var(--text-muted);
+    letter-spacing: 0;
+  }
+  .hero__cursor {
+    color: var(--accent);
+    animation: cursor-blink 1.6s steps(1) infinite;
+  }
+  .hero__led {
+    display: inline-block;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent-glow), 0 0 14px var(--accent-glow);
+    animation: led-blink 2.1s steps(1) infinite;
+  }
+  @keyframes led-blink {
+    0%, 64% { opacity: 1; }
+    65%, 100% { opacity: 0.12; }
+  }
+
+  /* =========================================================
+     浅色 —— Apple 风：居中、头像在上、胶囊按钮、底部统计行
+     ========================================================= */
+  :root:not([data-theme='dark']) {
+    .hero {
+      min-height: calc(100svh - var(--nav-height) - 80px);
+      background: var(--surface-2);
+      text-align: center;
+    }
+    /* 深色专属元素隐藏 */
+    .hero__colophon, .hero__status, .hero__title { display: none; }
+    .hero__tagline { display: block; }
+
+    .hero__layout {
+      display: grid;
+      flex: 1;
+      place-items: center;
+      padding-block: 56px;
+    }
+    .hero__inner { position: relative; z-index: 2; }
+
+    .hero__portrait {
+      display: block;
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      transition: transform 400ms var(--ease-out);
+    }
+    .hero__portrait:hover { transform: scale(1.07); }
+    .hero__portrait img { border-radius: 50%; object-fit: cover; }
+
+    .hero__eyebrow { display: none; } /* 浅色版无终端注释行 */
+
+    .hero__brand {
+      font-family: var(--font-display);
+      font-size: 76px;
+      font-weight: 650;
+      line-height: 1.05;
+    }
+    /* 浅色版 tagline：与深色标题同一句话，居中小标题呈现 */
+    .hero__tagline {
+      margin-top: 12px;
+      font-size: 28px;
+      font-weight: 500;
+      line-height: 1.4;
+    }
+    .hero__tagline .hero__cursor { color: var(--accent); }
+
+    .hero__intro { margin-top: 8px; font-size: 18px; }
+
+    .hero__actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 12px 24px;
+      margin-top: 24px;
+    }
+    .hero__link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 44px;
+      color: var(--accent);
+      font-size: 15px;
+    }
+    .hero__link--primary {
+      padding: 0 22px;
+      border-radius: 24px;
+      background: var(--accent);
+      color: var(--on-accent);
+      transition: background 200ms ease;
+    }
+    .hero__link--primary:hover { background: var(--accent-deep); }
+    .hero__link :global(svg) { transition: transform 250ms var(--ease-out); }
+    .hero__link:hover :global(svg) { transform: translateX(3px); }
+
+    .hero__meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 4px 12px;
+      padding-block: 12px 24px;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+    .hero__meta a { display: inline-flex; align-items: center; min-height: 32px; }
+    .hero__meta a:hover { color: var(--accent); }
+  }
+
+  /* =========================================================
+     深色 —— 科技风：左对齐、mono 大标题、状态卡在右、日志/辉光氛围层
+     ========================================================= */
+  :root[data-theme='dark'] {
+    .hero {
+      /* Hero 专属版心：不动全局 token */
+      --maxw: 1200px;
+      --page-gutter: 48px;
+      min-height: min(760px, 78svh);
+      overflow: clip;
+    }
+    /* 浅色专属元素隐藏 */
+    .hero__portrait, .hero__brand, .hero__tagline, .hero__actions, .hero__meta { display: none; }
+
+    .hero__colophon,
+    .hero__layout { position: relative; z-index: 1; }
+
+    .hero__colophon {
+      display: flex;
+      justify-content: space-between;
+      gap: var(--space-md);
+      padding-top: 32px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-faint);
+    }
+    .hero__prompt { color: var(--text-muted); }
+    .hero__sep { color: var(--text-faint); }
+    .hero__path { color: var(--text-muted); }
+    .hero__dollar { color: var(--accent); margin-left: 8px; }
+
+    .hero__layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 220px;
+      align-items: end;
+      gap: 80px;
+      margin-top: auto;
+      padding-bottom: 10vh;
+    }
+    .hero__inner { position: relative; z-index: 2; }
+    /* 内容保护区：标题/说明背后垫一层由实到虚的底色，背景不许进入阅读路径 */
+    .hero__inner::before {
+      content: "";
+      position: absolute;
+      inset: -24px -40px;
+      z-index: -1;
+      background: linear-gradient(
+        90deg,
+        var(--bg) 0%,
+        color-mix(in srgb, var(--bg) 88%, transparent) 55%,
+        transparent 100%
+      );
+    }
+
+    .hero__eyebrow {
+      margin-bottom: var(--space-lg);
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+    .hero__title {
+      margin: 0;
+      max-width: 560px;
+      font-family: var(--mono);
+      font-weight: 500;
+      font-size: 80px;
+      line-height: 0.98;
+      color: var(--hero-title);
+    }
+    .hero__line { display: block; }
+    .hero__cursor { margin-left: -0.54em; }
+
+    .hero__intro {
+      margin-top: 24px;
+      max-width: 25ch;
+      font-family: 'Google Sans', var(--font-zh);
+      font-size: 15px;
+      line-height: 1.7;
+      animation: hero-in 1400ms var(--ease-out) both;
+      animation-delay: 420ms;
+    }
+    html:not(.js) .hero__line:not(.hero__line--flicker) {
+      animation: hero-in 1400ms var(--ease-out) both;
+      animation-delay: 160ms;
+    }
+    @keyframes hero-in {
+      from { opacity: 0; filter: blur(10px); }
+      to { opacity: 1; filter: blur(0); }
+    }
+
+    .hero__status {
+      width: 210px;
+      padding: 18px;
+      border: 1px solid var(--border-strong);
+      background: color-mix(in srgb, var(--surface) 85%, transparent);
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-faint);
+    }
+    .hero__status-label { color: var(--text-muted); margin-bottom: 14px; }
+    .hero__status-state { color: var(--accent); margin-bottom: 18px; }
+    .hero__status .hero__led { width: 6px; height: 6px; margin-right: 7px; }
+    .hero__status dl { margin: 0; }
+    .hero__status dl div { display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px solid var(--border-subtle); }
+    .hero__status dt, .hero__status dd { margin: 0; }
+    .hero__status dd { color: var(--text-muted); }
+    .hero__led { width: 7px; height: 7px; margin-right: 9px; }
+  }
+
+  /* =========================================================
+     响应式
+     ========================================================= */
+  :root:not([data-theme='dark']) {
+    @media (max-width: 640px) {
+      .hero__layout { padding-block: 40px; }
+      .hero__brand { font-size: 56px; }
+      .hero__tagline { font-size: 23px; }
+      .hero__intro { font-size: 16px; }
+      .hero__meta { gap: 2px 8px; font-size: 11px; padding-bottom: 16px; }
+    }
+    @media (max-height: 700px) {
+      .hero__layout { padding-block: 20px; }
+      .hero__portrait { width: 48px; height: 48px; margin-bottom: 12px; }
+      .hero__portrait img { width: 48px; height: 48px; }
+      .hero__brand { font-size: 56px; }
+      .hero__tagline { font-size: 23px; }
+      .hero__intro { font-size: 16px; }
+      .hero__actions { margin-top: 20px; }
+      .hero__meta { padding-block: 8px 12px; }
+    }
+  }
+  :root[data-theme='dark'] {
+    @media (max-width: 1100px) and (min-width: 601px) {
+      .hero { --page-gutter: 32px; }
+      .hero__title { font-size: 60px; }
+      .hero__layout { grid-template-columns: minmax(0, 1fr) 180px; gap: 32px; }
+      .hero__status { width: 180px; padding: 14px; }
+    }
+    @media (max-width: 800px) and (min-width: 601px) {
+      .hero__title { font-size: 44px; }
+    }
+    @media (max-width: 600px) {
+      .hero { --page-gutter: 24px; min-height: 74svh; }
+      .hero__layout { grid-template-columns: 1fr; gap: 40px; padding-bottom: 8vh; align-items: start; padding-top: 180px; }
+      .hero__title { font-size: 42px; }
+      .hero__status { width: auto; padding: 12px 14px; }
+      .hero__status-label, .hero__status-state { display: inline; margin: 0 18px 0 0; }
+      .hero__status dl { display: inline-flex; gap: 14px; }
+      .hero__status dl div { border: 0; padding: 0; gap: 4px; }
+    }
+    @media (max-width: 420px) {
+      .hero__title { font-size: 36px; }
+      .hero__status dl { flex-wrap: wrap; }
+      .hero__status dl div:last-child dt { display: none; }
+    }
   }
 </style>

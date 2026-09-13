@@ -22,10 +22,6 @@ import SiteFooter from "../components/SiteFooter.astro";
         <dt data-scramble>github</dt>
         <dd><a href="https://github.com/A1oha666" target="_blank" rel="noopener" data-scramble>@A1oha666</a></dd>
       </div>
-      <div class="about__fact">
-        <dt data-scramble>Location</dt>
-        <dd data-scramble>Here</dd>
-      </div>
     </dl>
   </section>
   <SiteFooter />
@@ -33,7 +29,8 @@ import SiteFooter from "../components/SiteFooter.astro";
 
 <style>
   /* .page-head / .back-home / .eyebrow 样式在 global.css 统一维护 */
-  .about { padding-bottom: var(--space-4xl); }
+  /* 内容少时收窄到阅读宽度，避免通栏左对齐配三行字的空荡构图 */
+  .about { max-width: var(--maxw-prose); padding-bottom: var(--space-4xl); }
   h1 {
     font-family: var(--font-body);
     font-size: 48px;

@@ -151,9 +151,16 @@ export function pbToLocalInput(pbDate: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-// 保存成功后把 ?id= 写进地址栏，便于刷新/复制链接继续编辑
-export function syncIdToUrl(id: string) {
+// 把 ?id= 写进地址栏（或传 null 清除回到列表），便于刷新/复制链接继续编辑
+export function syncIdToUrl(id: string | null) {
   const url = new URL(window.location.href);
+  if (id === null) {
+    if (url.searchParams.has('id')) {
+      url.searchParams.delete('id');
+      window.history.replaceState(null, '', url.toString());
+    }
+    return;
+  }
   if (url.searchParams.get('id') !== id) {
     url.searchParams.set('id', id);
     window.history.replaceState(null, '', url.toString());

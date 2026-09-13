@@ -42,6 +42,8 @@ const { paths } = Astro.props;
   @media (max-width: 600px) {
     .logstream { top: 48px; height: 20%; }
   }
+  /* 日志瀑布是深色科技风专属氛围层：浅色（Apple 风）下隐藏并停渲染 */
+  html[data-theme="light"] .logstream { display: none; }
 </style>
 
 <script>

@@ -32,6 +32,8 @@ export interface ArticleRecord {
   publishedAt: string;
   editedAt: string;
   attachments: string[];
+  created: string;
+  updated: string;
 }
 
 // 编辑器的写权限依赖 editors 集合（articles 的 create/update 对认证用户开放）。

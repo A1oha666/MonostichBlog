@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { LoginDialog } from './components/LoginDialog';
 import { MetaBar } from './components/MetaBar';
 import { MdEditor } from './components/MdEditor';
+import { ArticleList } from './components/ArticleList';
 import { useAuth, logout } from './lib/auth';
 import {
   errMsg,
@@ -27,10 +28,14 @@ const EMPTY_META: SaveMeta = {
   content: '',
 };
 
+// 'list'：文章列表（入口页）；'edit'：写作（新建或修改既有文章）
+type View = 'list' | 'edit';
+
 export default function App() {
   const { isLoggedIn, email } = useAuth();
   const { toasts, push } = useToast();
 
+  const [view, setView] = useState<View>('list');
   const [recordId, setRecordIdState] = useState<string | null>(null);
   const [status, setStatus] = useState<ArticleRecord['status'] | null>(null);
   const [meta, setMeta] = useState<SaveMeta>(EMPTY_META);
@@ -38,6 +43,7 @@ export default function App() {
   const [saving, setSaving] = useState(false);
   const [slugError, setSlugError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [listRefreshKey, setListRefreshKey] = useState(0);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -45,8 +51,61 @@ export default function App() {
   metaRef.current = meta;
   const recordIdRef = useRef(recordId);
   recordIdRef.current = recordId;
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
 
-  useBeforeUnload(dirty);
+  useBeforeUnload(dirty && view === 'edit');
+
+  // 有未保存改动时切换视图需确认（保存后 / 刚载入则无感切换）
+  const confirmDiscard = useCallback(() => {
+    if (!dirtyRef.current) return true;
+    return window.confirm('有未保存的改动，确定离开当前文章吗？');
+  }, []);
+
+  const openList = useCallback(() => {
+    if (!confirmDiscard()) return;
+    setListRefreshKey((k) => k + 1);
+    setView('list');
+    syncIdToUrl(null);
+  }, [confirmDiscard]);
+
+  const openNew = useCallback(() => {
+    if (!confirmDiscard()) return;
+    setRecordIdState(null);
+    setStatus(null);
+    setMeta(EMPTY_META);
+    setDirty(false);
+    setSlugError('');
+    setView('edit');
+    syncIdToUrl(null);
+  }, [confirmDiscard]);
+
+  const openArticle = useCallback(
+    async (id: string) => {
+      if (!confirmDiscard()) return;
+      try {
+        const rec = await fetchArticle(id);
+        setRecordIdState(rec.id);
+        setStatus(rec.status);
+        setMeta({
+          title: rec.title ?? '',
+          slug: rec.slug ?? '',
+          type: rec.type,
+          label: rec.label ?? '',
+          summary: rec.summary ?? '',
+          publishedAt: pbToLocalInput(rec.publishedAt),
+          content: rec.content ?? '',
+        });
+        setDirty(false);
+        setSlugError('');
+        setView('edit');
+        syncIdToUrl(rec.id);
+      } catch (e) {
+        push(`载入文章失败：${errMsg(e)}`, 'err');
+      }
+    },
+    [confirmDiscard, push],
+  );
 
   // 用户菜单：点击外部或 Esc 关闭
   useEffect(() => {
@@ -103,7 +162,7 @@ export default function App() {
     };
   }, []);
 
-  // 载入既有文章（?id=）
+  // 深链 /editor/?id=<recordId> → 直接进编辑；否则进列表
   useEffect(() => {
     if (!isLoggedIn) {
       setLoading(false);
@@ -116,26 +175,12 @@ export default function App() {
     }
     (async () => {
       try {
-        const rec = await fetchArticle(id);
-        setRecordIdState(rec.id);
-        setStatus(rec.status);
-        setMeta({
-          title: rec.title ?? '',
-          slug: rec.slug ?? '',
-          type: rec.type,
-          label: rec.label ?? '',
-          summary: rec.summary ?? '',
-          publishedAt: pbToLocalInput(rec.publishedAt),
-          content: rec.content ?? '',
-        });
-        setDirty(false);
-      } catch (e) {
-        push(`载入文章失败：${errMsg(e)}`, 'err');
+        await openArticle(id);
       } finally {
         setLoading(false);
       }
     })();
-  }, [isLoggedIn, push]);
+  }, [isLoggedIn, openArticle]);
 
   const patchMeta = useCallback((patch: Partial<SaveMeta>) => {
     setMeta((m) => ({ ...m, ...patch }));
@@ -166,8 +211,9 @@ export default function App() {
     [saving, push],
   );
 
-  // 快捷键：Cmd/Ctrl+S 存草稿，Cmd/Ctrl+Shift+S 发布
+  // 快捷键：Cmd/Ctrl+S 存草稿，Cmd/Ctrl+Shift+S 发布（仅编辑态）
   useEffect(() => {
+    if (view !== 'edit') return;
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
@@ -176,7 +222,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [doSave]);
+  }, [view, doSave]);
 
   if (!isLoggedIn) return <LoginDialog />;
   if (loading) return <div className="app-loading">载入中…</div>;
@@ -186,18 +232,31 @@ export default function App() {
       <header className="topbar">
         <div className="topbar-left">
           <span className="brand">Monostich</span>
-          <span className="doc-title">
-            {meta.title || '未命名'}
-            {dirty && <i className="dirty-dot" title="有未保存改动" />}
-          </span>
+          {view === 'edit' && (
+            <span className="doc-title">
+              {meta.title || '未命名'}
+              {dirty && <i className="dirty-dot" title="有未保存改动" />}
+            </span>
+          )}
         </div>
         <div className="topbar-right">
-          <button className="btn" disabled={saving} onClick={() => void doSave('draft')}>
-            {saving ? '保存中…' : '存草稿'}
-          </button>
-          <button className="btn primary" disabled={saving} onClick={() => void doSave('published')}>
-            {status === 'published' ? '更新发布' : '立即发布'}
-          </button>
+          {view === 'edit' ? (
+            <>
+              <button className="btn" disabled={saving} onClick={() => void doSave('draft')}>
+                {saving ? '保存中…' : '存草稿'}
+              </button>
+              <button className="btn primary" disabled={saving} onClick={() => void doSave('published')}>
+                {status === 'published' ? '更新发布' : '立即发布'}
+              </button>
+              <button className="btn ghost" onClick={openList}>
+                列表
+              </button>
+            </>
+          ) : (
+            <button className="btn primary" onClick={openNew}>
+              新建
+            </button>
+          )}
           <div className="user-menu" ref={userMenuRef}>
             <button
               className={`btn ghost user-chip${userMenuOpen ? ' open' : ''}`}
@@ -224,13 +283,18 @@ export default function App() {
         </div>
       </header>
 
-      <MetaBar meta={meta} recordId={recordId} status={status} slugError={slugError} onChange={patchMeta} />
-
-      <MdEditor
-        value={meta.content}
-        onChange={(v) => patchMeta({ content: v })}
-        uploadImages={uploadImages}
-      />
+      {view === 'list' ? (
+        <ArticleList key={listRefreshKey} onOpen={(id) => void openArticle(id)} onError={onError} />
+      ) : (
+        <>
+          <MetaBar meta={meta} recordId={recordId} status={status} slugError={slugError} onChange={patchMeta} />
+          <MdEditor
+            value={meta.content}
+            onChange={(v) => patchMeta({ content: v })}
+            uploadImages={uploadImages}
+          />
+        </>
+      )}
 
       <div className="toast-wrap">
         {toasts.map((t) => (

@@ -60,21 +60,16 @@ const links = [
       menu.setAttribute('aria-label', '打开导航');
       menu.title = '打开导航';
     };
-    const syncTheme = (restoreAnchor = true) => {
+    const syncTheme = () => {
       const dark = document.documentElement.dataset.theme === 'dark';
       const label = dark ? '切换到浅色主题' : '切换到深色主题';
       theme.setAttribute('aria-label', label);
       theme.title = label;
-      nav.querySelector('[data-project-link]')?.setAttribute('href', dark ? '/#projects-dark' : '/#projects');
-      if (restoreAnchor && location.pathname === '/' && ['#projects', '#projects-dark'].includes(location.hash)) {
-        const hash = dark ? '#projects-dark' : '#projects';
-        if (location.hash !== hash) history.replaceState(history.state, '', hash);
-        requestAnimationFrame(() => document.querySelector(hash)?.scrollIntoView({ behavior: 'instant' }));
-      }
     };
     closeMenu();
     if (window.matchMedia('(min-width: 701px)').matches) nav.querySelector('.nav__links')?.removeAttribute('inert');
     syncTheme();
+    // 主题切换后不再改写 hash：单一 #projects 锚点，两主题通用
     const path = location.pathname.replace(/\/$/, '') || '/';
     nav.querySelectorAll<HTMLAnchorElement>('a[data-nav-base]').forEach((link) => {
       const base = link.dataset.navBase ?? '';
@@ -88,7 +83,7 @@ const links = [
       document.documentElement.dataset.theme = next;
       try { localStorage.setItem('theme', next); } catch {}
       document.querySelector('meta[name="theme-color"]')?.setAttribute('content', next === 'dark' ? '#101216' : '#ffffff');
-      syncTheme(false);
+      syncTheme();
       if (document.body.classList.contains('home')) {
         if (location.hash) history.replaceState(history.state, '', location.pathname + location.search);
         window.scrollTo({ top: 0, behavior: 'instant' });

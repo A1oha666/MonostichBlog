@@ -26,12 +26,14 @@ npm run dev        # http://127.0.0.1:5174/editor/
 ## 使用
 
 1. 打开 `/editor/`，用 `editors` 集合的管理员账号登录（token 存 localStorage，刷新保持）。
-2. 顶部表单填标题 / slug / 类型 / 标签 / 摘要 / 发布时间；下方 ByteMD 双栏写正文。
-3. 图片直接**粘贴或拖拽**进编辑区：无 id 时先静默建草稿，然后上传到该文章
+2. 登录后进入**文章列表**（含草稿 / 已发布 / 归档，按最近编辑排序）：点任意一行继续
+   编辑；右上角「新建」开新文。编辑器内点「列表」返回（有未保存改动会先确认）。
+3. 顶部表单填标题 / slug / 类型 / 标签 / 摘要 / 发布时间；下方 ByteMD 双栏写正文。
+4. 图片直接**粘贴或拖拽**进编辑区：无 id 时先静默建草稿，然后上传到该文章
    `attachments`，自动回填 `![](/api/files/articles/<id>/<stored>)`。
-4. **存草稿** `status=draft`；**立即发布** `status=published`（`publishedAt` 为空补当前）。
+5. **存草稿** `status=draft`；**立即发布** `status=published`（`publishedAt` 为空补当前）。
    快捷键：`Cmd/Ctrl+S` 存草稿，`Cmd/Ctrl+Shift+S` 发布。
-5. 编辑已有文章：`/editor/?id=<recordId>` 载入回显；保存后地址栏自动写入 `?id=`。
+6. 编辑已有文章的深链：`/editor/?id=<recordId>` 直达；保存后地址栏自动写入 `?id=`。
 
 ## 部署
 

@@ -99,7 +99,9 @@ const momentContents = new Map(renderedMoments.map(({ entry, content }) => [entr
   .page-head h1 { font-weight: 600; }
   .thinking-list { border-top: 1px solid var(--border-strong); }
   .thinking { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: var(--space-2xl); padding-block: var(--space-3xl); border-bottom: 1px solid var(--border-subtle); transition: background var(--dur-fast) var(--ease-out); scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
-  .thinking__meta { padding-top: 7px; font-family: var(--mono); font-size: 12px; }
+  /* 第一条卡片与页头之间的断层：收紧首条上内边距 */
+  .thinking:first-child { padding-top: var(--space-xl); }
+  .thinking__meta { padding-top: 10px; font-family: var(--mono); font-size: 12px; }
   .thinking__meta p { color: var(--accent); }
   /* 「小记」比 thinking 的栏目标签再降半级，让位给正题 */
   .thinking__kind { color: var(--text-faint) !important; }
