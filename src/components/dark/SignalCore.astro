@@ -2,23 +2,18 @@
 /**
  * SignalCore —— 光谱仪（The Spectrometer）
  *
- * 首页深色模式的 Hero 视觉：一道白光从左上射入一颗悬浮的玻璃棱镜，
- * 在界面内色散为扇形光谱带（红→靛紫，物理顺序），出射后拖出径向光束，
- * 背景悬浮着缓慢公转的二十面体玻璃晶格与尘埃。鼠标是光源：接近棱镜时
- * 入射角偏转、色散带加宽加亮，菲涅尔反射随视角呼吸。
+ * 首页深色模式的 Hero 视觉：一道白光从左上射入一个悬浮的色散界面，
+ * 向下偏折展开为扇形光谱带（红→靛紫，物理顺序），界面处有能量核心辉光，
+ * 背景是深空星云与星光。鼠标牵引界面位置、偏折角与色散张角。
  *
- * 实现：原生 WebGL2，三 pass 全屏着色器链（无引擎、无依赖）：
+ * 实现：原生 WebGL2，纯 2D 屏幕空间场景（无 3D 相机、无 SDF、无依赖）：
  *   pass 1 背景：深空域扭曲 FBM 星云 + 暗角
- *   pass 2 场景（半分辨率）：含符号距离场光线步进的完整光学场景 ——
- *     三棱柱 SDF + 平滑并集底座；Snell 折射（IOR 1.52）+ 全内反射 +
- *     菲涅尔（Schlick）；光谱带按波长分段着色（620/570/510/475/445nm），
- *     每段独立折射角（柯西色散近似 Δn≈0.013）+ 独立辉光衰减；
- *     出射光拖 32 步径向光束（带 interleaved gradient noise 抖动）；
- *     二次反弹焦散亮斑；鼠标驱动入射角偏转与色散强度
+ *   pass 2 场景（0.75×）：2D 星云星光 + 入射激光 + 色散界面辉光 +
+ *     光谱扇形按波长分段着色（620/570/510/475/445nm）
  *   pass 3 合成：场景纹理 + 半分辨率选择性辉光 + 抖动去色带
  *
  * 性能与生命周期：
- *  - 场景 pass 固定 0.5× 分辨率（光学效果天然柔焦），自适应质量再降；
+ *  - 场景 pass 固定 0.75× 分辨率，自适应质量再降（下限 0.72，保锐利）；
  *    DPR 封顶 1.75；IntersectionObserver 离屏暂停、visibilitychange 后台暂停、
  *    themechange（切浅色）整体拆除；astro:before-swap 释放全部 GL 资源。
  *  - prefers-reduced-motion：渲染单帧静帧，不进入动画循环。
@@ -255,50 +250,27 @@
       uniform float uTime;
       uniform vec2 uMouse;      // 归一化 -1..1（未访问时居中）
       uniform float uBoost;     // 鼠标接近激励 0..1
-      uniform float uMouseVel;  // 鼠标速度 0..1
       out vec4 fragColor;
       ${GLSL_LIB}
 
-      // —— 纯光学场景：没有棱镜实体，只有"光的行为" ——
-      // vgpu.sh 的美感本质不是棱镜形状，而是白光在光学界面上的色散。
-      // 这里把"棱镜"抽象成一个悬浮的色散界面点：入射激光命中它，
-      // 沿 Snell 方向展开为连续光谱扇形，界面处有辉光与衍射 sparkle。
+      // —— 纯 2D 光学场景：没有棱镜实体，没有 3D 相机，只有"光的行为" ——
+      // 移除棱镜后场景退化为屏幕空间 2D：星云/星光/光束/光谱全部直接
+      // 在 uv 域计算，省去整套 3D 相机投影与 3D 噪声采样。
 
-      // —— 工作室环境：黑暗中悬浮几块柔光箱（色散界面处的辉光来源）——
-      vec3 studioEnv(vec3 rd){
-        vec3 col = vec3(0.012, 0.013, 0.017);
-        {
-          vec3 c = normalize(vec3(-0.50, 0.62, 0.48));
-          float d = dot(rd, c);
-          float box = smoothstep(0.885, 0.955, d);
-          float stretch = smoothstep(0.30, 0.06, abs(dot(rd, normalize(vec3(0.70, 0.68, -0.15)))));
-          col += vec3(1.15, 1.18, 1.22) * box * stretch * 1.7;
-        }
-        {
-          vec3 c = normalize(vec3(0.68, 0.22, 0.55));
-          float box = smoothstep(0.90, 0.975, dot(rd, c));
-          col += vec3(0.75, 0.85, 1.05) * box * 1.4;
-        }
-        {
-          float g = smoothstep(-0.15, -0.75, rd.y);
-          col += vec3(0.55, 0.38, 0.20) * g * 0.16;
-        }
-        return col;
-      }
-
-      // —— 深空背景（远景星光）——
-      vec3 env(vec3 rd){
+      // —— 深空背景（2D 星云 + 星光）——
+      vec3 env(vec2 uv, float aspect){
         vec3 col = vec3(0.008, 0.010, 0.015);
-        vec3 axis = normalize(vec3(0.3, 1.0, 0.15));
-        float band = 1.0 - abs(dot(rd, axis));
-        float neb = fbm(rd*3.0 + vec3(0.0, uTime*0.004, 0.0));
-        col += vec3(0.010, 0.010, 0.012) * pow(band, 3.5) * (0.3 + 0.7*smoothstep(-0.2, 0.8, neb));
-        col += vec3(0.013, 0.008, 0.010) * pow(band, 8.0) * 0.15;
-        vec3 g = rd * 110.0;
-        vec3 id = floor(g);
-        vec3 f = fract(g) - 0.5;
-        vec3 rnd = hash33(id);
-        float star = smoothstep(0.22, 0.0, length(f + (rnd-0.5)*0.6));
+        // 2D 星云：沿一条斜带分布的暗淡星际尘埃
+        float band = 1.0 - abs(dot(normalize(vec2(0.3, 1.0)), uv));
+        float neb = fbm(vec3(uv*2.6, uTime*0.004));
+        col += vec3(0.010, 0.010, 0.012) * pow(max(band, 0.0), 3.5) * (0.3 + 0.7*smoothstep(-0.2, 0.8, neb));
+        col += vec3(0.013, 0.008, 0.010) * pow(max(band, 0.0), 8.0) * 0.15;
+        // 星光：2D 哈希格点
+        vec2 g = uv * vec2(aspect, 1.0) * 78.0;
+        vec2 id = floor(g);
+        vec2 f = fract(g) - 0.5;
+        vec3 rnd = hash33(vec3(id, 7.7));
+        float star = smoothstep(0.22, 0.0, length(f + (rnd.xy-0.5)*0.6));
         float tw = 0.7 + 0.3*sin(uTime*(1.0+rnd.y*2.6) + rnd.x*40.0);
         col += vec3(0.85, 0.9, 1.0) * step(0.994, rnd.z) * star * tw * 1.3;
         col += vec3(1.0, 0.9, 0.7) * step(0.998, rnd.z) * star * 1.8;
@@ -326,16 +298,9 @@
       void main(){
         vec2 frag = gl_FragCoord.xy;
         vec2 uv = (frag - 0.5*uRes) / uRes.y;
+        float aspect = uRes.x / uRes.y;
 
-        // 相机：鼠标视差（惯性已在 JS 侧平滑）
-        vec3 ro = vec3(uMouse.x*0.7, 0.25 + uMouse.y*0.45, 4.1);
-        vec3 ta = vec3(0.0, 0.02, 0.0);
-        vec3 fw = normalize(ta - ro);
-        vec3 ri = normalize(cross(fw, vec3(0.0,1.0,0.0)));
-        vec3 up = cross(ri, fw);
-        vec3 rd = normalize(fw*2.0 + ri*uv.x + up*uv.y);
-
-        vec3 col = env(rd);
+        vec3 col = env(uv, aspect);
 
         // —— 色散界面：光路的转折点，悬浮在画面右半 ——
         // 位置让入射激光与出射光谱形成一条连贯的折线
@@ -373,7 +338,7 @@
 
         // —— 出射光束的径向辉光：光谱扇形起点处的柔和光晕 ——
         float exitGlow = exp(-ifaceDist * ifaceDist * 220.0);
-        col += studioEnv(normalize(vec3(toIface, 0.5))) * exitGlow * 0.12;
+        col += vec3(0.55, 0.62, 0.78) * exitGlow * 0.10;
 
         // 输出：场景 + 辉光强度打包（a 通道存亮度供 bloom）
         float lum = dot(col, vec3(0.299, 0.587, 0.114));
@@ -381,8 +346,6 @@
         fragColor = vec4(col, glow);
       }
     `;
-    // 注意：FS_SCENE 里的 godRays 占位函数引用 uScene 但未使用，会被编译器
-    // 优化掉；保留它是为了未来扩展屏幕空间光束时不改结构。
 
     // ----------------------------------------------------------
     // 3) 合成：场景 + 选择性辉光 + 抖动
@@ -393,8 +356,6 @@
       uniform sampler2D uScene;
       uniform sampler2D uBloom;
       uniform vec2 uRes;
-      uniform vec2 uBloomRes;
-      uniform float uTime;
       out vec4 fragColor;
       ${GLSL_LIB}
       void main(){
@@ -466,8 +427,8 @@
 
     const U = (p: WebGLProgram, n: string) => gl!.getUniformLocation(p, n);
     const uBg    = { res: U(prgBg,'uRes'), time: U(prgBg,'uTime'), par: U(prgBg,'uPar') };
-    const uScene = { res: U(prgScene,'uRes'), time: U(prgScene,'uTime'), mouse: U(prgScene,'uMouse'), boost: U(prgScene,'uBoost'), mouseVel: U(prgScene,'uMouseVel') };
-    const uComp  = { scene: U(prgComp,'uScene'), bloom: U(prgComp,'uBloom'), res: U(prgComp,'uRes'), bloomRes: U(prgComp,'uBloomRes'), time: U(prgComp,'uTime') };
+    const uScene = { res: U(prgScene,'uRes'), time: U(prgScene,'uTime'), mouse: U(prgScene,'uMouse'), boost: U(prgScene,'uBoost') };
+    const uComp  = { scene: U(prgComp,'uScene'), bloom: U(prgComp,'uBloom'), res: U(prgComp,'uRes') };
     const uExt   = { scene: U(prgExtract,'uScene'), res: U(prgExtract,'uRes') };
     const uBlur  = { tex: U(prgBlur,'uTex'), res: U(prgBlur,'uRes'), dir: U(prgBlur,'uDir') };
 
@@ -482,21 +443,22 @@
     gl.bindVertexArray(null);
 
     // ----------------------------------------------------------
-    // 渲染目标（场景半分辨率 + 辉光乒乓）
+    // 渲染目标（场景 0.75× + 辉光乒乓 0.25×）
     // ----------------------------------------------------------
     let sceneT: ReturnType<typeof makeTarget> | null = null;
     let bloomA: ReturnType<typeof makeTarget> | null = null;
     let bloomB: ReturnType<typeof makeTarget> | null = null;
-    // 场景 pass 用 0.75×：棱镜的玻璃轮廓需要锐利的 1-2px 边缘，
-    // 0.5× 会被线性上采样摊成糊边（光学柔焦靠 bloom，不靠降采样）
-    const SCENE_SCALE = 0.75;
     const BLOOM_SCALE = 0.25;
+    // 自适应降质只作用于场景 pass：降它的渲染比例，不重建整链 FBO（无闪屏）
+    const QUALITY_SCENE = [0.75, 0.60, 0.48];
 
-    function allocTargets(w: number, h: number) {
+    function allocScene(w: number, h: number, scale: number) {
       if (sceneT) { gl!.deleteTexture(sceneT.tex); gl!.deleteFramebuffer(sceneT.fbo); }
+      sceneT = makeTarget(Math.max(2, Math.floor(w*scale)), Math.max(2, Math.floor(h*scale)));
+    }
+    function allocBloom(w: number, h: number) {
       if (bloomA) { gl!.deleteTexture(bloomA.tex); gl!.deleteFramebuffer(bloomA.fbo); }
       if (bloomB) { gl!.deleteTexture(bloomB.tex); gl!.deleteFramebuffer(bloomB.fbo); }
-      sceneT = makeTarget(Math.max(2, Math.floor(w*SCENE_SCALE)), Math.max(2, Math.floor(h*SCENE_SCALE)));
       bloomA = makeTarget(Math.max(2, Math.floor(w*BLOOM_SCALE)), Math.max(2, Math.floor(h*BLOOM_SCALE)));
       bloomB = makeTarget(Math.max(2, Math.floor(w*BLOOM_SCALE)), Math.max(2, Math.floor(h*BLOOM_SCALE)));
     }
@@ -506,15 +468,10 @@
     // ----------------------------------------------------------
     const mouse = { x: 0, y: 0, tx: 0, ty: 0, vx: 0, vy: 0 };
     let boost = 0, boostT = 0;
-    let mouseVel = 0;
-    let lastMx = 0, lastMy = 0;
     function onPointer(e: PointerEvent) {
       const w = window.innerWidth, h = window.innerHeight;
       mouse.tx = (e.clientX / w) * 2 - 1;
       mouse.ty = -((e.clientY / h) * 2 - 1);
-      const dx = e.clientX - lastMx, dy = e.clientY - lastMy;
-      lastMx = e.clientX; lastMy = e.clientY;
-      mouseVel = Math.min(Math.hypot(dx, dy) / 26, 1);
       const hero = host.parentElement;
       if (hero) {
         const r = hero.getBoundingClientRect();
@@ -529,16 +486,22 @@
     // 尺寸与自适应质量
     // ----------------------------------------------------------
     let dprCap = 1.75;
-    let quality = 2;
+    let quality = 0;   // QUALITY_SCENE 下标：0=全质，越大越省
     let frameCost = 16.7;
     function resize() {
-      // 自适应降质下限 0.72：再低棱镜轮廓就会糊，宁可降帧率
-      const dpr = Math.min(window.devicePixelRatio || 1, dprCap) * (quality === 2 ? 1 : quality === 1 ? 0.85 : 0.72);
+      const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
       const w = host.clientWidth, h = host.clientHeight;
       if (!w || !h) return;
       canvas.width = Math.max(2, Math.floor(w * dpr));
       canvas.height = Math.max(2, Math.floor(h * dpr));
-      allocTargets(canvas.width, canvas.height);
+      allocScene(canvas.width, canvas.height, QUALITY_SCENE[quality]);
+      allocBloom(canvas.width, canvas.height);
+    }
+    // 降质：只重建场景 FBO，辉光/背景分辨率不变（无闪屏、无整链重建）
+    function degrade() {
+      if (quality >= QUALITY_SCENE.length - 1) return;
+      quality++;
+      allocScene(canvas.width, canvas.height, QUALITY_SCENE[quality]);
     }
     resize();
     const ro = new ResizeObserver(resize);
@@ -562,7 +525,6 @@
       mouse.vy += ((mouse.ty - mouse.y)*K - mouse.vy*D) * dt;
       mouse.x += mouse.vx*dt; mouse.y += mouse.vy*dt;
       boost += (boostT - boost) * (1 - Math.exp(-dt*4.5));
-      mouseVel *= 0.90;
 
       gl!.disable(gl!.DEPTH_TEST);
       gl!.disable(gl!.BLEND);
@@ -585,7 +547,6 @@
       gl!.uniform1f(uScene.time, t);
       gl!.uniform2f(uScene.mouse, mouse.x, mouse.y);
       gl!.uniform1f(uScene.boost, boost);
-      gl!.uniform1f(uScene.mouseVel, mouseVel);
       gl!.drawArrays(gl!.TRIANGLES, 0, 3);
 
       // pass 3a: 辉光提取（低分辨率）
@@ -624,8 +585,6 @@
       gl!.bindTexture(gl!.TEXTURE_2D, bloomA!.tex);
       gl!.uniform1i(uComp.bloom, 1);
       gl!.uniform2f(uComp.res, W, H);
-      gl!.uniform2f(uComp.bloomRes, bloomA!.w, bloomA!.h);
-      gl!.uniform1f(uComp.time, t);
       gl!.enable(gl!.BLEND);
       gl!.blendFunc(gl!.ONE, gl!.ONE);   // 加法混合：光学场景叠在星云背景上
       gl!.drawArrays(gl!.TRIANGLES, 0, 3);
@@ -641,7 +600,7 @@
       lastFrame = now;
       frameCost += (Math.min(cost, 100) - frameCost) * 0.05;
       if (now - t0 > 2500 && Math.floor(now/3500) !== Math.floor((now-cost)/3500)) {
-        if (frameCost > 28 && quality > 0) { quality--; resize(); }
+        if (frameCost > 28) degrade();
       }
       drawFrame(now);
       raf = requestAnimationFrame(loop);
