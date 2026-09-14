@@ -316,8 +316,10 @@
         vec2 toIface = uv - iface;
         float ifaceDist = length(toIface);
 
-        // —— 入射激光：从左上射向色散界面（终点即界面，光路不断裂）——
-        vec2 beamFrom = vec2(-0.55, 0.58);
+        // —— 入射激光：从页面外上方射向色散界面（终点即界面，光路不断裂）——
+        // 起点抬高到屏幕顶边外的正上方偏左，让光束从顶边完整射入、
+        // 斜落至界面，画面里保留一段可见的入射光线
+        vec2 beamFrom = vec2(-0.10, 1.05);
         vec2 beamTo = iface;
         vec2 bd = normalize(beamTo - beamFrom);
         vec2 bp = uv - beamFrom;
