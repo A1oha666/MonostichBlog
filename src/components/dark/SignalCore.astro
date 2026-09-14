@@ -311,8 +311,9 @@
 
         vec3 col = env(rd);
 
-        // —— 色散界面：屏幕坐标锚定（e335343 的原位），随时间轻微漂移 ——
-        vec2 iface = vec2(0.36 + uMouse.x*0.012, 0.10 + sin(uTime*0.4)*0.02 - uMouse.y*0.010);
+        // —— 色散界面：屏幕坐标锚定，随时间轻微漂移 ——
+        // 位置偏向左上，与左侧顶部射入的激光形成更舒展的折线，视觉更平衡
+        vec2 iface = vec2(0.24 + uMouse.x*0.012, 0.18 + sin(uTime*0.4)*0.02 - uMouse.y*0.010);
         vec2 toIface = uv - iface;
         float ifaceDist = length(toIface);
 
