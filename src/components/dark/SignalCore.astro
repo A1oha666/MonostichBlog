@@ -298,36 +298,26 @@
         vec2 frag = gl_FragCoord.xy;
         vec2 uv = (frag - 0.5*uRes) / uRes.y;
 
-        // —— 3D 相机：鼠标驱动视差（惯性已在 JS 侧平滑）——
-        // 相机平移但注视点只跟随 60%，剩下 40% 形成真正的视角旋转——
-        // 这是"画面跟随鼠标"的环绕感来源：背景星云以视角速率转动，
-        // 前景光路以投影速率偏移，近远两层速率差产生视差深度
+        // —— 相机视差：只作用于背景星云，前景光路保持屏幕固定 ——
+        // 鼠标驱动视线方向偏转，让 3D 星云以视角速率转动（背景动感），
+        // 而色散界面/激光/光谱锚定在屏幕坐标上（主体稳定，构图不偏）
         const float FOCAL = 2.0;
-        vec3 ro = vec3(uMouse.x*0.9, 0.25 + uMouse.y*0.6, 4.1);
-        vec3 ta = vec3(uMouse.x*0.54, 0.02 + uMouse.y*0.36, 0.0);
+        vec3 ro = vec3(uMouse.x*0.7, 0.25 + uMouse.y*0.45, 4.1);
+        vec3 ta = vec3(uMouse.x*0.42, 0.02 + uMouse.y*0.27, 0.0);
         vec3 fw = normalize(ta - ro);
         vec3 ri = normalize(cross(fw, vec3(0.0,1.0,0.0)));
         vec3 up = cross(ri, fw);
         vec3 rd = normalize(fw*FOCAL + ri*uv.x + up*uv.y);
 
-        // 世界坐标 → 屏幕 uv 投影（前景光路元素据此跟随相机）
-        // 把光路关键点放在 z=0 平面上，投影到当前视角下的屏幕位置
-        vec3 camRight = ri; vec3 camUp = up; vec3 camFw = fw; vec3 camRo = ro;
-        // 投影 lambda：世界点 P → uv = proj(P)
-        // uv.x = dot(P-ro, ri) / dot(P-ro, fw) * FOCAL；uv.y 同理
-        #define PROJ(P) (vec2(dot((P)-camRo, camRight), dot((P)-camRo, camUp)) * (FOCAL / dot((P)-camRo, camFw)))
-
         vec3 col = env(rd);
 
-        // —— 色散界面：世界坐标中的悬浮点，投影到屏幕 ——
-        // 世界位置随时间漂移，投影后随鼠标视差移动（近处移动幅度 > 背景）
-        vec3 ifaceW = vec3(0.36, 0.10 + sin(uTime*0.4)*0.02, 0.0);
-        vec2 iface = PROJ(ifaceW);
+        // —— 色散界面：屏幕坐标锚定（e335343 的原位），随时间轻微漂移 ——
+        vec2 iface = vec2(0.36 + uMouse.x*0.012, 0.10 + sin(uTime*0.4)*0.02 - uMouse.y*0.010);
         vec2 toIface = uv - iface;
         float ifaceDist = length(toIface);
 
-        // —— 入射激光：从世界坐标左上射向色散界面（终点即界面，光路不断裂）——
-        vec2 beamFrom = PROJ(vec3(-0.55, 0.58, 0.0));
+        // —— 入射激光：从左上射向色散界面（终点即界面，光路不断裂）——
+        vec2 beamFrom = vec2(-0.55, 0.58);
         vec2 beamTo = iface;
         vec2 bd = normalize(beamTo - beamFrom);
         vec2 bp = uv - beamFrom;
