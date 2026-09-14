@@ -102,34 +102,18 @@ const pad2 = (n: number) => String(n).padStart(2, '0');
     letter-spacing: 0.04em;
   }
 
-  /* 标题保护区：后方垫一层径向暗化渐变，光谱/棱镜不许进入阅读路径 */
   .dhero__title {
-    position: relative;
     margin: 0;
     font-family: var(--mono);
     font-weight: 500;
     font-size: clamp(46px, 8.2vw, 96px);
     line-height: 0.98;
     letter-spacing: -0.02em;
-    color: var(--hero-title);
+    /* 纯色冷白 + 克制的辉光，不靠背景垫 */
+    color: #eef1f6;
     text-shadow:
-      0 0 34px rgba(120, 150, 255, 0.16),
-      0 2px 18px rgba(0, 0, 0, 0.75),
-      0 0 2px rgba(0, 0, 0, 0.9);
-  }
-  .dhero__title::before {
-    content: '';
-    position: absolute;
-    inset: -28px -52px -20px -32px;
-    z-index: -1;
-    background: radial-gradient(
-      ellipse 78% 92% at 38% 52%,
-      rgba(6, 8, 14, 0.82) 0%,
-      rgba(6, 8, 14, 0.55) 42%,
-      rgba(6, 8, 14, 0.18) 68%,
-      transparent 100%
-    );
-    pointer-events: none;
+      0 0 28px rgba(140, 170, 255, 0.22),
+      0 0 90px rgba(120, 150, 255, 0.10);
   }
   .dhero__line { display: block; will-change: transform; }
   .dhero__dot { color: var(--accent); }

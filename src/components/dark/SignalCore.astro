@@ -236,8 +236,9 @@
         col += vec3(0.020, 0.014, 0.012) * nebB * 0.14;
         col += vec3(0.022, 0.017, 0.012) * pow(nebA*nebB, 2.6)*0.18;
         // 向中心的微弱辉光（棱镜位置）
+        // 收紧 + 压暗：它是背景的聚焦暗示，不是罩住棱镜的光雾
         float d = length(p - uPar*0.04);
-        col += vec3(0.026, 0.024, 0.030) * 0.05 / (1.0 + d*d*13.0);
+        col += vec3(0.026, 0.024, 0.030) * 0.035 / (1.0 + d*d*38.0);
         col *= 1.0 - smoothstep(0.42, 1.28, length(p)) * 0.66;
         col += (hash12(gl_FragCoord.xy + fract(uTime)*17.0) - 0.5) * (1.5/255.0);
         fragColor = vec4(col, 1.0);
@@ -258,94 +259,64 @@
       out vec4 fragColor;
       ${GLSL_LIB}
 
-      const float IOR = 1.52;          // 玻璃折射率
-      const int   STEPS = 96;
-      const float MAXD  = 14.0;
-      const float EPS   = 1e-3;
+      // —— 纯光学场景：没有棱镜实体，只有"光的行为" ——
+      // vgpu.sh 的美感本质不是棱镜形状，而是白光在光学界面上的色散。
+      // 这里把"棱镜"抽象成一个悬浮的色散界面点：入射激光命中它，
+      // 沿 Snell 方向展开为连续光谱扇形，界面处有辉光与衍射 sparkle。
 
-      // —— SDF ——
-      float sdTriPrism(vec3 p, vec2 h){
-        vec2 q = abs(p.xz);
-        return max(q.x*0.866025 + p.z*0.5, -p.z) - h.x*0.5;
-      }
-      float smin(float a, float b, float k){
-        float h = clamp(0.5 + 0.5*(b-a)/k, 0.0, 1.0);
-        return mix(b, a, h) - k*h*(1.0-h);
-      }
-      // 棱镜线框距离：到 9 条棱的最短距离（三角柱 3 顶边 + 3 底边 + 3 竖边）
-      float sdPrismEdges(vec3 p, vec2 h){
-        vec3 q = abs(p);
-        // 顶/底三角的 6 条边
-        float top = length(vec2(max(q.x*0.866025 + q.z*0.5, -q.z) - h.x*0.5, p.y - h.y));
-        float bot = length(vec2(max(q.x*0.866025 + q.z*0.5, -q.z) - h.x*0.5, p.y + h.y));
-        // 3 条竖边（在三角顶点处）
-        float va = length(vec2(p.x, p.z + h.x*0.5));
-        float vb = length(vec2(p.x - h.x*0.433, p.z - h.x*0.25));
-        float vc = length(vec2(p.x + h.x*0.433, p.z - h.x*0.25));
-        float vert = min(va, min(vb, vc));
-        vert = length(vec2(vert, max(abs(p.y) - h.y, 0.0)));
-        return min(min(top, bot), vert);
-      }
-      float map(vec3 p){
-        // 缓慢呼吸旋转的棱镜（左移、缩小，成为标题旁的光学仪器）
-        float a = 0.35 + sin(uTime*0.11)*0.22 + uMouse.x*0.10;
-        float c = cos(a), s = sin(a);
-        vec3 q = p - vec3(-0.55, 0.05 + sin(uTime*0.35)*0.03, 0.0);
-        q.xz = mat2(c,-s,s,c) * q.xz;
-        float prism = sdTriPrism(q, vec2(0.40, 0.48));
-        // 玻璃底座（平滑并集）
-        float plinth = length(p - vec3(-0.55, -0.55, 0.0)) - 0.26;
-        return smin(prism, plinth, 0.18);
-      }
-      float mapEdges(vec3 p){
-        float a = 0.35 + sin(uTime*0.11)*0.22 + uMouse.x*0.10;
-        float c = cos(a), s = sin(a);
-        vec3 q = p - vec3(-0.55, 0.05 + sin(uTime*0.35)*0.03, 0.0);
-        q.xz = mat2(c,-s,s,c) * q.xz;
-        return sdPrismEdges(q, vec2(0.40, 0.48));
-      }
-      vec3 calcNormal(vec3 p){
-        vec2 e = vec2(EPS, 0.0);
-        return normalize(vec3(
-          map(p+e.xyy)-map(p-e.xyy),
-          map(p+e.yxy)-map(p-e.yxy),
-          map(p+e.yyx)-map(p-e.yyx)
-        ));
+      // —— 工作室环境：黑暗中悬浮几块柔光箱（色散界面处的辉光来源）——
+      vec3 studioEnv(vec3 rd){
+        vec3 col = vec3(0.012, 0.013, 0.017);
+        {
+          vec3 c = normalize(vec3(-0.50, 0.62, 0.48));
+          float d = dot(rd, c);
+          float box = smoothstep(0.885, 0.955, d);
+          float stretch = smoothstep(0.30, 0.06, abs(dot(rd, normalize(vec3(0.70, 0.68, -0.15)))));
+          col += vec3(1.15, 1.18, 1.22) * box * stretch * 1.7;
+        }
+        {
+          vec3 c = normalize(vec3(0.68, 0.22, 0.55));
+          float box = smoothstep(0.90, 0.975, dot(rd, c));
+          col += vec3(0.75, 0.85, 1.05) * box * 1.4;
+        }
+        {
+          float g = smoothstep(-0.15, -0.75, rd.y);
+          col += vec3(0.55, 0.38, 0.20) * g * 0.16;
+        }
+        return col;
       }
 
-      // —— 环境：星光 + 远景星云（供反射/透射采样）——
+      // —— 深空背景（远景星光）——
       vec3 env(vec3 rd){
-        vec3 col = vec3(0.010, 0.012, 0.018);
+        vec3 col = vec3(0.008, 0.010, 0.015);
         vec3 axis = normalize(vec3(0.3, 1.0, 0.15));
         float band = 1.0 - abs(dot(rd, axis));
         float neb = fbm(rd*3.0 + vec3(0.0, uTime*0.004, 0.0));
-        col += vec3(0.014, 0.013, 0.016) * pow(band, 3.5) * (0.3 + 0.7*smoothstep(-0.2, 0.8, neb));
-        col += vec3(0.018, 0.011, 0.014) * pow(band, 8.0) * 0.18;
+        col += vec3(0.010, 0.010, 0.012) * pow(band, 3.5) * (0.3 + 0.7*smoothstep(-0.2, 0.8, neb));
+        col += vec3(0.013, 0.008, 0.010) * pow(band, 8.0) * 0.15;
         vec3 g = rd * 110.0;
         vec3 id = floor(g);
         vec3 f = fract(g) - 0.5;
         vec3 rnd = hash33(id);
         float star = smoothstep(0.22, 0.0, length(f + (rnd-0.5)*0.6));
         float tw = 0.7 + 0.3*sin(uTime*(1.0+rnd.y*2.6) + rnd.x*40.0);
-        col += vec3(0.85, 0.9, 1.0) * step(0.994, rnd.z) * star * tw * 1.5;
-        col += vec3(1.0, 0.9, 0.7) * step(0.998, rnd.z) * star * 2.0;
+        col += vec3(0.85, 0.9, 1.0) * step(0.994, rnd.z) * star * tw * 1.3;
+        col += vec3(1.0, 0.9, 0.7) * step(0.998, rnd.z) * star * 1.8;
         return col;
       }
 
-      // —— 光谱扇形：从出射点沿扇形展开逐波长着色 ——
-      // 物理：短波（紫）弯折角更大，长波（红）更小，形成连续光谱
-      vec3 spectralFan(vec2 toPrism, float baseAng, float spread){
+      // —— 光谱扇形：从色散界面沿 Snell 方向展开逐波长着色 ——
+      vec3 spectralFan(vec2 toIface, float baseAng, float spread){
         vec3 acc = vec3(0.0);
         float wls[5] = float[5](620., 570., 510., 475., 445.);
         for (int i = 0; i < 5; i++) {
           float fi = float(i) / 4.0;            // 0=红 1=紫
           float ang = baseAng + (fi - 0.5) * spread;
           vec2 dir = vec2(cos(ang), sin(ang));
-          float proj = dot(toPrism, dir);
-          float perp = dot(toPrism, vec2(-dir.y, dir.x));
-          // 光束：前向拖尾（指数衰减）+ 横向高斯（收窄，保持色带分离）
-          float beam = smoothstep(-0.05, 0.22, proj)
-                     * exp(-proj * 1.6)
+          float proj = dot(toIface, dir);
+          float perp = dot(toIface, vec2(-dir.y, dir.x));
+          float beam = smoothstep(0.02, 0.20, proj)
+                     * exp(-proj * 1.5)
                      * exp(-perp * perp * 420.0);
           acc += waveColor(wls[i]) * beam;
         }
@@ -364,85 +335,52 @@
         vec3 up = cross(ri, fw);
         vec3 rd = normalize(fw*2.0 + ri*uv.x + up*uv.y);
 
-        // —— 步进入射光：从左上射向棱镜 ——
-        float t = 0.0;
-        float d = 0.0;
-        vec3 p = ro;
-        bool hit = false;
-        for (int i = 0; i < STEPS; i++) {
-          d = map(p);
-          if (d < EPS) { hit = true; break; }
-          t += d * 0.9;
-          p = ro + rd * t;
-          if (t > MAXD) break;
-        }
-
         vec3 col = env(rd);
-        float glow = 0.0;
 
-        if (hit) {
-          vec3 n = calcNormal(p);
-          float fres = pow(1.0 - clamp(dot(n, -rd), 0.0, 1.0), 3.0);
+        // —— 色散界面：一个悬浮的光学点，缓慢漂移 + 鼠标牵引 ——
+        vec2 iface = vec2(0.42 + uMouse.x*0.012, 0.02 + sin(uTime*0.4)*0.02 - uMouse.y*0.010);
+        vec2 toIface = uv - iface;
+        float ifaceDist = length(toIface);
 
-          // 玻璃体：更亮的半透明感（棱镜要"立"起来，不能沉进背景）
-          vec3 glass = vec3(0.09, 0.11, 0.15);
-          glass += vec3(0.42, 0.48, 0.56) * fres * 1.2;
-          glass += vec3(0.9, 0.65, 0.38) * pow(fres, 4.0) * (0.55 + uBoost*0.75);
+        // —— 入射激光：从左上射向色散界面 ——
+        vec2 beamFrom = vec2(-0.60, 0.62);
+        vec2 beamTo = iface + vec2(-0.06, 0.05);
+        vec2 bd = normalize(beamTo - beamFrom);
+        vec2 bp = uv - beamFrom;
+        float bAlong = dot(bp, bd);
+        float bPerp = abs(dot(bp, vec2(-bd.y, bd.x)));
+        float bLen = length(beamTo - beamFrom);
+        float inBeam = smoothstep(0.0, 0.1, bAlong)
+                     * smoothstep(bLen, bLen - 0.06, bAlong)
+                     * exp(-bPerp * bPerp * 5200.0);
+        col += vec3(0.95, 0.96, 1.0) * inBeam * 0.58;
+        col += vec3(0.65, 0.70, 0.85) * exp(-bPerp * bPerp * 6500.0)
+             * smoothstep(0.0, 0.1, bAlong) * smoothstep(bLen, bLen - 0.06, bAlong) * 0.13;
 
-          // 反射环境
-          vec3 refl = reflect(rd, n);
-          col = glass + env(refl) * fres * 0.9;
+        // —— 色散界面辉光：激光命中处的能量积聚（小而亮，不是雾）——
+        float core = exp(-ifaceDist * ifaceDist * 900.0);
+        col += vec3(0.85, 0.90, 1.0) * core * (0.9 + uBoost*0.5);
+        // 衍射 sparkle：界面处的细星光斑（玻璃切割面的闪光暗示）
+        vec2 sp = toIface * 60.0;
+        vec2 spId = floor(sp);
+        vec2 spF = fract(sp) - 0.5;
+        vec3 spRnd = hash33(vec3(spId, floor(uTime*2.0)));
+        float sparkle = smoothstep(0.18, 0.0, length(spF + (spRnd.xy-0.5)*0.5));
+        sparkle *= step(0.82, spRnd.z) * smoothstep(0.55, 0.0, ifaceDist);
+        col += vec3(0.9, 0.85, 0.75) * sparkle * 0.6;
 
-          // 折射透射：玻璃内透出环境光
-          vec3 refr = refract(rd, n, 1.0/IOR);
-          if (dot(refr, refr) > 1e-6) {
-            vec3 q = p + refr * 0.35;
-            vec3 n2 = calcNormal(q);
-            vec3 outDir = refract(refr, -n2, IOR);
-            if (dot(outDir, outDir) > 1e-6) {
-              col += env(outDir) * 0.5;
-            }
-          }
+        // —— 光谱扇形：色散的物理主体 ——
+        float baseAng = -0.05 + uMouse.x*0.15 + uMouse.y*0.08;
+        float spread = 0.24 + uBoost*0.30;
+        col += spectralFan(toIface, baseAng, spread) * (0.36 + uBoost*0.40);
 
-          // —— 线框强调：棱边发光，让三棱柱轮廓清晰可读 ——
-          float edgeDist = mapEdges(p);
-          float edge = smoothstep(0.035, 0.003, edgeDist);
-          col += vec3(0.82, 0.90, 1.0) * edge * (0.85 + fres*0.8);
-          // 鼠标接近时棱边提亮
-          col += vec3(1.0, 0.85, 0.55) * edge * uBoost * 0.8;
-
-          // 鼠标速度激励：棱镜内部微闪
-          col += vec3(0.9, 0.7, 0.4) * uMouseVel * fres * 0.5;
-        }
-
-        // —— 出射光谱扇形：从棱镜出射点沿色散方向展开 ——
-        // 棱镜屏幕位置（与 3D 棱镜同步，随鼠标视差微移）
-        vec2 prismScreen = vec2(-0.38 + uMouse.x*0.012, 0.02 - uMouse.y*0.010);
-        vec2 toP = uv - prismScreen;
-        // 色散基准方向：水平向右微向下，紫光弯折更狠（扇形向下张开）
-        float baseAng = -0.06 + uMouse.x*0.16 + uMouse.y*0.09;
-        float spread = 0.30 + uBoost*0.28;   // 扇形张角（弧度），鼠标接近时展开
-        col += spectralFan(toP, baseAng, spread) * (0.72 + uBoost*0.50);
-        // 入射白光柱（从上方偏右进入，避开标题区）
-        vec2 inDir = normalize(vec2(0.28, -0.62));
-        float inProj = dot(toP, inDir);
-        float inPerp = abs(dot(toP, vec2(-inDir.y, inDir.x)));
-        float inBeam = smoothstep(0.05, -0.6, inProj) * exp(inPerp*inPerp*160.0) * exp(inProj*1.4);
-        col += vec3(0.88, 0.90, 0.96) * inBeam * 0.11;
-
-        // —— 焦散亮斑：光谱在"桌面"上的二次反弹（棱镜正下方，避开标题）——
-        float floorY = -0.55;
-        float hitT = (floorY - ro.y) / rd.y;
-        if (hitT > 0.0 && hitT < MAXD) {
-          vec3 fp = ro + rd * hitT;
-          float caustic = exp(-length(fp.xz - vec2(-0.45, 0.05))*2.8);
-          col += vec3(0.45, 0.32, 0.62) * caustic * 0.10 * (1.0 + uBoost);
-        }
-
+        // —— 出射光束的径向辉光：光谱扇形起点处的柔和光晕 ——
+        float exitGlow = exp(-ifaceDist * ifaceDist * 220.0);
+        col += studioEnv(normalize(vec3(toIface, 0.5))) * exitGlow * 0.12;
 
         // 输出：场景 + 辉光强度打包（a 通道存亮度供 bloom）
         float lum = dot(col, vec3(0.299, 0.587, 0.114));
-        glow = smoothstep(0.35, 1.2, lum);
+        float glow = smoothstep(0.30, 1.1, lum);
         fragColor = vec4(col, glow);
       }
     `;
@@ -464,9 +402,9 @@
       ${GLSL_LIB}
       void main(){
         vec3 col = texture(uScene, vUv).rgb;
-        // 半分辨率辉光（选择性，只取亮部）
+        // 半分辨率辉光（选择性，只取亮部；克制，光晕不该洗掉玻璃本体）
         vec3 bloom = texture(uBloom, vUv).rgb;
-        col += bloom * 0.55;
+        col += bloom * 0.38;
         // 轻微色调映射
         col = col / (1.0 + col*0.45);
         // 抖动去色带（PCG）
@@ -492,9 +430,10 @@
       out vec4 fragColor;
       void main(){
         vec4 s = texture(uScene, vUv);
-        // 软阈值：只取光谱带与亮部
+        // 软阈值：只取光谱带与真正的高光。棱镜 body 亮度 ~0.08-0.15，
+        // 必须被阈值挡在门外，否则整块玻璃被高斯模糊后再回灌 = 糊
         float lum = dot(s.rgb, vec3(0.299, 0.587, 0.114));
-        float w = smoothstep(0.22, 0.85, lum);
+        float w = smoothstep(0.48, 1.15, lum);
         fragColor = vec4(s.rgb * w, 1.0);
       }
     `;
@@ -551,7 +490,9 @@
     let sceneT: ReturnType<typeof makeTarget> | null = null;
     let bloomA: ReturnType<typeof makeTarget> | null = null;
     let bloomB: ReturnType<typeof makeTarget> | null = null;
-    const SCENE_SCALE = 0.5;
+    // 场景 pass 用 0.75×：棱镜的玻璃轮廓需要锐利的 1-2px 边缘，
+    // 0.5× 会被线性上采样摊成糊边（光学柔焦靠 bloom，不靠降采样）
+    const SCENE_SCALE = 0.75;
     const BLOOM_SCALE = 0.25;
 
     function allocTargets(w: number, h: number) {
@@ -594,7 +535,8 @@
     let quality = 2;
     let frameCost = 16.7;
     function resize() {
-      const dpr = Math.min(window.devicePixelRatio || 1, dprCap) * (quality === 2 ? 1 : quality === 1 ? 0.82 : 0.64);
+      // 自适应降质下限 0.72：再低棱镜轮廓就会糊，宁可降帧率
+      const dpr = Math.min(window.devicePixelRatio || 1, dprCap) * (quality === 2 ? 1 : quality === 1 ? 0.85 : 0.72);
       const w = host.clientWidth, h = host.clientHeight;
       if (!w || !h) return;
       canvas.width = Math.max(2, Math.floor(w * dpr));
