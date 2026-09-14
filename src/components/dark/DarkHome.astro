@@ -34,12 +34,8 @@ interface Moment {
 interface Props {
   recent: RecentItem[];
   latestMoment?: Moment;
-  notesCount: number;
-  projectsCount: number;
-  updatedLabel: string;
-  uptimeDays: number;
 }
-const { recent, latestMoment, notesCount, projectsCount, updatedLabel, uptimeDays } = Astro.props;
+const { recent, latestMoment } = Astro.props;
 ---
 
 <div class="dhome" data-dhome>
@@ -48,12 +44,7 @@ const { recent, latestMoment, notesCount, projectsCount, updatedLabel, uptimeDay
 
   <header class="dhome__hero">
     <SignalCore />
-    <DarkHomeHero
-      notesCount={notesCount}
-      projectsCount={projectsCount}
-      updatedLabel={updatedLabel}
-      uptimeDays={uptimeDays}
-    />
+    <DarkHomeHero />
   </header>
 
   <DarkHomeOneline moment={latestMoment} />

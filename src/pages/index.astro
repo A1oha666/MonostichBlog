@@ -47,26 +47,12 @@ const logPaths = [
   { p: "/about", w: 2 },
   { p: "/rss.xml", w: 1.5 },
 ];
-
-// 深色分支派生数据：MM.DD 更新标签与站点运行天数
-const pad2 = (n: number) => String(n).padStart(2, '0');
-const updatedLabel = latestDate
-  ? `${pad2(latestDate.getMonth() + 1)}.${pad2(latestDate.getDate())}`
-  : '—';
-const uptimeDays = Math.max(1, Math.floor((Date.now() - new Date('2026-08-25T00:00:00Z').valueOf()) / 86400000));
 ---
 
 <BaseLayout lang="zh-CN" bodyClass="home">
   {/* ============ 深色分支：信号核控制台（浅色下 display:none） ============ */}
   <div class="dark-home">
-    <DarkHome
-      recent={recent}
-      latestMoment={latestMoment}
-      notesCount={notesCount}
-      projectsCount={projectsCount}
-      updatedLabel={updatedLabel}
-      uptimeDays={uptimeDays}
-    />
+    <DarkHome recent={recent} latestMoment={latestMoment} />
   </div>
 
   {/* ============ 浅色分支：原始 Apple 风首页（一字未动） ============ */}

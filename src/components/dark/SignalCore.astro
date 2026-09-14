@@ -361,14 +361,6 @@
         // —— 色散界面辉光：激光命中处的能量积聚（小而亮，不是雾）——
         float core = exp(-ifaceDist * ifaceDist * 900.0);
         col += vec3(0.85, 0.90, 1.0) * core * (0.9 + uBoost*0.5);
-        // 衍射 sparkle：界面处的细星光斑（玻璃切割面的闪光暗示）
-        vec2 sp = toIface * 60.0;
-        vec2 spId = floor(sp);
-        vec2 spF = fract(sp) - 0.5;
-        vec3 spRnd = hash33(vec3(spId, floor(uTime*2.0)));
-        float sparkle = smoothstep(0.18, 0.0, length(spF + (spRnd.xy-0.5)*0.5));
-        sparkle *= step(0.82, spRnd.z) * smoothstep(0.55, 0.0, ifaceDist);
-        col += vec3(0.9, 0.85, 0.75) * sparkle * 0.6;
 
         // —— 光谱扇形：从色散界面沿"入射方向向下偏折"的方向展开 ——
         // 物理：光从左上射入，穿过界面后向下偏折（折射率突变），
