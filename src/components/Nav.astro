@@ -65,11 +65,9 @@ const links = [
       const label = dark ? '切换到浅色主题' : '切换到深色主题';
       theme.setAttribute('aria-label', label);
       theme.title = label;
-      nav.querySelector('[data-project-link]')?.setAttribute('href', dark ? '/#projects-dark' : '/#projects');
-      if (restoreAnchor && location.pathname === '/' && ['#projects', '#projects-dark'].includes(location.hash)) {
-        const hash = dark ? '#projects-dark' : '#projects';
-        if (location.hash !== hash) history.replaceState(history.state, '', hash);
-        requestAnimationFrame(() => document.querySelector(hash)?.scrollIntoView({ behavior: 'instant' }));
+      nav.querySelector('[data-project-link]')?.setAttribute('href', '/#projects');
+      if (restoreAnchor && location.pathname === '/' && location.hash === '#projects') {
+        requestAnimationFrame(() => document.querySelector('#projects')?.scrollIntoView({ behavior: 'instant' }));
       }
     };
     closeMenu();
