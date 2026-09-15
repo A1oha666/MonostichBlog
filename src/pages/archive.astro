@@ -112,7 +112,6 @@ const filters = [
                     <time datetime={isoDate(item.date)}>{dotDate(item.date)}</time>
                     <span class="archive__type">{item.typeLabel}</span>
                     <span class="archive__title">{item.title}</span>
-                    <span class="archive__arrow" aria-hidden="true">↗</span>
                   </a>
                 </li>
               ))}
@@ -336,12 +335,12 @@ const filters = [
   .archive__list > li { border-bottom: 1px solid var(--border-subtle); transition: background var(--dur-fast) var(--ease-out); }
   .archive__row {
     display: grid;
-    grid-template-columns: 112px auto minmax(0, 1fr) 20px;
+    grid-template-columns: 112px auto minmax(0, 1fr);
     align-items: baseline;
     gap: var(--space-lg);
     padding-block: var(--space-lg);
   }
-  .archive__row time, .archive__arrow { color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
+  .archive__row time { color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
   /* 类型标注：与筛选行同一制式 —— 纯文本无框无底，不占视觉重量 */
   .archive__type {
     justify-self: start;
@@ -351,16 +350,14 @@ const filters = [
     white-space: nowrap;
   }
   .archive__title { overflow-wrap: anywhere; font-family: var(--font-body); font-size: 18px; font-weight: 500; line-height: 1.6; transition: color var(--dur-fast) var(--ease-out); }
-  .archive__arrow { padding-top: 2px; transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-spring); }
   @media (hover: hover) {
     .archive__list > li:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
     .archive__row:hover .archive__title { color: var(--accent); transform: translateX(3px); }
-    .archive__row:hover .archive__arrow { color: var(--accent); transform: translate(2px, -2px); }
   }
 
   @media (max-width: 600px) {
     .page-head { padding-top: var(--space-3xl); }
-    .archive__row { grid-template-columns: minmax(0, 1fr) 20px; row-gap: var(--space-xs); }
+    .archive__row { grid-template-columns: minmax(0, 1fr); row-gap: var(--space-xs); }
     .archive__row time { grid-column: 1 / -1; }
     .archive__type { justify-self: start; grid-column: 1 / -1; width: fit-content; }
   }

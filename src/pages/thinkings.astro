@@ -72,7 +72,6 @@ const momentContents = new Map(renderedMoments.map(({ entry, content }) => [entr
             </div>
             {item.kind === "thinking" ? (
               <div class="thinking__body">
-                <span class="thinking__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
                 <h2><a href={item.href}>{item.title}</a></h2>
                 <p class="prose-zh">{item.summary}</p>
                 <a class="thinking__read" href={item.href}>阅读全文 <span aria-hidden="true">→</span></a>
@@ -105,7 +104,6 @@ const momentContents = new Map(renderedMoments.map(({ entry, content }) => [entr
   .thinking__kind { color: var(--text-faint) !important; }
   time { display: block; margin-top: var(--space-sm); color: var(--text-faint); font-family: var(--mono); }
   .thinking__body { position: relative; max-width: 720px; }
-  .thinking__number { display: none; }
   /* thinking 标题与小记标题：小标题走 Google Sans（拉丁）+ Noto Sans SC（中文） */
   h2 { font-family: var(--font-body); font-size: 26px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
   h2 a { display: inline-block; transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-out); }

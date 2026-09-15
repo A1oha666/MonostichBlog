@@ -23,7 +23,7 @@ const { items } = Astro.props;
 
 <section class="section container recent" id="recent" aria-labelledby="home-recent-heading">
   <div class="module-head" data-reveal>
-    <h2 id="home-recent-heading" data-scramble data-no="02">文章</h2>
+    <h2 id="home-recent-heading" data-scramble data-no="01">文章</h2>
     <a href="/archive" aria-label="全部文章">全部 →</a>
   </div>
   <ol class="recent-list" lang="zh-CN">
@@ -34,7 +34,6 @@ const { items } = Astro.props;
           <span class="recent-row__body">
             <h3>{item.title}</h3>
           </span>
-          <span class="recent-row__cat" aria-hidden="true">{item.category}</span>
           <time datetime={isoDate(item.date)}>{dotDate(item.date)}</time>
         </a>
       </li>
@@ -75,7 +74,7 @@ const { items } = Astro.props;
   .recent-row {
     position: relative;
     display: grid;
-    grid-template-columns: 56px minmax(0, 1fr) auto auto;
+    grid-template-columns: 56px minmax(0, 1fr) auto;
     align-items: center;
     gap: 0 22px;
     padding-block: 22px;
@@ -108,26 +107,15 @@ const { items } = Astro.props;
     -webkit-line-clamp: 2;
     transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-out);
   }
-  .recent-row__cat {
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.18em;
-    color: var(--text-faint);
-    border: 1px solid var(--border-subtle);
-    padding: 3px 8px;
-    transition: color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
-  }
 
   .recent-list > li:focus-within .recent-list__no,
   .recent-row:hover .recent-list__no { color: var(--accent); }
   .recent-row:focus-visible h3,
   .recent-row:hover h3 { transform: translateX(6px); }
   .recent-row:hover time { color: var(--text-muted); }
-  .recent-row:hover .recent-row__cat { color: var(--text-muted); border-color: var(--border-strong); }
 
   @media (max-width: 640px) {
     .recent-row { grid-template-columns: 40px minmax(0, 1fr) auto; row-gap: 6px; padding-block: 16px; }
     .recent-list__no { padding-right: 12px; }
-    .recent-row__cat { display: none; }
   }
 </style>
