@@ -3,7 +3,7 @@
 > 汇总日期：2026-09-15
 > 来源：由 `archive/SPEC-2026-08-29.md`、`archive/SPEC-pages-2026-08-29.md`、
 > `archive/SPEC-status-2026-08-30.md`、`archive/HERO-SPEC-2026-09-05.md` 四份历史文档浓缩而成。
-> 历史原文与原型一并归档在 `archive/`，仅作设计证据留存，**不再作为实现依据**。
+> 历史原文与原型一并归档在 `docs/archive/`，仅作设计证据留存，**不再作为实现依据**。
 >
 > **本文件是唯一生效的设计 Spec。** 与代码冲突时以代码为准；改动设计先改本文件。
 
@@ -89,5 +89,4 @@ SignalCore(WebGL 光谱仪) → DarkHomeHero → DarkHomeRecent → DarkHomeWork
 
 ## 6. 待确认
 
-1. `design-preview/` 的定位：当前既是归档区又有活文档（本文件）。若后续 Spec 迁到别处（如仓库根 `DESIGN.md`），需同步移动。
-2. `DarkHomeOneline.astro` / `DarkHomeTerminal.astro` 已成未挂载组件（随想 bento 移除后无引用），是否清理待定。
+1. `DarkHomeOneline.astro` / `DarkHomeTerminal.astro` 已成未挂载组件（随想 bento 移除后无引用），是否清理待定。

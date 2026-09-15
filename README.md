@@ -12,6 +12,7 @@
 ## 仓库结构
 
 - `src/` `public/` — 博客（Astro）
+- `docs/` — 设计文档与原型，见 `docs/README.md`
 - `editor/` — 单页文章编辑器（Vite + React + ByteMD），独立子工程，见 `editor/README.md`
 - `pb/` — 本地 PocketBase（`pb_hooks`/`pb_migrations` 软链到 MonostichPB）
 

@@ -1,4 +1,4 @@
-# design-preview / archive
+# docs / archive
 
 本目录是**历史设计文档与原型归档区**，仅作设计证据留存。
 
@@ -24,4 +24,5 @@
 
 - `glyph-motion-lab/` — 独立 ASCII/Glyph 动效原型，仍可运行。
 - `hero-desktop-1440.png`、`hero-mobile-375.png` — Hero 截图。
-- `SPEC.md` — 当前生效的汇总 Spec。
+- `../SPEC.md` — 当前生效的汇总 Spec。
+- `../DESIGN-AUDIT.md` — 2026-09-14 深色首页重构审计与修复计划。
