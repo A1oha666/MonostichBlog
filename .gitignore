@@ -19,3 +19,7 @@ public/pb/
 
 # WorkBuddy 本地工作记忆
 .workbuddy/
+
+# Playwright CLI 会话/快照与截图产物
+.playwright-cli/
+output/
