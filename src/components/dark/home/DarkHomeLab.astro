@@ -7,7 +7,7 @@ import { lab } from '../../../data/lab.js';
 
 <section class="section container lab" aria-labelledby="home-lab-heading">
   <div class="module-head" data-reveal>
-    <h2 id="home-lab-heading" data-scramble data-no="04">实验室</h2>
+    <h2 id="home-lab-heading" data-scramble data-no="03">实验室</h2>
     <a href="/lab/" aria-label="全部实验">全部 →</a>
   </div>
   <ol class="lab-list" lang="zh-CN">
@@ -87,17 +87,18 @@ import { lab } from '../../../data/lab.js';
   }
   .lab-row__kind {
     font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.18em;
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
     color: var(--text-faint);
-    border: 1px solid var(--border-subtle);
-    padding: 3px 8px;
+    white-space: nowrap;
+    transition: color var(--dur-base) var(--ease-out);
   }
 
   .lab-list > li:focus-within .lab-list__no,
   .lab-row:hover .lab-list__no { color: var(--accent); }
   .lab-row:hover h3 { transform: translateX(6px); color: var(--accent); }
   .lab-row:hover .lab-row__desc { color: var(--text-muted); }
+  .lab-row:hover .lab-row__kind { color: var(--text-muted); }
 
   @media (max-width: 640px) {
     .lab-row { grid-template-columns: 40px minmax(0, 1fr); row-gap: 4px; padding-block: 16px; }
