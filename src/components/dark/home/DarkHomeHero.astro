@@ -2,32 +2,21 @@
 /**
  * DarkHomeHero —— 深色首页 Hero 区块
  *
- * HUD 命令行 + 磁力大标题 + 中文独白 + CTA + 滚动提示
+ * Aloha 标 + 磁力大标题 + 滚动提示
  * 底：从视口右缘流向信号核的曲线星图连线（SVG，虚线流动）
  *
  * 背景（SignalCore / DarkGrain）由父级 DarkHome 提供，这里只管内容。
  */
-import { ArrowRight } from '@lucide/astro';
 ---
 
 <div class="dhero container">
-  <p class="dhero__colophon">
-    <span class="dhero__prompt">aloha@monostich</span><span class="dhero__faint">:</span><span class="dhero__path">~</span><span class="dhero__dollar">$</span>
-    <span class="dhero__cmd"> ./boot --mode=explore</span>
-  </p>
-
   <div class="dhero__layout">
     <div class="dhero__inner">
-      <p class="dhero__eyebrow">// blog &amp; notes — signal over noise</p>
+      <h2 class="dhero__name" data-scramble>Aloha.</h2>
       <h1 class="dhero__title">
         <span class="dhero__line" data-magnet="14">explore</span>
         <span class="dhero__line" data-magnet="14">and&nbsp;build<span class="dhero__dot">.</span><span class="dhero__cursor">_</span></span>
       </h1>
-      <p class="dhero__intro" lang="zh-CN">记录一些想法与实践 —— 后端、分布式，以及 LLM 时代的造物。</p>
-      <div class="dhero__actions">
-        <a class="dhero__link dhero__link--primary" href="#recent">阅读记录 <ArrowRight size={15} aria-hidden="true" /></a>
-        <a class="dhero__link dhero__link--ghost" href="/about">关于我</a>
-      </div>
       <p class="dhero__scrollhint" aria-hidden="true"><span class="dhero__scrollline"></span>scroll</p>
     </div>
   </div>
@@ -43,36 +32,24 @@ import { ArrowRight } from '@lucide/astro';
 <style>
   .dhero { position: relative; z-index: 2; }
 
-  /* ---------- 命令行眉批 ---------- */
-  .dhero__colophon {
-    padding-top: 34px;
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--text-faint);
-  }
-  .dhero__prompt { color: var(--text-muted); }
-  .dhero__faint { color: var(--text-faint); }
-  .dhero__path { color: var(--text-muted); }
-  .dhero__dollar { color: var(--accent); margin-left: 8px; }
-  .dhero__cmd { color: var(--text-faint); }
-  @media (max-width: 600px) { .dhero__cmd { display: none; } }
-
   /* ---------- 布局 ---------- */
   .dhero__layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 236px;
     align-items: end;
     gap: 72px;
-    padding-top: clamp(72px, 13vh, 150px);
-    padding-bottom: clamp(64px, 11vh, 130px);
+    padding-top: clamp(48px, 9vh, 96px);
+    padding-bottom: clamp(48px, 8vh, 80px);
   }
 
-  .dhero__eyebrow {
-    margin-bottom: var(--space-lg);
-    color: var(--accent);
-    font-family: var(--mono);
-    font-size: 12px;
-    letter-spacing: 0.04em;
+  .dhero__name {
+    margin: 0 0 clamp(16px, 2.5vh, 28px);
+    font-family: var(--font-body);
+    font-size: clamp(26px, 3.4vw, 40px);
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--text);
   }
 
   .dhero__title {
@@ -91,36 +68,6 @@ import { ArrowRight } from '@lucide/astro';
   .dhero__line { display: block; will-change: transform; }
   .dhero__dot { color: var(--accent); }
   .dhero__cursor { margin-left: 0.04em; color: var(--accent); animation: cursor-blink 1.6s steps(1) infinite; }
-
-  .dhero__intro {
-    margin-top: 26px;
-    max-width: 30ch;
-    font-family: 'Google Sans', var(--font-zh);
-    font-size: 15px;
-    line-height: 1.8;
-    color: var(--text-muted);
-  }
-
-  /* ---------- CTA ---------- */
-  .dhero__actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
-  .dhero__link {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 42px;
-    padding: 0 18px;
-    font-family: var(--mono);
-    font-size: 12.5px;
-    border: 1px solid var(--border-strong);
-    color: var(--text);
-    transition: border-color var(--dur-base) var(--ease-out), background var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
-  }
-  .dhero__link--primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-  .dhero__link--primary:hover { background: var(--accent-deep); border-color: var(--accent-deep); transform: translateY(-1px); }
-  .dhero__link--primary :global(svg) { transition: transform 250ms var(--ease-out); }
-  .dhero__link--primary:hover :global(svg) { transform: translateX(3px); }
-  .dhero__link--ghost { color: var(--text-muted); background: transparent; }
-  .dhero__link--ghost:hover { color: var(--text); border-color: var(--text-muted); transform: translateY(-1px); }
 
   /* ---------- 滚动提示 ---------- */
   .dhero__scrollhint {

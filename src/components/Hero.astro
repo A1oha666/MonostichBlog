@@ -1,5 +1,4 @@
 ---
-import { ArrowRight } from '@lucide/astro';
 import { dotDate, isoDate } from '../lib/format';
 import FlickerTitle from './FlickerTitle.astro';
 interface Props { notesCount: number; projectsCount: number; latestDate?: Date; }
@@ -15,7 +14,7 @@ const { notesCount, projectsCount, latestDate } = Astro.props;
   <p class="intro__tagline"><span class="hero__line">Explore and build.<FlickerTitle /><span class="intro__cursor" aria-hidden="true">_</span></span></p>
   <p class="intro__description" lang="zh-CN" data-reveal>记录一些想法与实践。</p>
   <div class="intro__actions" data-reveal style="--reveal-delay: 120ms">
-    <a class="intro__link intro__link--primary" href="/about">关于我 <ArrowRight size={16} aria-hidden="true" /></a>
+    <a class="btn btn--primary" href="/about">关于我</a>
   </div>
   </div>
   <div class="intro__meta container" aria-label="站点统计">
@@ -52,12 +51,6 @@ const { notesCount, projectsCount, latestDate } = Astro.props;
   :global(html[data-theme='light']) .hero__line :global(.fk-ch) { filter: none !important; opacity: clamp(0.08, var(--fk, 1), 1); }
   .intro__description { margin-top: 8px; font-size: 18px; color: var(--text-muted); }
   .intro__actions { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px 24px; margin-top: 24px; }
-  .intro__link { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; color: var(--accent); font-size: 15px; }
-  .intro__link--primary { padding: 0 22px; border-radius: 24px; background: var(--accent); color: var(--on-accent); transition: background 200ms ease; }
-  .intro__link--primary:hover { background: var(--accent-deep); }
-  .intro__link:not(.intro__link--primary):hover { text-decoration: underline; text-underline-offset: 4px; }
-  .intro__link :global(svg) { transition: transform 250ms var(--ease-out); }
-  .intro__link:hover :global(svg) { transform: translateX(3px); }
   .intro__meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 12px; padding-block: 12px 24px; color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
   .intro__meta a { display: inline-flex; align-items: center; min-height: 32px; }
   .intro__meta a:hover { color: var(--accent); }
