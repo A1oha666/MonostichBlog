@@ -303,8 +303,8 @@ const formatDate = dotDate;
   .back-link:hover, .back-link:hover::before, .back-link:hover::after { color: var(--accent); }
   .back-link:hover span { transform: translateX(-3px); }
   .article__eyebrow { margin-bottom: var(--space-lg); font-family: var(--mono); font-size: 13px; }
-  /* 标题回到原来的栈：拉丁 Fraunces + 中文华文中宋衬线 */
-  h1 { font-family: var(--font-display); font-size: 44px; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
+  /* 标题字族与字号引用主题级 token */
+  h1 { font-family: var(--font-heading); font-size: var(--h1-size-article); font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
   .article__summary { margin-top: var(--space-lg); color: var(--text-muted); font-size: 18px; line-height: 1.8; }
   .article__meta { display: flex; flex-wrap: wrap; gap: var(--space-md); margin-top: var(--space-xl); color: var(--text-faint); font-family: var(--mono); font-size: 12px; }
   .article__meta span + span::before { content: "/"; margin-right: var(--space-md); color: var(--border-strong); }
@@ -404,7 +404,7 @@ const formatDate = dotDate;
   }
   :global(.codeblock:hover .code-copy) { opacity: 1; }
   :global(.code-copy:hover), :global(.code-copy:focus-visible) { color: var(--accent); border-color: var(--border-strong); opacity: 1; }
-  @media (max-width: 1279px) {
+  @media (max-width: 1080px) {
     .article__toc { position: static; width: auto; margin-bottom: 32px; border-block: 1px solid var(--border); }
     .article__toc-disclosure { position: static; border: 0; padding: 8px 0; max-height: 320px; }
     .article__toc ol { margin-top: 8px; padding-bottom: 16px; }

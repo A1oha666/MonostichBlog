@@ -133,6 +133,11 @@
   --font-display: var(--font-body);
   --mono: 'JetBrains Mono', 'Cascadia Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
+  /* 主题级 h1 tokens */
+  --font-heading: var(--font-display);
+  --h1-size-page: 56px;
+  --h1-size-article: 44px;
+
   /* spacing scale */
   --space-xs: 4px;
   --space-sm: 8px;
@@ -295,9 +300,9 @@ img, svg { display: block; max-width: 100%; }
 .back-home:hover::before,
 .back-home:hover::after { color: var(--accent); }
 .page-head h1 {
-  /* 标题回到原来的栈：拉丁 Fraunces + 中文华文中宋衬线，与 ArticleLayout h1 一致 */
-  font-family: var(--font-display);
-  font-size: 56px;
+  /* 标题字族与字号引用主题级 token */
+  font-family: var(--font-heading);
+  font-size: var(--h1-size-page);
   font-weight: 600;
   line-height: 1.12;
   overflow-wrap: anywhere;
