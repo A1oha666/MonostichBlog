@@ -40,23 +40,17 @@ const GLYPHS = '01<>[]{}#$%&*+=/\\';
       <dt>github</dt>
       <dd><a href="https://github.com/A1oha666" target="_blank" rel="noopener">@A1oha666</a></dd>
     </div>
-    <div class="dabout__fact">
-      <dt>stack</dt>
-      <dd>go · distributed systems · llm agents</dd>
-    </div>
-    <div class="dabout__fact">
-      <dt>now</dt>
-      <dd>building &amp; writing — monostich.cloud</dd>
-    </div>
   </dl>
-
-  <p class="dabout__sig" aria-hidden="true">~ exit 0</p>
 </div>
 
 <style>
   .dabout {
     position: relative;
     max-width: var(--maxw-prose);
+    /* 与浅色分支 .about 同构：内容收窄到阅读宽度并居中，
+       补上 page-gutter 内边距，窄屏不贴边 */
+    margin-inline: auto;
+    padding-inline: var(--page-gutter);
     padding-bottom: var(--space-3xl);
   }
 
@@ -133,14 +127,6 @@ const GLYPHS = '01<>[]{}#$%&*+=/\\';
   .dabout__fact dd { margin: 0; color: var(--text-muted); }
   .dabout__fact a { color: var(--text); text-decoration: none; border-bottom: 1px solid var(--border-strong); transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); }
   .dabout__fact a:hover { color: var(--accent); border-color: var(--accent); }
-
-  .dabout__sig {
-    margin-top: var(--space-3xl);
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text-faint);
-    letter-spacing: 0.14em;
-  }
 </style>
 
 <script>
