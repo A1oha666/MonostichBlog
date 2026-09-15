@@ -1,6 +1,5 @@
 ---
 import { projects } from "../data/projects.js";
-import { ChevronLeft, ChevronRight } from '@lucide/astro';
 ---
 
 <section class="section container" id="projects" aria-labelledby="work-heading">
@@ -8,7 +7,7 @@ import { ChevronLeft, ChevronRight } from '@lucide/astro';
     <h2 id="work-heading" data-scramble>项目</h2>
   </div>
 
-  <ol class="work-list" id="project-list" tabindex="0" aria-label="项目列表">
+  <ol class="work-list" id="project-list" aria-label="项目列表">
     {
       projects.map((project, index) => {
         // 尚无公开仓库（repo 为 "#"）时渲染静态行，避免假链接
@@ -37,51 +36,25 @@ import { ChevronLeft, ChevronRight } from '@lucide/astro';
       })
     }
   </ol>
-  <div class="work-controls" hidden>
-    <button type="button" data-project-direction="-1" aria-label="上一个项目" title="上一个项目" aria-controls="project-list"><ChevronLeft size={18} aria-hidden="true" /></button>
-    <button type="button" data-project-direction="1" aria-label="下一个项目" title="下一个项目" aria-controls="project-list"><ChevronRight size={18} aria-hidden="true" /></button>
-  </div>
 </section>
-
-<script>
-  function setupProjects() {
-    const list = document.querySelector<HTMLElement>('#project-list');
-    const controls = document.querySelector<HTMLElement>('.work-controls');
-    if (!list || !controls || list.dataset.bound) return;
-    list.dataset.bound = 'true';
-    const buttons = [...controls.querySelectorAll<HTMLButtonElement>('button')];
-    const update = () => {
-      const max = list.scrollWidth - list.clientWidth;
-      controls.hidden = max <= 2;
-      buttons[0].disabled = list.scrollLeft <= 2;
-      buttons[1].disabled = list.scrollLeft >= max - 2;
-    };
-    const move = (direction: number) => list.scrollBy({
-      left: direction * (list.firstElementChild?.getBoundingClientRect().width ?? list.clientWidth),
-      behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
-    });
-    buttons.forEach(button => button.addEventListener('click', () => move(Number(button.dataset.projectDirection))));
-    list.addEventListener('keydown', (event) => {
-      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-      event.preventDefault();
-      move(event.key === 'ArrowLeft' ? -1 : 1);
-    });
-    list.addEventListener('scroll', update, { passive: true });
-    const observer = new ResizeObserver(update);
-    observer.observe(list);
-    document.addEventListener('astro:before-swap', () => observer.disconnect(), { once: true });
-    update();
-  }
-  document.addEventListener('astro:page-load', setupProjects);
-  setupProjects();
-</script>
 
 <style>
   /* .module-head / .section 样式在 global.css 统一维护 */
 
   /* ===== 造物：无卡片，三栏一行 —— 名 / 述 / 状态 ===== */
-  .work-list { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(210px, 1fr); max-width: 100%; margin: 0 auto; padding: 8px 0 16px; list-style: none; text-align: center; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
-  .work-list > li { scroll-snap-align: start; border-right: 1px solid var(--border); min-width: 0; }
+  .work-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 8px 0 16px;
+    list-style: none;
+    text-align: center;
+  }
+  .work-list > li {
+    border-right: 1px solid var(--border);
+    min-width: 0;
+  }
   .work-list > li:last-child { border-right: 0; }
   .work-row {
     display: flex;
@@ -122,14 +95,20 @@ import { ChevronLeft, ChevronRight } from '@lucide/astro';
     a.work-row:hover .work-row__name { color: var(--accent); }
   }
   a.work-row:focus-visible .work-row__name { color: var(--accent); }
-  .work-controls { display: flex; justify-content: center; gap: 8px; margin-top: 12px; }
-  .work-controls[hidden] { display: none; }
-  .work-controls button { display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: var(--surface-2); color: var(--text); cursor: pointer; transition: background 160ms ease, opacity 160ms ease; }
-  .work-controls button:hover { background: var(--surface-3); }
-  .work-controls button:disabled { opacity: 0.35; cursor: default; }
 
   @media (max-width: 700px) {
-    .work-list { grid-auto-columns: minmax(210px, 80%); }
-    .work-row { gap: 10px; padding: 20px; }
+    .work-list {
+      grid-template-columns: 1fr;
+      padding-block: 0;
+    }
+    .work-list > li {
+      border-right: 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .work-list > li:last-child { border-bottom: 0; }
+    .work-row {
+      gap: 8px;
+      padding: 20px 8px;
+    }
   }
 </style>

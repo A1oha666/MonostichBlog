@@ -1,47 +1,49 @@
 ---
 /**
- * DarkHomeWork —— 项目 · 数据卡片网格
+ * DarkHomeWork —— 项目 · gutter 行号列表（与文章/实验室同构）
  *
- * 每张卡 = 一个服务节点：编号、状态灯、名称、描述、tag 与 mono 坐标。
- * hover：卡面光斑追踪 + 边框提亮 + 卡体微抬升；行内贯穿的扫描线微光。
+ * 结构：行号 | 名 | 述 | 状态灯
+ * 状态灯文案与浅色同义（[进行中] / [开发中] / [已归档]）
  */
 import { projects } from '../../../data/projects.js';
 
+const statusLabel = (s: string) =>
+  s === 'active' ? '进行中' : s === 'developing' ? '开发中' : s === 'archived' ? '已归档' : s;
 const statusTone = (s: string) => (s === 'active' ? 'live' : s === 'developing' ? 'dev' : 'arc');
 ---
 
 <section class="section container work" id="projects" aria-labelledby="work-heading">
   <div class="module-head" data-reveal>
-    <h2 id="work-heading" data-scramble data-no="03">项目</h2>
+    <h2 id="work-heading" data-scramble data-no="02">项目</h2>
     <a href="https://github.com/A1oha666" target="_blank" rel="noopener">GitHub ↗</a>
   </div>
 
-  <ol class="work-grid">
+  <ol class="work-list" lang="zh-CN">
     {projects.map((project, index) => {
       const linked = project.repo && project.repo !== '#';
-      const reveal = `--reveal-delay: ${Math.min(index * 70, 210)}ms`;
+      const reveal = `--reveal-delay: ${Math.min(index * 60, 180)}ms`;
       const inner = (
         <>
-          <span class="work-card__top">
-            <span class="work-card__idx" aria-hidden="true">P.{String(index + 1).padStart(2, '0')}</span>
-            <span class={`work-card__status work-card__status--${statusTone(project.status)}`}>
-              <span class="work-card__led" aria-hidden="true"></span>[{project.status}]
-            </span>
+          <span class="work-list__no" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+          <span class="work-row__body">
+            <h3>{project.name}</h3>
           </span>
-          <span class="work-card__name">{project.name}</span>
-          <span class="work-card__desc">{project.desc}</span>
-          <span class="work-card__foot">
-            {project.tags.map((t) => <span class="work-card__tag">#{t}</span>)}
-            {linked && <span class="work-card__arrow" aria-hidden="true">↗</span>}
+          <span class="work-row__desc">{project.desc}</span>
+          <span class={`work-row__status work-row__status--${statusTone(project.status)}`}>
+            <span class="work-row__led" aria-hidden="true"></span>[{statusLabel(project.status)}]
           </span>
         </>
       );
       return (
         <li data-reveal style={reveal}>
           {linked ? (
-            <a class="work-card" href={project.repo} target="_blank" rel="noopener" data-spotlight>{inner}</a>
+            <a class="work-row" href={project.repo} target="_blank" rel="noopener" data-spotlight>
+              {inner}
+            </a>
           ) : (
-            <div class="work-card work-card--static" data-spotlight>{inner}</div>
+            <div class="work-row work-row--static" data-spotlight>
+              {inner}
+            </div>
           )}
         </li>
       );
@@ -50,118 +52,97 @@ const statusTone = (s: string) => (s === 'active' ? 'live' : s === 'developing' 
 </section>
 
 <style>
-  .work-grid {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
-  }
+  .work-list { list-style: none; padding: 0; margin: 0; }
+  .work-list > li { border-bottom: 1px solid var(--border-subtle); }
+  .work-list > li:first-child { border-top: 1px solid var(--border-subtle); }
 
-  .work-card {
-    position: relative;
+  .work-list__no {
     display: flex;
-    flex-direction: column;
-    gap: 12px;
-    height: 100%;
-    padding: 20px 22px;
-    border: 1px solid var(--border);
-    background: color-mix(in srgb, var(--surface) 66%, transparent);
-    isolation: isolate;
-    overflow: hidden;
-    transition: border-color var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out), background var(--dur-base) var(--ease-out);
+    align-items: center;
+    justify-content: flex-end;
+    align-self: stretch;
+    padding-right: 18px;
+    border-right: 1px solid var(--border-subtle);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+    transition: color var(--dur-base) var(--ease-out);
   }
-  a.work-card:hover { transform: translateY(-3px); border-color: var(--border-strong); }
-  .work-card--static { cursor: default; }
 
-  /* 光斑追踪 */
-  .work-card::before {
+  .work-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: 56px minmax(0, auto) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0 22px;
+    padding-block: 20px;
+    isolation: isolate;
+  }
+  .work-row--static { cursor: default; }
+
+  /* 行内跟随光斑 */
+  .work-row::before {
     content: '';
     position: absolute;
     inset: 0;
     z-index: -1;
     background: radial-gradient(
-      300px circle at var(--mx, 50%) var(--my, 50%),
-      rgba(122, 148, 255, 0.09),
+      300px circle at var(--mx, 50%) 50%,
+      rgba(122, 148, 255, 0.07),
       transparent 70%
     );
     opacity: 0;
-    transition: opacity 360ms var(--ease-out);
+    transition: opacity 320ms var(--ease-out);
   }
-  .work-card:hover::before { opacity: 1; }
-  /* 顶部扫描线 */
-  .work-card::after {
-    content: '';
-    position: absolute;
-    top: 0; left: -30%;
-    width: 30%; height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255, 178, 36, 0.55), transparent);
-    transition: left 640ms var(--ease-out);
-  }
-  .work-card:hover::after { left: 100%; }
+  .work-row:hover::before { opacity: 1; }
 
-  .work-card__top { display: flex; justify-content: space-between; align-items: baseline; }
-  .work-card__idx {
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.2em;
-    color: var(--text-faint);
+  .work-row h3 {
+    font-family: 'Google Sans', var(--font-zh);
+    font-size: 1.05rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: transform var(--dur-base) var(--ease-out), color var(--dur-fast) var(--ease-out);
   }
-  .work-card__status {
+  .work-row__desc {
+    color: var(--text-faint);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: color var(--dur-base) var(--ease-out);
+  }
+
+  .work-row__status {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     font-family: var(--mono);
     font-size: 10.5px;
     color: var(--text-faint);
+    white-space: nowrap;
   }
-  .work-card__led { width: 5px; height: 5px; border-radius: 50%; background: var(--text-faint); }
-  .work-card__status--live { color: var(--code-green); }
-  .work-card__status--live .work-card__led { background: var(--code-green); box-shadow: 0 0 7px rgba(156, 191, 155, 0.8); }
-  .work-card__status--dev { color: var(--accent); }
-  .work-card__status--dev .work-card__led {
+  .work-row__led { width: 5px; height: 5px; border-radius: 50%; background: var(--text-faint); }
+  .work-row__status--live { color: var(--code-green); }
+  .work-row__status--live .work-row__led { background: var(--code-green); box-shadow: 0 0 7px rgba(156, 191, 155, 0.8); }
+  .work-row__status--dev { color: var(--accent); }
+  .work-row__status--dev .work-row__led {
     background: var(--accent);
     box-shadow: 0 0 7px var(--accent-glow);
     animation: led-blink 2.1s steps(1) infinite;
   }
   @keyframes led-blink { 0%, 64% { opacity: 1; } 65%, 100% { opacity: 0.12; } }
-  @media (prefers-reduced-motion: reduce) { .work-card__status--dev .work-card__led { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .work-row__status--dev .work-row__led { animation: none; } }
 
-  .work-card__name {
-    font-family: 'Google Sans', var(--font-zh);
-    font-size: 1.18rem;
-    font-weight: 500;
-    color: var(--text);
-    transition: color var(--dur-fast) var(--ease-out);
-  }
-  a.work-card:hover .work-card__name { color: var(--accent); }
+  .work-list > li:focus-within .work-list__no,
+  .work-row:hover .work-list__no { color: var(--accent); }
+  a.work-row:hover h3 { transform: translateX(6px); color: var(--accent); }
+  a.work-row:hover .work-row__desc { color: var(--text-muted); }
 
-  .work-card__desc {
-    font-size: 13px;
-    line-height: 1.75;
-    color: var(--text-muted);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .work-card__foot {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: auto;
-    padding-top: 6px;
-    font-family: var(--mono);
-    font-size: 10.5px;
-    color: var(--text-faint);
-  }
-  .work-card__tag { letter-spacing: 0.06em; }
-  .work-card__arrow { margin-left: auto; color: var(--text-faint); transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-out); }
-  a.work-card:hover .work-card__arrow { color: var(--accent); transform: translate(2px, -2px); }
-
-  @media (max-width: 720px) {
-    .work-grid { grid-template-columns: 1fr; }
+  @media (max-width: 640px) {
+    .work-row { grid-template-columns: 40px minmax(0, 1fr) auto; row-gap: 6px; padding-block: 16px; }
+    .work-list__no { padding-right: 12px; }
+    .work-row__desc { grid-column: 2 / -1; white-space: normal; }
   }
 </style>
