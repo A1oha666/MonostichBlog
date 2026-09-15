@@ -4,13 +4,14 @@ import { lab } from "../../data/lab.js";
 ---
 
 <BaseLayout lang="zh-CN" title="实验室 — Aloha" description="交互演示与小工具。">
-  <section class="section container" aria-labelledby="lab-heading">
-    <div class="module-head">
-      <h1 id="lab-heading">实验室</h1>
-      <a href="/">首页 →</a>
-    </div>
-    <p class="lab-intro" lang="zh-CN">交互演示与小工具。</p>
+  <section class="page-head container">
+    <a class="back-home" href="/" data-reveal><span aria-hidden="true">←</span> 返回主页</a>
+    <p class="eyebrow" data-reveal style="--reveal-delay: 60ms">/ lab</p>
+    <h1 data-reveal style="--reveal-delay: 120ms">实验室</h1>
+    <p data-reveal style="--reveal-delay: 200ms">交互演示与小工具：把一个想法做成可以动手玩的机器。</p>
+  </section>
 
+  <section class="section container" aria-labelledby="lab-heading">
     <ol class="lab-list">
       {
         lab.map((item, index) => (
@@ -18,7 +19,7 @@ import { lab } from "../../data/lab.js";
             <a class="lab-row" href={item.href}>
               <span class="lab-row__name">{item.name}</span>
               <span class="lab-row__desc">{item.desc}</span>
-              <span class="lab-row__kind">[{item.kind}]</span>
+              <span class="lab-row__kind">{item.kind}</span>
             </a>
           </li>
         ))
@@ -28,14 +29,7 @@ import { lab } from "../../data/lab.js";
 </BaseLayout>
 
 <style>
-  /* .module-head / .section 样式在 global.css 统一维护 */
-
-  .lab-intro {
-    margin: 0 0 var(--space-sm);
-    color: var(--text-faint);
-    font-size: 0.85rem;
-  }
-  h1 { font-size: 40px; font-weight: 600; }
+  /* .page-head / .back-home / .eyebrow / h1 字号在 global.css / dark.css 统一维护 */
 
   /* 与造物同一制式：三栏一行 —— 名 / 述 / 门类 */
   .lab-list { margin: 0; padding: 0; list-style: none; }
