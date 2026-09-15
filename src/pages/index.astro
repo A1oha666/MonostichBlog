@@ -34,30 +34,20 @@ const recent = [
   .sort((a, b) => b.date.valueOf() - a.date.valueOf())
   .slice(0, 5);
 
-// Hero 状态面板与日志瀑布：真实统计 + 真实 slug 路径池
+// Hero 状态面板与日志瀑布：真实统计
 const notesCount = allEntries.length;
 const projectsCount = projects.length;
-const logPaths = [
-  { p: "/", w: 10 },
-  ...notes.map((entry) => ({ p: `/notes/${entry.id}`, w: 6 })),
-  ...thinkings.map((entry) => ({ p: `/thinkings/${entry.id}`, w: 5 })),
-  { p: "/notes", w: 3 },
-  { p: "/thinkings", w: 3 },
-  { p: "/archive", w: 2 },
-  { p: "/about", w: 2 },
-  { p: "/rss.xml", w: 1.5 },
-];
 ---
 
 <BaseLayout lang="zh-CN" bodyClass="home">
   {/* ============ 深色分支：信号核控制台（浅色下 display:none） ============ */}
   <div class="dark-home">
-    <DarkHome recent={recent} latestMoment={latestMoment} />
+    <DarkHome recent={recent} />
   </div>
 
   {/* ============ 浅色分支：原始 Apple 风首页（一字未动） ============ */}
   <div class="light-home">
-    <Hero notesCount={notesCount} projectsCount={projectsCount} latestDate={latestDate} logPaths={logPaths} />
+    <Hero notesCount={notesCount} projectsCount={projectsCount} latestDate={latestDate} />
 
     {latestMoment && (
       <section class="oneline" aria-labelledby="home-oneline-heading">
@@ -88,7 +78,6 @@ const logPaths = [
                 <h3>{item.title}</h3>
                 {item.summary && <p class="recent-row__summary">{item.summary}</p>}
               </span>
-              <span class="recent-list__desc" aria-hidden="true">{item.summary}</span>
               <time datetime={isoDate(item.date)}>{dotDate(item.date)}</time>
             </a>
           </li>
@@ -113,7 +102,6 @@ const logPaths = [
                 <h3>{item.name}</h3>
                 <p class="recent-row__summary">{item.desc}</p>
               </span>
-              <span class="recent-list__desc">{item.desc}</span>
             </a>
           </li>
         ))}
@@ -165,7 +153,6 @@ const logPaths = [
     .recent-row h3 { font-size: 23px; line-height: 1.4; font-weight: 600; overflow-wrap: anywhere; transition: color 220ms ease; }
     .recent-row__summary { max-width: 60ch; margin: 10px auto 0; color: var(--text-muted); font-size: 15px; line-height: 1.75; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .recent-row time { font-size: 13px; }
-    .recent-list__desc { display: none; }
     .recent-row:hover h3 { color: var(--accent); }
   }
 

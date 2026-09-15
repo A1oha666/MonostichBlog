@@ -11,7 +11,6 @@ import SignalCore from './SignalCore.astro';
 import DarkCursor from './DarkCursor.astro';
 import DarkGrain from './DarkGrain.astro';
 import DarkHomeHero from './home/DarkHomeHero.astro';
-import DarkHomeOneline from './home/DarkHomeOneline.astro';
 import DarkHomeRecent from './home/DarkHomeRecent.astro';
 import DarkHomeWork from './home/DarkHomeWork.astro';
 import DarkHomeLab from './home/DarkHomeLab.astro';
@@ -26,16 +25,10 @@ interface RecentItem {
   category: string;
   href: string;
 }
-interface Moment {
-  id: string;
-  date: Date;
-  text: string;
-}
 interface Props {
   recent: RecentItem[];
-  latestMoment?: Moment;
 }
-const { recent, latestMoment } = Astro.props;
+const { recent } = Astro.props;
 ---
 
 <div class="dhome" data-dhome>
@@ -47,7 +40,6 @@ const { recent, latestMoment } = Astro.props;
     <DarkHomeHero />
   </header>
 
-  <DarkHomeOneline moment={latestMoment} />
   <DarkHomeRecent items={recent} />
   <DarkHomeWork />
   <DarkHomeLab />

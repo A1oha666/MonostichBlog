@@ -28,7 +28,7 @@ const { moment } = Astro.props;
 
   <div class:list={['bento', { 'bento--solo': !moment }]}>
     {moment && (
-      <figure class="glass oneline__figure" data-reveal style="--reveal-delay: 80ms" data-spotlight>
+      <figure class="glass oneline__figure" data-reveal style="--reveal-delay: 80ms">
         <span class="oneline__tag" aria-hidden="true">stdin: thought.log</span>
         <blockquote lang="zh-CN">
           <a href={`/thinkings#${moment.id}`}>{moment.text}</a>
@@ -57,39 +57,15 @@ const { moment } = Astro.props;
   .bento--solo { grid-template-columns: 1fr; }
   .bento--solo .oneline__term { max-width: 640px; }
 
-  /* ---------- 玻璃卡（spotlight 变量由全局脚本写入） ---------- */
+  /* ---------- 玻璃卡（静音降级：保留毛玻璃底色，去掉 spotlight 光斑与高光条） ---------- */
   .glass {
     position: relative;
     margin: 0;
-    border: 1px solid var(--border-strong);
+    border: 1px solid var(--border);
     background: color-mix(in srgb, var(--surface) 72%, transparent);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     overflow: hidden;
-  }
-  /* 鼠标光斑：径向辉光跟随 --mx/--my */
-  .glass::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(
-      340px circle at var(--mx, 50%) var(--my, 50%),
-      rgba(122, 148, 255, 0.10),
-      transparent 68%
-    );
-    opacity: 0;
-    transition: opacity 400ms var(--ease-out);
-    pointer-events: none;
-  }
-  .glass:hover::before { opacity: 1; }
-  /* 顶部一道冷色高光，像玻璃的边缘 */
-  .glass::after {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(160, 180, 255, 0.35), transparent);
-    pointer-events: none;
   }
 
   .oneline__figure {
