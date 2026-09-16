@@ -52,6 +52,13 @@ const links = [
     const theme = document.getElementById('theme-toggle');
     const menu = document.getElementById('menu-toggle');
     if (!nav || !theme || !menu) return;
+    // 首页深浅两分支各自渲染 #projects/#recent 等 id（树序深色在前），
+    // 按 id 查找会命中 display:none 的隐藏分支节点，scrollIntoView 对零矩形元素是无操作。
+    // 统一按「当前有布局盒」解析目标。
+    const visibleElementById = (id: string): HTMLElement | null =>
+      [...document.querySelectorAll<HTMLElement>(`[id="${CSS.escape(id)}"]`)]
+        .find((el) => el.getClientRects().length > 0) ?? null;
+
     const closeMenu = () => {
       nav.removeAttribute('data-open');
       document.documentElement.removeAttribute('data-menu-open');
@@ -67,7 +74,7 @@ const links = [
       theme.title = label;
       nav.querySelector('[data-project-link]')?.setAttribute('href', '/#projects');
       if (restoreAnchor && location.pathname === '/' && location.hash === '#projects') {
-        requestAnimationFrame(() => document.querySelector('#projects')?.scrollIntoView({ behavior: 'instant' }));
+        requestAnimationFrame(() => visibleElementById('projects')?.scrollIntoView({ behavior: 'instant' }));
       }
     };
     closeMenu();
@@ -84,17 +91,24 @@ const links = [
     theme.addEventListener('click', () => {
       const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
       // 切换前记录位置：首页深浅两套分支 section 高度不同，
-      // 优先按锚点 id 重新定位（两分支共用 #projects/#recent 等 id），无锚点退回 scrollY。
+      // 优先按锚点 id 重新定位（两分支共用 #projects/#recent 等 id，但需解析到
+      // 当前可见分支的节点），无锚点退回 scrollY。
       const isHome = document.body.classList.contains('home');
       const prevY = window.scrollY;
-      const anchorId = isHome && location.hash ? decodeURIComponent(location.hash.slice(1)) : '';
+      // 裸 % 等非法序列会让 decodeURIComponent 抛 URIError，且本行在主题切换
+      // 赋值之前 —— 异常会吞掉整个点击。解码失败时退回原始 hash 文本。
+      let anchorId = '';
+      if (isHome && location.hash) {
+        const raw = location.hash.slice(1);
+        try { anchorId = decodeURIComponent(raw); } catch { anchorId = raw; }
+      }
       document.documentElement.dataset.theme = next;
       try { localStorage.setItem('theme', next); } catch {}
       document.querySelector('meta[name="theme-color"]')?.setAttribute('content', next === 'dark' ? '#101216' : '#ffffff');
       syncTheme(false);
       if (isHome) {
         requestAnimationFrame(() => {
-          const target = anchorId ? document.getElementById(anchorId) : null;
+          const target = anchorId ? visibleElementById(anchorId) : null;
           if (target) target.scrollIntoView({ behavior: 'instant' });
           else window.scrollTo({ top: prevY, behavior: 'instant' });
         });
@@ -158,7 +172,6 @@ const links = [
   :global(html[data-theme='light']) :global(.ic--sun) { display: none; }
   @media (max-width: 700px) {
     .nav__brand { flex-basis: 80px; }
-    :global(html[data-nav-compact]) .nav__brand { padding-left: 6px; }
     .nav__inner { justify-content: space-between; gap: 8px; width: calc(100% - 48px); padding-inline: 12px; }
     .nav__menu { display: grid; }
     .nav__links { display: flex; flex-direction: column; align-items: stretch; justify-content: start; gap: 0; visibility: hidden; pointer-events: none; position: absolute; top: 56px; left: 0; right: 0; height: calc(100dvh - 64px); overflow-y: auto; padding: 24px 40px 48px; background: var(--bg); margin: 0; clip-path: inset(0 0 100%); transition: clip-path 420ms cubic-bezier(0.22, 1, 0.36, 1), visibility 420ms; }

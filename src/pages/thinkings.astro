@@ -111,7 +111,8 @@ const momentContents = new Map(renderedMoments.map(({ entry, content }) => [entr
   @media (hover: hover) {
     .thinking__body > h2 a:hover { color: var(--accent); text-decoration-color: var(--accent); }
   }
-  h2 a:focus-visible { color: var(--accent); text-decoration-color: var(--accent); outline: none; }
+  /* 焦点样式在变色之外保留几何 outline：仅靠颜色差对低视力/色弱用户不稳健 */
+  h2 a:focus-visible { color: var(--accent); text-decoration-color: var(--accent); outline: 1px solid var(--accent); outline-offset: 4px; }
 
   /* thinking 摘要 / 小记正文：走全局 .prose-zh 正文配方 —— Google Sans +
      Noto Sans SC、弱色、1.7 行高、左对齐（与「造物」简介同一套） */

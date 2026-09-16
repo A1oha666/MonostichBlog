@@ -25,14 +25,16 @@ const allEntries = [...notes, ...thinkings, ...moments];
 // 首页展示最近五篇（Notes 与 Thinkings 含小记混排），完整回溯走 /archive。
 // 数据层提供完整列表：Light 模板跳过已被「一行」引用的最新小记（避免相邻两节重复），
 // Dark 没有「一行」区，全量渲染 —— 两主题首页的「最新内容可达集合」必须一致。
-const recentAll = [
+// 注意过滤在 slice 之前：先截断再过滤会让浅色列表静默缩水为 4 行。
+const recentSorted = [
   ...notes.map((entry) => ({ key: `notes/${entry.id}`, date: safeDate(entry.data.date), title: entry.data.title, summary: entry.data.summary, category: '笔记', href: `/notes/${entry.id}/` })),
   ...thinkings.map((entry) => ({ key: `thinkings/${entry.id}`, date: safeDate(entry.data.date), title: entry.data.title, summary: entry.data.summary, category: '随想', href: `/thinkings/${entry.id}/` })),
   ...moments.map((entry) => ({ key: `moments/${entry.id}`, date: safeDate(entry.data.date), title: momentTitle(entry), summary: '', category: '小记', href: `/thinkings#${entry.id}` })),
-]
-  .sort((a, b) => b.date.valueOf() - a.date.valueOf())
+].sort((a, b) => b.date.valueOf() - a.date.valueOf());
+const recentAll = recentSorted.slice(0, 5);
+const recentLight = recentSorted
+  .filter((item) => item.key !== `moments/${latestMoment?.id}`)
   .slice(0, 5);
-const recentLight = recentAll.filter((item) => item.key !== `moments/${latestMoment?.id}`);
 
 // Hero 统计行：真实统计
 const notesCount = allEntries.length;
@@ -159,10 +161,13 @@ const projectsCount = projects.length;
   @media (max-width: 640px) {
     :root:not([data-theme='dark']) {
       .recent .module-head h2, .lab .module-head h2 { font-size: 20px; }
-      /* 移动端简单适配：日期退到标题上方，单列堆叠 */
-      .recent-row { grid-template-columns: 1fr; gap: 6px; padding-block: 24px; }
+      /* 移动端简单适配：日期退到标题上方，单列堆叠。
+         grid-row 只限定含 time 的文章行 —— lab 行没有 time，强制 row:2 会
+         留出一个 0 高首行 + gap 的空隙 */
+      .recent .recent-row, .lab .recent-row { grid-template-columns: 1fr; gap: 6px; padding-block: 24px; }
       .recent-row time { grid-column: 1 / -1; grid-row: 1; }
-      .recent-row__body { grid-column: 1 / -1; grid-row: 2; }
+      .recent .recent-row__body { grid-column: 1 / -1; grid-row: 2; }
+      .lab .recent-row__body { grid-column: 1 / -1; grid-row: 1; }
       .recent-row h3 { font-size: 18px; }
       .oneline__figure blockquote { font-size: 23px; }
       .oneline { padding-block: 36px; }

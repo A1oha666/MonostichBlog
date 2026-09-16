@@ -85,7 +85,6 @@
     .article h1 { font-size: 30px; }
     .article__header { padding-top: 48px; }
     .article__content h2 { font-size: 28px; }
-    .thinking-list h2 { font-size: 30px; }
     .thinking-list .thinking__moment-title { font-size: 24px; }
     .footer__inner { flex-direction: column; align-items: flex-start; }
   }
