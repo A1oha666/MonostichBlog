@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import SiteFooter from "../components/SiteFooter.astro";
-import { dotDate, isoDate, safeDate } from "../lib/format";
+import { isoDate, safeDate } from "../lib/format";
 import { getBlogCollections, momentTitle } from "../lib/content";
 import "@pagefind/default-ui/css/ui.css";
 
@@ -43,6 +43,9 @@ const buckets = [
 
 const total = buckets.reduce((sum, b) => sum + b.entries.length, 0);
 
+// 已按年分组后，组内行日期只显示「月-日」，年份由组标题承担
+const monthDay = (d: Date) => `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
 // 按年分组（倒序），年内再按日期倒序
 const years = new Map<number, Array<{ date: Date; title: string; meta: string; href: string; type: string; typeLabel: string }>>();
 for (const bucket of buckets) {
@@ -78,7 +81,7 @@ const filters = [
       <div id="archive-search" class="archive-search" role="search"></div>
     </div>
 
-    <div class="archive__filters" data-reveal role="group" aria-label="按栏目筛选">
+    <div class="archive__filters" data-reveal role="group" aria-label="按栏目筛选" data-archive-timeline-ui>
       {
         filters.map((f, i) => (
           <>
@@ -95,9 +98,13 @@ const filters = [
       }
     </div>
 
-    <p class="archive__count" data-reveal data-count><span>{total}</span> 篇内容</p>
+    {/* 计数去重：筛选态下总数由激活筛选项与年份计数承担，不再单独一行 */}
+    <p class="archive__count" data-reveal data-count hidden><span>{total}</span> 篇内容</p>
 
-    <div class="archive__groups">
+    {/* 搜索态提示：Pagefind 按页索引，小记无独立 URL 不进索引 —— 明示而非静默缺失 */}
+    <p class="archive__search-note" data-search-note hidden>小记未纳入站内搜索，<a href="/thinkings">浏览全部小记 →</a></p>
+
+    <div class="archive__groups" data-archive-groups>
       {
         yearGroups.map(({ year, items }) => (
           <section class="archive__year" data-year={year}>
@@ -109,7 +116,7 @@ const filters = [
               {items.map((item, index) => (
                 <li data-reveal data-type={item.type} style={`--reveal-delay: ${Math.min(index * 40, 300)}ms`}>
                   <a class="archive__row" href={item.href}>
-                    <time datetime={isoDate(item.date)}>{dotDate(item.date)}</time>
+                    <time datetime={isoDate(item.date)}>{monthDay(item.date)}</time>
                     <span class="archive__type">{item.typeLabel}</span>
                     <span class="archive__title">{item.title}</span>
                   </a>
@@ -143,6 +150,9 @@ const filters = [
       const match = active === "all" || (li as HTMLElement).dataset.type === active;
       li.toggleAttribute("hidden", !match);
       if (match) shown++;
+      // 分类标注只在「全部」状态下显示；已筛选的行内不再重复栏目名
+      const typeEl = li.querySelector(".archive__type");
+      if (typeEl) typeEl.toggleAttribute("hidden", active !== "all");
     });
     document.querySelectorAll(".archive__year").forEach((sec) => {
       const visible = sec.querySelectorAll(".archive__list li:not([hidden])").length;
@@ -191,6 +201,21 @@ const filters = [
     if (new URLSearchParams(location.search).get('search') === '1') {
       requestAnimationFrame(() => el.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true }));
     }
+
+    // 搜索态 vs 默认态状态机：
+    // 输入搜索词 → 收起时间线与筛选 chips（chips 不作用于 Pagefind 结果，留着会谎报作用域）；
+    // 清空 → 恢复时间线且保留原筛选态。小记无独立 URL 不进索引，搜索态下明示提示。
+    const timelineUI = document.querySelector<HTMLElement>("[data-archive-timeline-ui]");
+    const groups = document.querySelector<HTMLElement>("[data-archive-groups]");
+    const note = document.querySelector<HTMLElement>("[data-search-note]");
+    const syncSearchState = () => {
+      const searching = Boolean(el.querySelector<HTMLInputElement>('input')?.value.trim());
+      timelineUI?.toggleAttribute("hidden", searching);
+      groups?.toggleAttribute("hidden", searching);
+      note?.toggleAttribute("hidden", !searching);
+    };
+    el.addEventListener("input", syncSearchState);
+    syncSearchState();
   }
   document.addEventListener("astro:page-load", initArchiveSearch);
   initArchiveSearch();
@@ -282,7 +307,7 @@ const filters = [
     .archive-search :global(.pagefind-ui__result:hover) { background: color-mix(in srgb, var(--accent) 4%, transparent); }
     .archive-search :global(.pagefind-ui__result-link:hover) { color: var(--accent); }
   }
-  .archive-search :global(.pagefind-ui__result-link) { color: var(--text); font-family: 'Google Sans', var(--font-zh); font-size: 1.05rem; font-weight: 400; transition: color var(--dur-fast) var(--ease-out); }
+  .archive-search :global(.pagefind-ui__result-link) { color: var(--text); font-family: var(--font-body); font-size: 1.05rem; font-weight: 400; transition: color var(--dur-fast) var(--ease-out); }
   .archive-search :global(.pagefind-ui__result-excerpt) { color: var(--text-muted); font-size: 0.92rem; line-height: 1.6; }
   /* 命中词：琥珀底而非默认黄，暗色下不刺眼 */
   .archive-search :global(.pagefind-ui__result-excerpt mark) { background: var(--accent-soft); color: var(--accent); padding-inline: 1px; }
@@ -317,6 +342,11 @@ const filters = [
 
   .archive__count { padding-top: var(--space-xl); padding-bottom: var(--space-md); border-bottom: 1px solid var(--border-strong); color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
 
+  /* 搜索态小记提示：与搜索结果 message 同制式，低调一行 */
+  .archive__search-note { margin: var(--space-md) 0 0; color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
+  .archive__search-note a { color: var(--text-muted); text-decoration: underline; text-underline-offset: 3px; }
+  .archive__search-note a:hover { color: var(--accent); }
+
   .archive__groups { display: grid; }
   .archive__year h2 {
     display: flex;
@@ -326,7 +356,7 @@ const filters = [
     padding-bottom: var(--space-md);
     font-size: 28px;
     font-weight: 400;
-    font-family: 'Google Sans', var(--font-zh);
+    font-family: var(--font-body);
     color: var(--text);
   }
   .archive__year-count { color: var(--text-faint); font-size: 13px; }

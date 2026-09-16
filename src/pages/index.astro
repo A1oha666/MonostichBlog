@@ -21,20 +21,20 @@ const latestMoment = [...moments]
   .sort((a, b) => b.date.valueOf() - a.date.valueOf())[0];
 
 const allEntries = [...notes, ...thinkings, ...moments];
-const latestDate = allEntries.map((entry) => safeDate(entry.data.date)).sort((a, b) => b.valueOf() - a.valueOf())[0];
 
 // 首页展示最近五篇（Notes 与 Thinkings 含小记混排），完整回溯走 /archive。
-// 已被「一行」引用的小记从目录里剔除，避免相邻两节重复同一条内容。
-const recent = [
+// 数据层提供完整列表：Light 模板跳过已被「一行」引用的最新小记（避免相邻两节重复），
+// Dark 没有「一行」区，全量渲染 —— 两主题首页的「最新内容可达集合」必须一致。
+const recentAll = [
   ...notes.map((entry) => ({ key: `notes/${entry.id}`, date: safeDate(entry.data.date), title: entry.data.title, summary: entry.data.summary, category: '笔记', href: `/notes/${entry.id}/` })),
   ...thinkings.map((entry) => ({ key: `thinkings/${entry.id}`, date: safeDate(entry.data.date), title: entry.data.title, summary: entry.data.summary, category: '随想', href: `/thinkings/${entry.id}/` })),
   ...moments.map((entry) => ({ key: `moments/${entry.id}`, date: safeDate(entry.data.date), title: momentTitle(entry), summary: '', category: '小记', href: `/thinkings#${entry.id}` })),
 ]
-  .filter((item) => item.key !== `moments/${latestMoment?.id}`)
   .sort((a, b) => b.date.valueOf() - a.date.valueOf())
   .slice(0, 5);
+const recentLight = recentAll.filter((item) => item.key !== `moments/${latestMoment?.id}`);
 
-// Hero 状态面板与日志瀑布：真实统计
+// Hero 统计行：真实统计
 const notesCount = allEntries.length;
 const projectsCount = projects.length;
 ---
@@ -42,19 +42,18 @@ const projectsCount = projects.length;
 <BaseLayout lang="zh-CN" bodyClass="home">
   {/* ============ 深色分支：信号核控制台（浅色下 display:none） ============ */}
   <div class="dark-home">
-    <DarkHome recent={recent} />
+    <DarkHome recent={recentAll} />
   </div>
 
   {/* ============ 浅色分支：原始 Apple 风首页（一字未动） ============ */}
   <div class="light-home">
-    <Hero notesCount={notesCount} projectsCount={projectsCount} latestDate={latestDate} />
+    <Hero notesCount={notesCount} projectsCount={projectsCount} />
 
     {latestMoment && (
       <section class="oneline" aria-labelledby="home-oneline-heading">
         <div class="container">
           <div class="module-head" data-reveal>
             <h2 id="home-oneline-heading" data-scramble data-no="01">随想</h2>
-            <a href="/thinkings">小记 →</a>
           </div>
           <figure class="oneline__figure" data-reveal style="--reveal-delay: 80ms">
             <blockquote lang="zh-CN"><a href={`/thinkings#${latestMoment.id}`}>{latestMoment.text}</a></blockquote>
@@ -70,7 +69,7 @@ const projectsCount = projects.length;
         <a href="/archive" aria-label="全部文章">全部 →</a>
       </div>
       <ol class="recent-list" lang="zh-CN">
-        {recent.map((item, index) => (
+        {recentLight.map((item, index) => (
           <li data-reveal style={`--reveal-delay: ${Math.min(index * 60, 240)}ms`}>
             <a class="recent-row" href={item.href}>
               <span class="recent-list__no" aria-hidden="true">{index + 1}</span>
@@ -83,7 +82,7 @@ const projectsCount = projects.length;
           </li>
         ))}
       </ol>
-      {recent.length === 0 && <p class="recent__empty">文章正在酝酿中。</p>}
+      {recentLight.length === 0 && <p class="recent__empty">文章正在酝酿中。</p>}
     </section>
 
     <Projects />
@@ -142,25 +141,29 @@ const projectsCount = projects.length;
     .oneline__figure figcaption { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px 24px; }
     .oneline__figure time { font-size: 13px; }
 
-    .recent, .lab { text-align: center; }
+    .recent, .lab { text-align: initial; }
     .recent .module-head h2, .lab .module-head h2 { font-size: 24px; }
     .recent-list { max-width: 704px; margin: 0 auto; }
     .recent-list li { border-top: 1px solid var(--border); }
-    .recent-row { position: relative; display: flex; flex-direction: column; gap: 14px; align-items: center; padding-block: 32px; isolation: isolate; }
-    .recent-row__body { width: 100%; }
+    /* 目录制式：日期在左 112px 侧栏、标题左对齐为扫描起点 —— 与 Notes 页同构 */
+    .recent-row { position: relative; display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: var(--space-lg); align-items: baseline; padding-block: 28px; isolation: isolate; }
+    .recent-row time { grid-column: 1; font-size: 12.5px; font-family: var(--mono); color: var(--text-faint); }
+    .recent-row__body { grid-column: 2; min-width: 0; }
     .recent-row::before { content: ''; position: absolute; inset: 4px -16px; background: var(--surface-2); opacity: 0; z-index: -1; transition: opacity 220ms ease; border-radius: 6px; }
     @media (hover: hover) { .recent-row:hover::before { opacity: 1; } }
-    .recent-row h3 { font-size: 23px; line-height: 1.4; font-weight: 600; overflow-wrap: anywhere; transition: color 220ms ease; }
-    .recent-row__summary { max-width: 60ch; margin: 10px auto 0; color: var(--text-muted); font-size: 15px; line-height: 1.75; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .recent-row time { font-size: 13px; }
+    .recent-row h3 { font-size: 20px; line-height: 1.45; font-weight: 600; overflow-wrap: anywhere; transition: color 220ms ease; }
+    .recent-row__summary { max-width: 60ch; margin: 8px 0 0; color: var(--text-muted); font-size: 15px; line-height: 1.75; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .recent-row:hover h3 { color: var(--accent); }
   }
 
   @media (max-width: 640px) {
     :root:not([data-theme='dark']) {
       .recent .module-head h2, .lab .module-head h2 { font-size: 20px; }
-      .recent-row { gap: 12px; padding-block: 28px; }
-      .recent-row h3 { font-size: 20px; }
+      /* 移动端简单适配：日期退到标题上方，单列堆叠 */
+      .recent-row { grid-template-columns: 1fr; gap: 6px; padding-block: 24px; }
+      .recent-row time { grid-column: 1 / -1; grid-row: 1; }
+      .recent-row__body { grid-column: 1 / -1; grid-row: 2; }
+      .recent-row h3 { font-size: 18px; }
       .oneline__figure blockquote { font-size: 23px; }
       .oneline { padding-block: 36px; }
     }

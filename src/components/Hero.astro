@@ -1,8 +1,6 @@
 ---
-import { dotDate, isoDate } from '../lib/format';
-import FlickerTitle from './FlickerTitle.astro';
-interface Props { notesCount: number; projectsCount: number; latestDate?: Date; }
-const { notesCount, projectsCount, latestDate } = Astro.props;
+interface Props { notesCount: number; projectsCount: number; }
+const { notesCount, projectsCount } = Astro.props;
 ---
 
 <header class="intro">
@@ -11,17 +9,13 @@ const { notesCount, projectsCount, latestDate } = Astro.props;
     <img src="https://github.com/A1oha666.png?size=128" data-github-avatar alt="Aloha 的头像" width="56" height="56" fetchpriority="high" referrerpolicy="no-referrer" />
   </a>
   <h1><span data-scramble>Aloha.</span></h1>
-  <p class="intro__tagline"><span class="hero__line">Explore and build.<FlickerTitle /><span class="intro__cursor" aria-hidden="true">_</span></span></p>
   <p class="intro__description" lang="zh-CN" data-reveal>记录一些想法与实践。</p>
-  <div class="intro__actions" data-reveal style="--reveal-delay: 120ms">
-    <a class="btn btn--primary" href="/about">关于我</a>
   </div>
-  </div>
+  {/* 统计行同时承担 /archive 与 #projects 的功能入口，删 CTA 后保留链接本身、去掉「更新于」（活跃度由列表证明） */}
   <div class="intro__meta container" aria-label="站点统计">
     <a href="/archive">{notesCount} 篇记录</a>
     <span aria-hidden="true">·</span>
     <a href="#projects">{projectsCount} 个项目</a>
-    {latestDate && <><span aria-hidden="true">·</span><span>更新于 <time datetime={isoDate(latestDate)}>{dotDate(latestDate)}</time></span></>}
   </div>
 </header>
 
@@ -45,19 +39,13 @@ const { notesCount, projectsCount, latestDate } = Astro.props;
   .intro__portrait:hover { transform: scale(1.07); }
   .intro__portrait img { border-radius: 50%; object-fit: cover; }
   h1 { font-family: var(--font-display); font-size: 76px; font-weight: 650; line-height: 1.05; }
-  .intro__tagline { margin-top: 12px; font-size: 28px; font-weight: 500; line-height: 1.4; }
-  .hero__line { position: relative; display: inline-block; }
-  .intro__cursor { position: absolute; left: 100%; color: var(--accent); animation: cursor-blink 1.6s steps(1) infinite; }
-  :global(html[data-theme='light']) .hero__line :global(.fk-ch) { filter: none !important; opacity: clamp(0.08, var(--fk, 1), 1); }
-  .intro__description { margin-top: 8px; font-size: 18px; color: var(--text-muted); }
-  .intro__actions { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px 24px; margin-top: 24px; }
+  .intro__description { margin-top: 16px; font-size: 18px; color: var(--text-muted); }
   .intro__meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 12px; padding-block: 12px 24px; color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
   .intro__meta a { display: inline-flex; align-items: center; min-height: 32px; }
   .intro__meta a:hover { color: var(--accent); }
   @media (max-width: 640px) {
     .intro__content { padding-block: 40px; }
     h1 { font-size: 56px; }
-    .intro__tagline { font-size: 23px; }
     .intro__description { font-size: 16px; }
     .intro__meta { gap: 2px 8px; font-size: 11px; padding-bottom: 16px; }
   }
@@ -66,9 +54,7 @@ const { notesCount, projectsCount, latestDate } = Astro.props;
     .intro__portrait { width: 48px; height: 48px; margin-bottom: 12px; }
     .intro__portrait img { width: 48px; height: 48px; }
     h1 { font-size: 56px; }
-    .intro__tagline { font-size: 23px; }
     .intro__description { font-size: 16px; }
-    .intro__actions { margin-top: 20px; }
     .intro__meta { padding-block: 8px 12px; }
   }
 </style>

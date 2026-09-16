@@ -1,10 +1,9 @@
 ---
 /**
- * DarkAbout —— 深色 About：dmesg 启动日志 + 数字灵魂
+ * DarkAbout —— 深色 About：字符签名
  *
- * 页面即一段内核引导序列：[时间戳] 级别逐行滚出，行末落 "OK"；
- * 正文区是手写 Canvas 2D 像素解体肖像 —— 鼠标掠过处，字符像素被吹散，
- * 以 spring 物理回弹归位。底部 facts 表格 + 签名行。
+ * 正文区是手写 Canvas 2D 字符签名 —— 鼠标掠过处，ALOHA 字母被吹散，
+ * 以 spring 物理回弹归位。底部 facts 表格。
  *
  * 性能：Canvas 以 cell 网格降采样渲染；pointer 事件直接写共享状态，
  * 单 rAF 驱动；离屏暂停；before-swap 释放全部监听与动画帧。
@@ -13,22 +12,11 @@ const GLYPHS = '01<>[]{}#$%&*+=/\\';
 ---
 
 <div class="dabout" data-dabout data-glyphs={GLYPHS}>
-  <!-- 启动序列：dmesg 风格逐行滚出 -->
-  <ol class="dabout__boot" aria-hidden="true">
-    <li style="--i:0"><span class="ok">[ <b>OK</b> ]</span> mounted /dev/curiosity</li>
-    <li style="--i:1"><span class="ok">[ <b>OK</b> ]</span> started backend.service</li>
-    <li style="--i:2"><span class="ok">[ <b>OK</b> ]</span> reached target distributed systems</li>
-    <li style="--i:3"><span class="ok">[ <b>OK</b> ]</span> listening on :443 — thoughts exposed</li>
-    <li style="--i:4"><span class="warn">[<b>WARN</b>]</span> sleep.service not found — skipping</li>
-  </ol>
+  <h1 class="dabout__title"><span data-scramble>关于我</span><span class="dabout__cursor" aria-hidden="true">_</span></h1>
 
-  <h1 class="dabout__title"><span data-scramble>Aloha</span><span class="dabout__cursor" aria-hidden="true">_</span></h1>
-  <p class="dabout__line" data-scramble>learning backend development.</p>
-
-  <!-- 数字灵魂：字符解体肖像 -->
+  <!-- 字符签名：字符解体画布呈现 ALOHA 字母 -->
   <div class="dabout__soul-wrap">
-    <canvas class="dabout__soul" data-soul aria-label="Aloha 的字符解体肖像" role="img"></canvas>
-    <p class="dabout__soul-cap" aria-hidden="true">// move your cursor through the noise</p>
+    <canvas class="dabout__soul" data-soul aria-label="Aloha 的字符签名：鼠标掠过，字母被吹散又归位" role="img"></canvas>
   </div>
 
   <dl class="dabout__facts" data-reveal>
@@ -54,29 +42,6 @@ const GLYPHS = '01<>[]{}#$%&*+=/\\';
     padding-bottom: var(--space-3xl);
   }
 
-  /* ---------- dmesg 启动序列 ---------- */
-  .dabout__boot {
-    list-style: none;
-    margin: 0 0 var(--space-2xl);
-    padding: 0 0 var(--space-lg);
-    border-bottom: 1px solid var(--border-subtle);
-    font-family: var(--mono);
-    font-size: 11.5px;
-    line-height: 2.1;
-    color: var(--text-faint);
-  }
-  .dabout__boot li { opacity: 0; animation: boot-line 420ms var(--ease-out) forwards; animation-delay: calc(var(--i) * 130ms + 200ms); }
-  .dabout__boot .ok b { color: var(--code-green); font-weight: 500; }
-  .dabout__boot .warn b { color: var(--accent); font-weight: 500; }
-  @keyframes boot-line {
-    from { opacity: 0; transform: translateX(-6px); }
-    to { opacity: 1; transform: none; }
-  }
-  html:not(.js) .dabout__boot li { opacity: 1; animation: none; }
-  @media (prefers-reduced-motion: reduce) {
-    .dabout__boot li { animation: none; opacity: 1; }
-  }
-
   .dabout__title {
     font-family: var(--mono);
     font-size: clamp(40px, 6vw, 56px);
@@ -85,14 +50,6 @@ const GLYPHS = '01<>[]{}#$%&*+=/\\';
   }
   .dabout__cursor { color: var(--accent); animation: cursor-blink 2.6s steps(1) infinite; }
   @media (prefers-reduced-motion: reduce) { .dabout__cursor { animation: none; } }
-
-  .dabout__line {
-    margin-top: var(--space-lg);
-    max-width: 46ch;
-    font-family: var(--mono);
-    font-size: 0.95rem;
-    color: var(--text);
-  }
 
   /* ---------- 数字灵魂画布 ---------- */
   .dabout__soul-wrap { margin-top: var(--space-2xl); }
@@ -104,13 +61,6 @@ const GLYPHS = '01<>[]{}#$%&*+=/\\';
     border: 1px solid var(--border-strong);
     background: color-mix(in srgb, var(--surface) 70%, transparent);
     touch-action: pan-y;
-  }
-  .dabout__soul-cap {
-    margin-top: 10px;
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.18em;
-    color: var(--text-faint);
   }
 
   /* ---------- facts ---------- */
@@ -177,7 +127,7 @@ const GLYPHS = '01<>[]{}#$%&*+=/\\';
       const octx = off.getContext('2d', { willReadFrequently: true })!;
       octx.fillStyle = '#000';
       octx.fillRect(0, 0, W, H);
-      const fontSize = Math.min(W * 0.16, 96);
+      const fontSize = Math.min(W * 0.2, 128);
       octx.font = `700 ${fontSize}px "JetBrains Mono", monospace`;
       octx.textAlign = 'center';
       octx.textBaseline = 'middle';
@@ -185,7 +135,8 @@ const GLYPHS = '01<>[]{}#$%&*+=/\\';
       octx.fillText('ALOHA', W / 2, H / 2 + fontSize * 0.04);
       const img = octx.getImageData(0, 0, W, H).data;
 
-      cell = W < 420 ? 10 : 13;
+      // 网格步长调小：字符更密，静止时字母轮廓可读（划过仍散开）
+      cell = W < 420 ? 7 : 9;
       cells = [];
       for (let y = cell / 2; y < H; y += cell) {
         for (let x = cell / 2; x < W; x += cell) {
@@ -198,11 +149,11 @@ const GLYPHS = '01<>[]{}#$%&*+=/\\';
               ch: GLYPHS[Math.floor(Math.random() * GLYPHS.length)],
               lum,
             });
-          } else if (Math.random() < 0.014) {
+          } else if (Math.random() < 0.11) {
             cells.push({
               gx: x, gy: y, x, y, vx: 0, vy: 0,
-              ch: Math.random() < 0.5 ? '0' : '1',
-              lum: 0.05,
+              ch: GLYPHS[Math.floor(Math.random() * GLYPHS.length)],
+              lum: 0.07,
             });
           }
         }
@@ -215,8 +166,8 @@ const GLYPHS = '01<>[]{}#$%&*+=/\\';
       ctx!.textAlign = 'center';
       ctx!.textBaseline = 'middle';
       for (const c of cells) {
-        const a = c.lum > 0.12 ? 0.24 + c.lum * 0.72 : 0.10;
-        ctx!.fillStyle = c.lum > 0.86 ? `rgba(255,178,36,${a})` : `rgba(190,205,235,${a})`;
+        const a = c.lum > 0.12 ? 0.42 + c.lum * 0.56 : 0.2;
+        ctx!.fillStyle = c.lum > 0.72 ? `rgba(255,178,36,${a})` : `rgba(190,205,235,${a})`;
         ctx!.fillText(c.ch, c.gx, c.gy);
       }
     }
@@ -255,11 +206,11 @@ const GLYPHS = '01<>[]{}#$%&*+=/\\';
         c.x += c.vx; c.y += c.vy;
 
         const displaced = Math.abs(c.x - c.gx) + Math.abs(c.y - c.gy);
-        const base = c.lum > 0.12 ? 0.24 + c.lum * 0.72 : 0.10;
+        const base = c.lum > 0.12 ? 0.42 + c.lum * 0.56 : 0.2;
         // 被吹散的字符短暂提亮，像受激的磷光
         const glow = Math.min(displaced / 26, 1);
         const a = Math.min(base + glow * 0.5, 1);
-        ctx!.fillStyle = (c.lum > 0.86 || glow > 0.4)
+        ctx!.fillStyle = (c.lum > 0.72 || glow > 0.4)
           ? `rgba(255,178,36,${a})`
           : `rgba(190,205,235,${a})`;
         ctx!.fillText(c.ch, c.x, c.y);

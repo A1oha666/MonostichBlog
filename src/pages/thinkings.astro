@@ -74,7 +74,6 @@ const momentContents = new Map(renderedMoments.map(({ entry, content }) => [entr
               <div class="thinking__body">
                 <h2><a href={item.href}>{item.title}</a></h2>
                 <p class="prose-zh">{item.summary}</p>
-                <a class="thinking__read" href={item.href}>阅读全文 <span aria-hidden="true">→</span></a>
               </div>
             ) : (
               <div class="thinking__body thinking__body--moment">
@@ -97,7 +96,7 @@ const momentContents = new Map(renderedMoments.map(({ entry, content }) => [entr
      斜体是 Thinkings 栏目有意保留的性格差异 */
   .page-head h1 { font-weight: 600; }
   .thinking-list { border-top: 1px solid var(--border-strong); }
-  .thinking { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: var(--space-2xl); padding-block: var(--space-3xl); border-bottom: 1px solid var(--border-subtle); transition: background var(--dur-fast) var(--ease-out); scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
+  .thinking { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: var(--space-2xl); padding-block: var(--space-3xl); border-bottom: 1px solid var(--border-subtle); scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
   .thinking__meta { padding-top: 7px; font-family: var(--mono); font-size: 12px; }
   .thinking__meta p { color: var(--accent); }
   /* 「小记」比 thinking 的栏目标签再降半级，让位给正题 */
@@ -106,15 +105,13 @@ const momentContents = new Map(renderedMoments.map(({ entry, content }) => [entr
   .thinking__body { position: relative; max-width: 720px; }
   /* thinking 标题与小记标题：小标题走 Google Sans（拉丁）+ Noto Sans SC（中文） */
   h2 { font-family: var(--font-body); font-size: 26px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
-  h2 a { display: inline-block; transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-out); }
+  /* 标题即唯一入口：静止态用下划线线索可辨识为链接，hover 只发生在链接自身 */
+  h2 a { display: inline-block; text-decoration: underline; text-decoration-color: var(--border-strong); text-underline-offset: 6px; text-decoration-thickness: 1px; transition: color var(--dur-fast) var(--ease-out), text-decoration-color var(--dur-fast) var(--ease-out); }
   .thinking__body > p { max-width: 58ch; margin-top: var(--space-lg); color: var(--text-muted); }
-  .thinking__read { display: inline-flex; gap: var(--space-sm); margin-top: var(--space-xl); color: var(--text); font-family: var(--mono); font-size: 12.5px; }
-  .thinking__read span { color: var(--accent); transition: transform var(--dur-base) var(--ease-spring); }
   @media (hover: hover) {
-    .thinking:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
-    .thinking:hover h2 a { color: var(--accent); transform: translateX(3px); }
-    .thinking:hover .thinking__read span { transform: translate(2px, -2px); }
+    .thinking__body > h2 a:hover { color: var(--accent); text-decoration-color: var(--accent); }
   }
+  h2 a:focus-visible { color: var(--accent); text-decoration-color: var(--accent); outline: none; }
 
   /* thinking 摘要 / 小记正文：走全局 .prose-zh 正文配方 —— Google Sans +
      Noto Sans SC、弱色、1.7 行高、左对齐（与「造物」简介同一套） */

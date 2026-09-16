@@ -1,8 +1,5 @@
 /* The original terminal theme has its own typography, composition and chrome. */
 :root[data-theme="dark"] {
-  --font-body: 'Google Sans', 'Noto Sans SC', 'PingFang SC', sans-serif;
-  --font-zh: 'Noto Sans SC', 'PingFang SC', sans-serif;
-  --font-display: 'Fraunces', 'STZhongsong', Georgia, serif;
   --font-heading: var(--mono);
   --h1-size-page: 56px;
   --h1-size-article: 44px;
@@ -20,7 +17,7 @@
   .page-head h1 { font-family: var(--font-heading); font-size: var(--h1-size-page); font-weight: 500; line-height: 1.12; }
   .back-home::before, .back-link::before { content: '['; margin-right: 4px; }
   .back-home::after, .back-link::after { content: ']'; margin-left: 4px; }
-  .prose-zh { font-size: 16px; line-height: 1.7; color: var(--text-muted); }
+  .prose-zh { font-size: 17px; line-height: 1.8; color: var(--text-muted); }
   .module-head { flex-direction: row; align-items: baseline; justify-content: space-between; text-align: left; margin-bottom: var(--space-sm); }
   .module-head h2 { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--text-faint); }
   .module-head h2::before { content: '//'; }
@@ -43,9 +40,10 @@
   .footer a:hover { color: var(--accent); }
 
   .note h2 { font-size: 26px; font-weight: 400; }
-  .thinking-list h2 { max-width: 20ch; padding-right: 32px; font-size: 40px; font-weight: 400; line-height: 1.15; }
-  .thinking-list .thinking__moment-title { padding-right: 0; font-size: 28px; }
-  .thinking__body .prose-zh { font-size: 16px; line-height: 1.7; color: var(--text-muted); }
+  /* 长短混排的节奏：长随想标题退半级，不再压过正文 */
+  .thinking-list h2 { max-width: 20ch; padding-right: 32px; font-size: 30px; font-weight: 400; line-height: 1.2; }
+  .thinking-list .thinking__moment-title { padding-right: 0; font-size: 26px; }
+  .thinking__body .prose-zh { font-size: 17px; line-height: 1.8; color: var(--text-muted); }
   .about__cursor { display: inline; }
   .about h1 { font-family: var(--mono); }
   .archive__title { font-size: 18px; font-weight: 400; }
@@ -61,9 +59,9 @@
   .article__toc-disclosure { position: static; padding: 0 0 0 16px; border-left: 1px solid var(--border-subtle); }
   .article__toc ol { padding: 0; }
   .article__toc a { padding-block: 5px; }
-  .article__content { font-size: 16px; line-height: 1.7; color: var(--text-muted); }
-  .article__content h2 { font-size: 36px; font-weight: 400; }
-  .article__content h3 { font-size: 21px; font-weight: 400; }
+  .article__content { font-size: 17px; line-height: 1.8; color: var(--text-muted); }
+  .article__content h2 { font-size: 30px; font-weight: 400; }
+  .article__content h3 { font-size: 19px; font-weight: 400; }
   .article__pagination { max-width: 1080px; }
 
   @media (max-width: 1080px) {

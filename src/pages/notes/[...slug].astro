@@ -26,9 +26,6 @@ const { Content, headings } = await render(entry);
     cover={entry.data.cover}
     readingTime={readingTimeText(entry.body)}
     headings={headings}
-    views={entry.data.views}
-    viewType="notes"
-    viewSlug={entry.id}
     previous={toAdjacentArticle(previous)}
     next={toAdjacentArticle(next)}
   >

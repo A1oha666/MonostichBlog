@@ -24,9 +24,6 @@ interface Props {
   headings: Heading[];
   previous?: AdjacentArticle;
   next?: AdjacentArticle;
-  views?: number;
-  viewType?: string;
-  viewSlug?: string;
 }
 
 const {
@@ -41,9 +38,6 @@ const {
   headings,
   previous,
   next,
-  views = 0,
-  viewType,
-  viewSlug,
 } = Astro.props;
 
 const publishedDate = safeDate(date);
@@ -57,19 +51,12 @@ const formatDate = dotDate;
   <div class="article__progress" aria-hidden="true"></div>
   <header class="article__header container" data-pagefind-body>
     <a class="back-link" href={collectionHref} data-reveal><span aria-hidden="true">←</span> 返回{collectionLabel}</a>
-    <p class="article__eyebrow" data-reveal style="--reveal-delay: 60ms">/ {collectionLabel.toLowerCase()}</p>
-    <h1 data-reveal style="--reveal-delay: 120ms">{title}</h1>
-    <p class="article__summary" data-reveal style="--reveal-delay: 200ms">{summary}</p>
-    <div class="article__meta" data-reveal style="--reveal-delay: 280ms">
+    <h1 data-reveal style="--reveal-delay: 60ms">{title}</h1>
+    <p class="article__summary" data-reveal style="--reveal-delay: 160ms">{summary}</p>
+    {/* 发布时间与实质更新时间保留；浏览量对私人博客无阅读决策价值，已移除 */}
+    <div class="article__meta" data-reveal style="--reveal-delay: 240ms">
       <time datetime={isoDate(publishedDate)}>{formatDate(publishedDate)}</time>
       <span>{readingTime}</span>
-      {viewType && viewSlug && (
-        <span
-          data-article-views
-          data-view-type={viewType}
-          data-view-slug={viewSlug}
-        >{views} 次浏览</span>
-      )}
       {editedDate && <span>更新于 {formatDate(editedDate)}</span>}
     </div>
   </header>
@@ -159,40 +146,6 @@ const formatDate = dotDate;
     progressEl = document.querySelector<HTMLElement>(".article__progress");
     if (progressEl) updateProgress();
 
-    // --- view counter ---
-    // POST 到 PocketBase 自定义路由做自增；同一会话内同一篇文章只计一次
-    // （快照值来自构建时，命中后用服务端返回的最新值替换）。
-    const viewsEl = document.querySelector<HTMLElement>("[data-article-views]");
-    if (viewsEl && viewsEl.dataset.viewType && viewsEl.dataset.viewSlug) {
-      const { viewType, viewSlug } = viewsEl.dataset;
-      const seenKey = `viewed:${viewType}/${viewSlug}`;
-      let seen = false;
-      try {
-        seen = sessionStorage.getItem(seenKey) === "1";
-      } catch {}
-      if (!seen) {
-        const base = import.meta.env.PUBLIC_PB_BASE_URL
-          ?? (location.hostname === "localhost" || location.hostname === "127.0.0.1"
-            ? "http://127.0.0.1:8090"
-            : "https://admin.monostich.cloud");
-        fetch(`${base}/api/monostich/views`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: viewType, slug: viewSlug }),
-        })
-          .then((res) => (res.ok ? res.json() : null))
-          .then((data) => {
-            if (data && Number.isFinite(data.views)) {
-              viewsEl.textContent = `${data.views} 次浏览`;
-            }
-            try {
-              sessionStorage.setItem(seenKey, "1");
-            } catch {}
-          })
-          .catch(() => {});
-      }
-    }
-
     // --- TOC scrollspy ---
     const tocLinks = [...document.querySelectorAll<HTMLAnchorElement>(".article__toc a[href^='#']")];
     const spyTargets = new Map<Element, HTMLAnchorElement>();
@@ -250,6 +203,9 @@ const formatDate = dotDate;
     if (spyTargets.size === 0) return;
 
     const visible = new Set<Element>();
+    // 长段落期间所有标题都可能滚出窄带：visible 为空时保持上一次高亮，
+    // 直到下一个标题进入接替，避免目录在阅读中途失去指示。
+    let lastActive: Element | null = null;
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
@@ -262,6 +218,8 @@ const formatDate = dotDate;
             break;
           }
         }
+        if (current) lastActive = current;
+        else current = lastActive;
         spyTargets.forEach((link, target) => link.classList.toggle("is-active", target === current));
       },
       { rootMargin: "-72px 0px -68% 0px", threshold: 0 },
@@ -298,11 +256,10 @@ const formatDate = dotDate;
   /* 返回按钮：与 .back-home 同一制式 —— 无边框 [ … ]，hover 整行染琥珀 */
   .back-link { display: inline-flex; align-items: center; gap: 6px; margin-bottom: var(--space-xl); padding: 4px 2px; color: var(--text-faint); font-family: var(--mono); font-size: 12px; transition: color var(--dur-fast) var(--ease-out); }
   .back-link::before, .back-link::after { content: none; }
-  .back-link span, .article__eyebrow { color: var(--accent); }
+  .back-link span { color: var(--accent); }
   .back-link span { display: inline-block; transition: transform var(--dur-base) var(--ease-out); }
   .back-link:hover, .back-link:hover::before, .back-link:hover::after { color: var(--accent); }
   .back-link:hover span { transform: translateX(-3px); }
-  .article__eyebrow { margin-bottom: var(--space-lg); font-family: var(--mono); font-size: 13px; }
   /* 标题字族与字号引用主题级 token */
   h1 { font-family: var(--font-heading); font-size: var(--h1-size-article); font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
   .article__summary { margin-top: var(--space-lg); color: var(--text-muted); font-size: 18px; line-height: 1.8; }

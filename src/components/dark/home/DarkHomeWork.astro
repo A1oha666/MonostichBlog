@@ -3,12 +3,12 @@
  * DarkHomeWork —— 项目 · gutter 行号列表（与文章/实验室同构）
  *
  * 结构：行号 | 名 | 述 | 状态灯
- * 状态灯文案与浅色同义（[进行中] / [开发中] / [已归档]）
+ * 状态灯文案与浅色同义（[可使用] / [开发中] / [已归档]）
  */
 import { projects } from '../../../data/projects.js';
 
 const statusLabel = (s: string) =>
-  s === 'active' ? '进行中' : s === 'developing' ? '开发中' : s === 'archived' ? '已归档' : s;
+  s === 'active' ? '可使用' : s === 'developing' ? '开发中' : s === 'archived' ? '已归档' : s;
 const statusTone = (s: string) => (s === 'active' ? 'live' : s === 'developing' ? 'dev' : 'arc');
 ---
 
@@ -98,7 +98,7 @@ const statusTone = (s: string) => (s === 'active' ? 'live' : s === 'developing' 
   .work-row:hover::before { opacity: 1; }
 
   .work-row h3 {
-    font-family: 'Google Sans', var(--font-zh);
+    font-family: var(--font-body);
     font-size: 1.05rem;
     font-weight: 500;
     white-space: nowrap;
@@ -106,8 +106,9 @@ const statusTone = (s: string) => (s === 'active' ? 'live' : s === 'developing' 
   }
   .work-row__desc {
     color: var(--text-faint);
-    font-family: var(--mono);
-    font-size: 11.5px;
+    /* 描述是给人读的一句话，不是终端日志：与浅色项目描述同族（Google Sans + PingFang） */
+    font-family: var(--font-body);
+    font-size: 13px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -126,14 +127,9 @@ const statusTone = (s: string) => (s === 'active' ? 'live' : s === 'developing' 
   .work-row__led { width: 5px; height: 5px; border-radius: 50%; background: var(--text-faint); }
   .work-row__status--live { color: var(--code-green); }
   .work-row__status--live .work-row__led { background: var(--code-green); box-shadow: 0 0 7px rgba(156, 191, 155, 0.8); }
+  /* 开发中：琥珀静态点 —— 静态信息不伪装实时监控，闪烁只留给真正的活体（终端/信号核） */
   .work-row__status--dev { color: var(--accent); }
-  .work-row__status--dev .work-row__led {
-    background: var(--accent);
-    box-shadow: 0 0 7px var(--accent-glow);
-    animation: led-blink 2.1s steps(1) infinite;
-  }
-  @keyframes led-blink { 0%, 64% { opacity: 1; } 65%, 100% { opacity: 0.12; } }
-  @media (prefers-reduced-motion: reduce) { .work-row__status--dev .work-row__led { animation: none; } }
+  .work-row__status--dev .work-row__led { background: var(--accent); box-shadow: 0 0 7px var(--accent-glow); }
 
   .work-list > li:focus-within .work-list__no,
   .work-row:hover .work-list__no { color: var(--accent); }

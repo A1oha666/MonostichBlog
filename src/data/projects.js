@@ -1,4 +1,5 @@
 // 项目数据：repo 为 "#" 表示尚无公开仓库，列表侧会渲染为静态行（不放假链接）
+// status 只保留影响访问决定的三档：active=可使用 / developing=开发中 / archived=已归档
 export const projects = [
   {
     name: "ZcodeRCLI",

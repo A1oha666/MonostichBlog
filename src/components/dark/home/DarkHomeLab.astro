@@ -70,7 +70,7 @@ import { lab } from '../../../data/lab.js';
   .lab-row:hover::before { opacity: 1; }
 
   .lab-row h3 {
-    font-family: 'Google Sans', var(--font-zh);
+    font-family: var(--font-body);
     font-size: 1.05rem;
     font-weight: 400;
     white-space: nowrap;
@@ -78,8 +78,9 @@ import { lab } from '../../../data/lab.js';
   }
   .lab-row__desc {
     color: var(--text-faint);
-    font-family: var(--mono);
-    font-size: 11.5px;
+    /* 描述正文族：与项目描述同一处理（Google Sans + PingFang） */
+    font-family: var(--font-body);
+    font-size: 13px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

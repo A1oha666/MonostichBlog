@@ -18,7 +18,7 @@ import { projects } from "../data/projects.js";
             <span class="work-row__name">{project.name}</span>
             <span class="work-row__desc">{project.desc}</span>
             <span class:list={["work-row__status", { "work-row__status--live": project.status === "active" }]}>
-              {project.status === 'active' ? '进行中' : project.status === 'developing' ? '开发中' : project.status === 'archived' ? '已归档' : project.status}
+              {project.status === 'active' ? '可使用' : project.status === 'developing' ? '开发中' : project.status === 'archived' ? '已归档' : project.status}
             </span>
           </>
         );

@@ -20,6 +20,9 @@ import DarkAbout from "../components/dark/DarkAbout.astro";
     <h1 data-reveal style="--reveal-delay: 120ms"><span data-scramble>Aloha</span><span class="about__cursor" aria-hidden="true">_</span></h1>
     <p class="about__line" data-reveal style="--reveal-delay: 200ms" data-scramble>learning backend development.</p>
 
+    {/* 作者语言占位：由 Aloha 本人替换为 2–3 句（为什么写、Monostich 意味着什么），合计 ≤100 字 */}
+    <p class="about__intro" data-reveal style="--reveal-delay: 300ms">这里等待补充。</p>
+
     <dl class="about__facts" data-reveal style="--reveal-delay: 400ms">
       <div class="about__fact">
         <dt data-scramble>email</dt>
@@ -65,6 +68,14 @@ import DarkAbout from "../components/dark/DarkAbout.astro";
     font-family: var(--mono);
     font-size: 0.95rem;
     color: var(--text);
+  }
+
+  .about__intro {
+    margin-top: var(--space-xl);
+    max-width: 46ch;
+    font-size: 1rem;
+    line-height: 1.8;
+    color: var(--text-muted);
   }
 
   .about__facts {
