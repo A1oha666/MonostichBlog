@@ -24,6 +24,9 @@ interface Props {
   headings: Heading[];
   previous?: AdjacentArticle;
   next?: AdjacentArticle;
+  views?: number;
+  viewType?: string;
+  viewSlug?: string;
 }
 
 const {
@@ -38,6 +41,9 @@ const {
   headings,
   previous,
   next,
+  views = 0,
+  viewType,
+  viewSlug,
 } = Astro.props;
 
 const publishedDate = safeDate(date);
@@ -53,10 +59,16 @@ const formatDate = dotDate;
     <a class="back-link" href={collectionHref} data-reveal><span aria-hidden="true">←</span> 返回{collectionLabel}</a>
     <h1 data-reveal style="--reveal-delay: 60ms">{title}</h1>
     <p class="article__summary" data-reveal style="--reveal-delay: 160ms">{summary}</p>
-    {/* 发布时间与实质更新时间保留；浏览量对私人博客无阅读决策价值，已移除 */}
     <div class="article__meta" data-reveal style="--reveal-delay: 240ms">
       <time datetime={isoDate(publishedDate)}>{formatDate(publishedDate)}</time>
       <span>{readingTime}</span>
+      {viewType && viewSlug && (
+        <span
+          data-article-views
+          data-view-type={viewType}
+          data-view-slug={viewSlug}
+        >{views} 次浏览</span>
+      )}
       {editedDate && <span>更新于 {formatDate(editedDate)}</span>}
     </div>
   </header>
@@ -145,6 +157,40 @@ const formatDate = dotDate;
     // progressEl 则在每次 astro:page-load 后重新指向当前页的元素。
     progressEl = document.querySelector<HTMLElement>(".article__progress");
     if (progressEl) updateProgress();
+
+    // --- view counter ---
+    // POST 到 PocketBase 自定义路由做自增；同一会话内同一篇文章只计一次
+    // （快照值来自构建时，命中后用服务端返回的最新值替换）。
+    const viewsEl = document.querySelector<HTMLElement>("[data-article-views]");
+    if (viewsEl && viewsEl.dataset.viewType && viewsEl.dataset.viewSlug) {
+      const { viewType, viewSlug } = viewsEl.dataset;
+      const seenKey = `viewed:${viewType}/${viewSlug}`;
+      let seen = false;
+      try {
+        seen = sessionStorage.getItem(seenKey) === "1";
+      } catch {}
+      if (!seen) {
+        const base = import.meta.env.PUBLIC_PB_BASE_URL
+          ?? (location.hostname === "localhost" || location.hostname === "127.0.0.1"
+            ? "http://127.0.0.1:8090"
+            : "https://admin.monostich.cloud");
+        fetch(`${base}/api/monostich/views`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: viewType, slug: viewSlug }),
+        })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (data && Number.isFinite(data.views)) {
+              viewsEl.textContent = `${data.views} 次浏览`;
+            }
+            try {
+              sessionStorage.setItem(seenKey, "1");
+            } catch {}
+          })
+          .catch(() => {});
+      }
+    }
 
     // --- TOC scrollspy ---
     const tocLinks = [...document.querySelectorAll<HTMLAnchorElement>(".article__toc a[href^='#']")];
