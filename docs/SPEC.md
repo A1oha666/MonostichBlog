@@ -58,7 +58,7 @@ SignalCore(WebGL 光谱仪) → DarkHomeHero → DarkHomeRecent → DarkHomeWork
 所有列表模块（Recent / Work / Lab）统一为 **gutter 行号列表**，不再使用卡片网格。
 浅色首页 = `Hero` + 随想 section + `Projects` + lab section。
 
-> 注：`DarkHomeOneline.astro` / `DarkHomeTerminal.astro` 已不在渲染树中（随想 bento 已移除）。`dark/SignalCore.astro` 为原生 WebGL2 实现；早期的 Shadertoy `pixelScreen` 像素屏管线（`lib/pixelscreen/` + `shaders/pixelScreen/`）已于 2026-09-15 清理。
+> 注：`DarkHomeOneline.astro` / `DarkHomeTerminal.astro` 已删除（随想 bento 移除后无引用，2026-09-16 随 code review 清理）。`dark/SignalCore.astro` 为原生 WebGL2 实现；早期的 Shadertoy `pixelScreen` 像素屏管线（`lib/pixelscreen/` + `shaders/pixelScreen/`）已于 2026-09-15 清理。
 
 ---
 
@@ -89,4 +89,4 @@ SignalCore(WebGL 光谱仪) → DarkHomeHero → DarkHomeRecent → DarkHomeWork
 
 ## 6. 待确认
 
-1. `DarkHomeOneline.astro` / `DarkHomeTerminal.astro` 已成未挂载组件（随想 bento 移除后无引用），是否清理待定。
+（空——原「DarkHomeOneline / DarkHomeTerminal 清理待定」已于 2026-09-16 处置：两文件删除。）

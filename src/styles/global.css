@@ -98,8 +98,8 @@
   font-style: italic;
   font-display: swap;
 }
-/* JetBrains Mono 由 BaseLayout 的 @fontsource 包统一加载，此处不再重复声明（双轨曾致竞争/冗余）；
-   对应自托管文件仍保留在 /public/fonts/ 作离线兜底，但不挂 @font-face */
+/* JetBrains Mono 由 BaseLayout 的 @fontsource 包加载（唯一来源，含各 unicode-range 子集）；
+   不再自托管本地副本 */
 
 :root {
   /* 拉丁优先 Google Sans；中文 Mac 首选 PingFang SC（系统字），其它平台回落系统中黑。
