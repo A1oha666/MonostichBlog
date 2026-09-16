@@ -1,4 +1,5 @@
-// Placeholder demo data — swap in your real projects
+// 项目数据：repo 为 "#" 表示尚无公开仓库，列表侧会渲染为静态行（不放假链接）
+// status 只保留影响访问决定的三档：active=可使用 / developing=开发中 / archived=已归档
 export const projects = [
   {
     name: "ZcodeRCLI",
@@ -16,14 +17,14 @@ export const projects = [
   },
   {
     name: "argus-gateway",
-    desc: "LLM request gateway: unified auth, rate limiting, retries & fallback. Written in Go.",
+    desc: "LLM 请求网关：统一鉴权、限流、重试与回退，Go 实现。",
     tags: ["go", "llm", "gateway"],
     repo: "#",
     status: "developing",
   },
   {
     name: "tool-router",
-    desc: "Agent tool-routing framework with declarative registration and parallel dispatch.",
+    desc: "Agent 工具路由框架：声明式注册与并行分发。",
     tags: ["go", "agent"],
     repo: "#",
     status: "developing",

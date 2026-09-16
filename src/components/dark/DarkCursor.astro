@@ -1,0 +1,112 @@
+---
+/**
+ * DarkCursor —— 物理惯性光标
+ *
+ * 点 = 紧跟随；环 = spring-damper 迟滞跟随；悬停可交互元素时环放大染色。
+ * 隐藏原生光标（fine pointer + 非 reduced-motion 才启用）。
+ * 环与点共用单 rAF；before-swap 全量清理。
+ */
+---
+
+<div class="dcursor" data-dcursor aria-hidden="true">
+  <div class="dcursor__ring"></div>
+  <div class="dcursor__dot"></div>
+</div>
+
+<style>
+  .dcursor { display: none; }
+  html.dcursor-on { cursor: none; }
+  html.dcursor-on a, html.dcursor-on button { cursor: none; }
+
+  html.dcursor-on .dcursor { display: block; }
+  .dcursor__dot, .dcursor__ring {
+    position: fixed;
+    top: 0; left: 0;
+    z-index: 90;
+    pointer-events: none;
+    border-radius: 50%;
+    transform: translate3d(-100px, -100px, 0);
+    will-change: transform;
+  }
+  .dcursor__dot {
+    width: 5px; height: 5px;
+    margin: -2.5px 0 0 -2.5px;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
+  }
+  .dcursor__ring {
+    width: 34px; height: 34px;
+    margin: -17px 0 0 -17px;
+    border: 1px solid rgba(200, 210, 235, 0.35);
+    transition: width 260ms var(--ease-out), height 260ms var(--ease-out),
+      margin 260ms var(--ease-out), border-color 260ms var(--ease-out),
+      background-color 260ms var(--ease-out);
+  }
+  .dcursor--hover .dcursor__ring {
+    width: 52px; height: 52px;
+    margin: -26px 0 0 -26px;
+    border-color: var(--accent-dim);
+    background: rgba(255, 178, 36, 0.06);
+  }
+</style>
+
+<script>
+  let teardownCursor: (() => void) | null = null;
+
+  function setupCursor() {
+    if (document.documentElement.dataset.theme !== 'dark') return;
+    const root = document.querySelector<HTMLElement>('[data-dcursor]');
+    if (!root || root.dataset.bound === '1') return;
+    // 仅精细指针（鼠标）启用
+    if (!window.matchMedia('(pointer: fine)').matches) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    root.dataset.bound = '1';
+    document.documentElement.classList.add('dcursor-on');
+
+    const dot = root.querySelector<HTMLElement>('.dcursor__dot')!;
+    const ring = root.querySelector<HTMLElement>('.dcursor__ring')!;
+
+    let tx = -100, ty = -100;     // 目标（鼠标）
+    let rx = -100, ry = -100;     // 环位置
+    let vx = 0, vy = 0;           // 环速度
+    let seen = false;
+    let raf = 0;
+
+    function onMove(e: PointerEvent) {
+      tx = e.clientX; ty = e.clientY;
+      if (!seen) { seen = true; rx = tx; ry = ty; }
+      const t = e.target as Element | null;
+      const interactive = !!t?.closest?.('a, button, [role="button"], input, textarea, [data-cursor]');
+      root!.classList.toggle('dcursor--hover', interactive);
+    }
+    function onLeave() { seen = false; tx = -100; ty = -100; }
+
+    function loop() {
+      // spring-damper（帧率无关近似）
+      const K = 34, D = 11, dt = 1 / 60;
+      vx += ((tx - rx) * K - vx * D) * dt;
+      vy += ((ty - ry) * K - vy * D) * dt;
+      rx += vx * dt; ry += vy * dt;
+      dot.style.transform = `translate3d(${tx}px, ${ty}px, 0)`;
+      ring.style.transform = `translate3d(${rx}px, ${ry}px, 0)`;
+      raf = requestAnimationFrame(loop);
+    }
+
+    window.addEventListener('pointermove', onMove, { passive: true });
+    document.documentElement.addEventListener('pointerleave', onLeave);
+    raf = requestAnimationFrame(loop);
+
+    teardownCursor = () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('pointermove', onMove);
+      document.documentElement.removeEventListener('pointerleave', onLeave);
+      document.documentElement.classList.remove('dcursor-on');
+      delete root!.dataset.bound;
+    };
+  }
+
+  document.addEventListener('astro:page-load', setupCursor);
+  document.addEventListener('themechange', () => { teardownCursor?.(); teardownCursor = null; setupCursor(); });
+  document.addEventListener('astro:before-swap', () => { teardownCursor?.(); teardownCursor = null; });
+  setupCursor();
+</script>

@@ -1,0 +1,137 @@
+---
+/**
+ * DarkHomeHero —— 深色首页 Hero 区块
+ *
+ * Aloha 标 + 磁力大标题 + 滚动提示
+ * 底：从视口右缘流向信号核的曲线星图连线（SVG，虚线流动）
+ *
+ * 背景（SignalCore / DarkGrain）由父级 DarkHome 提供，这里只管内容。
+ */
+---
+
+<div class="dhero container">
+  <div class="dhero__layout">
+    <div class="dhero__inner">
+      <h2 class="dhero__name" data-scramble>Aloha.</h2>
+      <h1 class="dhero__title">
+        <span class="dhero__line" data-magnet="14">explore</span>
+        <span class="dhero__line" data-magnet="14">and&nbsp;build<span class="dhero__dot">.</span><span class="dhero__cursor">_</span></span>
+      </h1>
+      <p class="dhero__scrollhint" aria-hidden="true"><span class="dhero__scrollline"></span>scroll</p>
+    </div>
+  </div>
+
+  <!-- 星图连线：从右缘向信号核输送数据的三条曲线 -->
+  <svg class="dhero__links" viewBox="0 0 600 400" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M600,60 C460,60 420,150 330,175" />
+    <path d="M600,210 C480,205 430,195 340,190" />
+    <path d="M600,350 C470,340 420,250 330,205" />
+  </svg>
+</div>
+
+<style>
+  .dhero { position: relative; z-index: 2; }
+
+  /* ---------- 布局 ---------- */
+  .dhero__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 236px;
+    align-items: end;
+    gap: 72px;
+    padding-top: clamp(48px, 9vh, 96px);
+    padding-bottom: clamp(48px, 8vh, 80px);
+  }
+
+  .dhero__name {
+    margin: 0 0 clamp(16px, 2.5vh, 28px);
+    font-family: var(--font-body);
+    font-size: clamp(26px, 3.4vw, 40px);
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  .dhero__title {
+    margin: 0;
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: clamp(46px, 8.2vw, 96px);
+    line-height: 0.98;
+    letter-spacing: -0.02em;
+    /* 纯色冷白 + 克制的辉光，不靠背景垫 */
+    color: #eef1f6;
+    text-shadow:
+      0 0 28px rgba(140, 170, 255, 0.22),
+      0 0 90px rgba(120, 150, 255, 0.10);
+  }
+  .dhero__line { display: block; will-change: transform; }
+  .dhero__dot { color: var(--accent); }
+  .dhero__cursor { margin-left: 0.04em; color: var(--accent); animation: cursor-blink 1.6s steps(1) infinite; }
+
+  /* ---------- 滚动提示 ---------- */
+  .dhero__scrollhint {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: clamp(40px, 7vh, 80px);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    color: var(--text-faint);
+    text-transform: uppercase;
+  }
+  .dhero__scrollline {
+    position: relative;
+    width: 54px;
+    height: 1px;
+    background: var(--border-strong);
+    overflow: hidden;
+  }
+  .dhero__scrollline::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    width: 22px;
+    background: var(--accent);
+    animation: scroll-sweep 2.2s var(--ease-out) infinite;
+  }
+  @keyframes scroll-sweep {
+    0% { transform: translateX(-24px); }
+    70%, 100% { transform: translateX(56px); }
+  }
+  @media (prefers-reduced-motion: reduce) { .dhero__scrollline::after { animation: none; } }
+
+  /* ---------- 星图连线 ---------- */
+  .dhero__links {
+    position: absolute;
+    right: -48px;
+    top: 12%;
+    width: min(46vw, 600px);
+    height: 60%;
+    pointer-events: none;
+    opacity: 0.5;
+  }
+  .dhero__links path {
+    fill: none;
+    stroke: var(--border-strong);
+    stroke-width: 1;
+    stroke-dasharray: 3 9;
+    animation: dash-flow 7s linear infinite;
+  }
+  .dhero__links path:nth-child(2) { animation-duration: 9s; animation-delay: -3s; }
+  .dhero__links path:nth-child(3) { animation-duration: 11s; animation-delay: -6s; }
+  @keyframes dash-flow { to { stroke-dashoffset: -120; } }
+  @media (prefers-reduced-motion: reduce) { .dhero__links path { animation: none; } }
+  @media (max-width: 900px) { .dhero__links { display: none; } }
+
+  /* ---------- 响应式 ---------- */
+  @media (max-width: 1100px) and (min-width: 601px) {
+    .dhero__layout { grid-template-columns: minmax(0, 1fr) 200px; gap: 36px; }
+  }
+  @media (max-width: 600px) {
+    .dhero__layout { grid-template-columns: 1fr; gap: 40px; padding-top: 96px; padding-bottom: 56px; align-items: start; }
+    .dhero__intro { max-width: 26ch; }
+  }
+</style>
+

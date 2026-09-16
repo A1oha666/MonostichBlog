@@ -1,0 +1,121 @@
+---
+/**
+ * DarkHomeRecent —— 最近文章 · gutter 行号列表
+ *
+ * 行交互：编号染朱、题名微移、行内浮现跟随光斑。
+ * 行号 = 1..n，与终端审美的 gutter 一致。
+ */
+import { dotDate, isoDate } from '../../../lib/format';
+
+interface Item {
+  key: string;
+  date: Date;
+  title: string;
+  summary: string;
+  category: string;
+  href: string;
+}
+interface Props {
+  items: Item[];
+}
+const { items } = Astro.props;
+---
+
+<section class="section container recent" id="recent" aria-labelledby="home-recent-heading">
+  <div class="module-head" data-reveal>
+    <h2 id="home-recent-heading" data-scramble data-no="01">文章</h2>
+    <a href="/archive" aria-label="全部文章">全部 →</a>
+  </div>
+  <ol class="recent-list" lang="zh-CN">
+    {items.map((item, index) => (
+      <li data-reveal style={`--reveal-delay: ${Math.min(index * 60, 240)}ms`}>
+        <a class="recent-row" href={item.href} data-spotlight>
+          <span class="recent-list__no" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+          <span class="recent-row__body">
+            <h3>{item.title}</h3>
+          </span>
+          <time datetime={isoDate(item.date)}>{dotDate(item.date)}</time>
+        </a>
+      </li>
+    ))}
+  </ol>
+  {items.length === 0 && <p class="recent__empty">文章正在酝酿中。</p>}
+</section>
+
+<style>
+  .recent-list { list-style: none; padding: 0; margin: 0; }
+  .recent__empty { color: var(--text-muted); padding-block: 32px; }
+  .recent time {
+    color: var(--text-faint);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    transition: color var(--dur-base) var(--ease-out);
+  }
+
+  .recent-list__no {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    align-self: stretch;
+    padding-right: 18px;
+    border-right: 1px solid var(--border-subtle);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+    transition: color var(--dur-base) var(--ease-out);
+  }
+
+  .recent-list > li { border-bottom: 1px solid var(--border-subtle); }
+  .recent-list > li:first-child { border-top: 1px solid var(--border-subtle); }
+
+  .recent-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0 22px;
+    padding-block: 22px;
+    isolation: isolate;
+  }
+  /* 行内光斑：跟随 --mx 的纵向辉光条 */
+  .recent-row::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: radial-gradient(
+      300px circle at var(--mx, 50%) 50%,
+      rgba(122, 148, 255, 0.07),
+      transparent 70%
+    );
+    opacity: 0;
+    transition: opacity 320ms var(--ease-out);
+  }
+  .recent-row:hover::before { opacity: 1; }
+
+  .recent-row h3 {
+    font-family: var(--font-body);
+    font-size: 1.12rem;
+    font-weight: 400;
+    line-height: 1.5;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-out);
+  }
+
+  .recent-list > li:focus-within .recent-list__no,
+  .recent-row:hover .recent-list__no { color: var(--accent); }
+  .recent-row:focus-visible h3,
+  .recent-row:hover h3 { transform: translateX(6px); }
+  .recent-row:hover time { color: var(--text-muted); }
+
+  @media (max-width: 640px) {
+    .recent-row { grid-template-columns: 40px minmax(0, 1fr) auto; row-gap: 6px; padding-block: 16px; }
+    .recent-list__no { padding-right: 12px; }
+  }
+</style>

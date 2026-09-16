@@ -1,18 +1,14 @@
 ---
 import Nav from "../components/Nav.astro";
 import { ClientRouter } from "astro:transitions";
-import "@fontsource/fraunces/400.css";
-import "@fontsource/fraunces/400-italic.css";
-import "@fontsource/fraunces/600.css";
+// JetBrains Mono 唯一加载来源（与 global.css 的 @font-face 重复声明已删，避免双轨竞争）
 import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/400-italic.css";
 import "@fontsource/jetbrains-mono/500.css";
 import "@fontsource/jetbrains-mono/700.css";
-// Google Sans：代码块使用与正文同家族的字体；
-// 字体文件已在本项目 /public/fonts/ 中自托管
-import "@fontsource/noto-sans-sc/chinese-simplified-400.css";
-import "@fontsource/noto-sans-sc/chinese-simplified-500.css";
-import "@fontsource/noto-sans-sc/chinese-simplified-700.css";
+// Google Sans：正文/标题同族（含 italic），字体文件在本项目 /public/fonts/ 自托管，
+// @font-face 声明见 global.css。
+// 中文：Mac 首选 PingFang SC（系统字，不预载）；其它平台经字体栈回落系统中黑。
 // KaTeX 渲染数学公式所需样式（$...$ / $$...$$）；字体文件随包内联进构建产物
 import "katex/dist/katex.min.css";
 import "../styles/global.css";

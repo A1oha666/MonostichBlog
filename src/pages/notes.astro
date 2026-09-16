@@ -28,7 +28,6 @@ const entries = notes.sort((a, b) => safeDate(b.data.date).valueOf() - safeDate(
                 <h2>{entry.data.title}</h2>
                 <p>{entry.data.summary}</p>
               </div>
-              <span class="note__arrow" aria-hidden="true">↗</span>
             </a>
           </li>
         ))
@@ -43,19 +42,17 @@ const entries = notes.sort((a, b) => safeDate(b.data.date).valueOf() - safeDate(
   .notes__count { padding-bottom: var(--space-md); border-bottom: 1px solid var(--border-strong); color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
   .notes__list { margin: 0; padding: 0; list-style: none; }
   .notes__list > li { border-bottom: 1px solid var(--border-subtle); transition: background var(--dur-fast) var(--ease-out); }
-  .note { display: grid; grid-template-columns: 112px minmax(0, 1fr) 20px; gap: var(--space-lg); padding-block: var(--space-xl); }
-  time, .note__arrow { color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
-  .note__arrow { padding-top: 4px; transition: color var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--ease-spring); }
+  .note { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: var(--space-lg); padding-block: var(--space-xl); }
+  time { color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
   h2 { font-family: var(--font-body); font-size: 23px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; transition: color var(--dur-fast) var(--ease-out); }
   .note__body > p { max-width: 65ch; margin-top: var(--space-sm); color: var(--text-muted); font-size: 0.98rem; }
   @media (hover: hover) {
     .notes__list > li:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
     .note:hover h2 { color: var(--accent); transform: translateX(3px); }
-    .note:hover .note__arrow { color: var(--accent); transform: translate(2px, -2px); }
   }
   @media (max-width: 600px) {
     .page-head { padding-top: var(--space-3xl); }
-    .note { grid-template-columns: minmax(0, 1fr) 20px; gap: var(--space-sm); }
+    .note { grid-template-columns: 1fr; gap: var(--space-sm); }
     time { grid-column: 1 / -1; }
   }
 </style>

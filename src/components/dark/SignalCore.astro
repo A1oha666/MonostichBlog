@@ -1,0 +1,671 @@
+---
+/**
+ * SignalCore —— 光谱仪（The Spectrometer）
+ *
+ * 首页深色模式的 Hero 视觉：一道白光从左上射入一个悬浮的色散界面，
+ * 向下偏折展开为扇形光谱带（红→靛紫，物理顺序），界面处有能量核心辉光，
+ * 背景是深空星云与星光。鼠标牵引界面位置、偏折角与色散张角。
+ *
+ * 实现：原生 WebGL2，纯 2D 屏幕空间场景（无 3D 相机、无 SDF、无依赖）：
+ *   pass 1 背景：深空域扭曲 FBM 星云 + 暗角
+ *   pass 2 场景（0.75×）：2D 星云星光 + 入射激光 + 色散界面辉光 +
+ *     光谱扇形按波长分段着色（620/570/510/475/445nm）
+ *   pass 3 合成：场景纹理 + 半分辨率选择性辉光 + 抖动去色带
+ *
+ * 性能与生命周期：
+ *  - 场景 pass 固定 0.75× 分辨率，自适应质量再降（下限 0.72，保锐利）；
+ *    DPR 封顶 1.75；IntersectionObserver 离屏暂停、visibilitychange 后台暂停、
+ *    themechange（切浅色）整体拆除；astro:before-swap 释放全部 GL 资源。
+ *  - prefers-reduced-motion：渲染单帧静帧，不进入动画循环。
+ */
+---
+
+<div class="signal-core" aria-hidden="true" data-signal-core></div>
+
+<style>
+  .signal-core {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: clip;
+  }
+  .signal-core :global(canvas) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  html[data-theme='light'] .signal-core { display: none; }
+</style>
+
+<script>
+  // ============================================================
+  // 视图过渡生命周期：astro:page-load 幂等初始化，before-swap 全量清理
+  // ============================================================
+  let teardownCore: (() => void) | null = null;
+
+  function setupSignalCore() {
+    if (document.documentElement.dataset.theme !== 'dark') return;
+    const host = document.querySelector<HTMLElement>('[data-signal-core]');
+    if (!host || host.dataset.bound === '1') return;
+    host.dataset.bound = '1';
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const canvas = document.createElement('canvas');
+    host.appendChild(canvas);
+
+    const gl = canvas.getContext('webgl2', {
+      alpha: false,
+      antialias: true,
+      depth: false,
+      stencil: false,
+      preserveDrawingBuffer: true, // 便于截图/排障，实测对帧耗影响可忽略
+      powerPreference: 'high-performance',
+    }) as WebGL2RenderingContext | null;
+
+    if (!gl) { host.removeChild(canvas); delete host.dataset.bound; return; }
+
+    // ----------------------------------------------------------
+    // 小型 GL 工具
+    // ----------------------------------------------------------
+    function compile(type: number, src: string): WebGLShader | null {
+      const s = gl!.createShader(type);
+      if (!s) return null;
+      gl!.shaderSource(s, src);
+      gl!.compileShader(s);
+      if (!gl!.getShaderParameter(s, gl!.COMPILE_STATUS)) {
+        console.warn('[signal-core] shader:', gl!.getShaderInfoLog(s));
+        gl!.deleteShader(s);
+        return null;
+      }
+      return s;
+    }
+    function program(vsSrc: string, fsSrc: string): WebGLProgram | null {
+      const vs = compile(gl!.VERTEX_SHADER, vsSrc);
+      const fs = compile(gl!.FRAGMENT_SHADER, fsSrc);
+      if (!vs || !fs) return null;
+      const p = gl!.createProgram()!;
+      gl!.attachShader(p, vs);
+      gl!.attachShader(p, fs);
+      gl!.linkProgram(p);
+      gl!.deleteShader(vs);
+      gl!.deleteShader(fs);
+      if (!gl!.getProgramParameter(p, gl!.LINK_STATUS)) {
+        console.warn('[signal-core] link:', gl!.getProgramInfoLog(p));
+        gl!.deleteProgram(p);
+        return null;
+      }
+      return p;
+    }
+    function makeTarget(w: number, h: number) {
+      const tex = gl!.createTexture()!;
+      gl!.bindTexture(gl!.TEXTURE_2D, tex);
+      gl!.texImage2D(gl!.TEXTURE_2D, 0, gl!.RGBA, w, h, 0, gl!.RGBA, gl!.UNSIGNED_BYTE, null);
+      gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_MIN_FILTER, gl!.LINEAR);
+      gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_MAG_FILTER, gl!.LINEAR);
+      gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_WRAP_S, gl!.CLAMP_TO_EDGE);
+      gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_WRAP_T, gl!.CLAMP_TO_EDGE);
+      const fbo = gl!.createFramebuffer()!;
+      gl!.bindFramebuffer(gl!.FRAMEBUFFER, fbo);
+      gl!.framebufferTexture2D(gl!.FRAMEBUFFER, gl!.COLOR_ATTACHMENT0, gl!.TEXTURE_2D, tex, 0);
+      gl!.bindFramebuffer(gl!.FRAMEBUFFER, null);
+      return { tex, fbo, w, h };
+    }
+
+    // ----------------------------------------------------------
+    // 共享着色器库
+    // ----------------------------------------------------------
+    const GLSL_LIB = /* glsl */ `
+      float hash11(float p){p=fract(p*.1031);p*=p+33.33;p*=p+p;return fract(p);}
+      float hash12(vec2 p){vec3 p3=fract(vec3(p.xyx)*.1031);p3+=dot(p3,p3.yzx+33.33);return fract((p3.x+p3.y)*p3.z);}
+      vec3 hash33(vec3 p){
+        p=fract(p*vec3(.1031,.1030,.0973));
+        p+=dot(p,p.yxz+33.33);
+        return fract((p.xxy+p.yxx)*p.zyx);
+      }
+      vec4 permute(vec4 x){return mod(((x*34.)+1.)*x,289.);}
+      vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-0.85373472095314*r;}
+      float snoise(vec3 v){
+        const vec2 C=vec2(1./6.,1./3.);
+        const vec4 D=vec4(0.,.5,1.,2.);
+        vec3 i=floor(v+dot(v,C.yyy));
+        vec3 x0=v-i+dot(i,C.xxx);
+        vec3 g=step(x0.yzx,x0.xyz);
+        vec3 l=1.-g;
+        vec3 i1=min(g.xyz,l.zxy);
+        vec3 i2=max(g.xyz,l.zxy);
+        vec3 x1=x0-i1+C.xxx;
+        vec3 x2=x0-i2+C.yyy;
+        vec3 x3=x0-D.yyy;
+        i=mod(i,289.);
+        vec4 p=permute(permute(permute(
+          i.z+vec4(0.,i1.z,i2.z,1.))
+          +i.y+vec4(0.,i1.y,i2.y,1.))
+          +i.x+vec4(0.,i1.x,i2.x,1.));
+        float n_=1./7.;
+        vec3 ns=n_*D.wyz-D.xzx;
+        vec4 j=p-49.*floor(p*ns.z*ns.z);
+        vec4 x_=floor(j*ns.z);
+        vec4 y_=floor(j-7.*x_);
+        vec4 x=x_*ns.x+ns.yyyy;
+        vec4 y=y_*ns.x+ns.yyyy;
+        vec4 h=1.-abs(x)-abs(y);
+        vec4 b0=vec4(x.xy,y.xy);
+        vec4 b1=vec4(x.zw,y.zw);
+        vec4 s0=floor(b0)*2.+1.;
+        vec4 s1=floor(b1)*2.+1.;
+        vec4 sh=-step(h,vec4(0.));
+        vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy;
+        vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
+        vec3 p0=vec3(a0.xy,h.x);
+        vec3 p1=vec3(a0.zw,h.y);
+        vec3 p2=vec3(a1.xy,h.z);
+        vec3 p3=vec3(a1.zw,h.w);
+        vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
+        p0*=norm.x;p1*=norm.y;p2*=norm.z;p3*=norm.w;
+        vec4 m=max(.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.);
+        m=m*m;
+        return 42.*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
+      }
+      float fbm(vec3 p){
+        float f=0.,a=.5;
+        for(int i=0;i<4;i++){f+=a*snoise(p);p*=2.03;a*=.5;}
+        return f;
+      }
+      float fbm6(vec3 p){
+        float f=0.,a=.5;
+        for(int i=0;i<6;i++){f+=a*snoise(p);p*=2.03;a*=.5;}
+        return f;
+      }
+      float ign(vec2 st){
+        return fract(52.9829189*fract(dot(st,vec2(0.06711056,0.00583715))));
+      }
+      // 波长 → RGB（近似，380–700nm）
+      vec3 waveColor(float w){
+        float r,g,b;
+        if(w<440.){r=(440.-w)/60.;g=0.;b=1.;}
+        else if(w<490.){r=0.;g=(w-440.)/50.;b=1.;}
+        else if(w<510.){r=0.;g=1.;b=(510.-w)/20.;}
+        else if(w<580.){r=(w-510.)/70.;g=1.;b=0.;}
+        else if(w<645.){r=1.;g=(645.-w)/65.;b=0.;}
+        else{r=1.;g=0.;b=0.;}
+        // 边缘衰减
+        float f=1.;
+        if(w>680.)f=(700.-w)/20.;
+        else if(w<420.)f=(w-380.)/40.;
+        // 感知亮度均衡：蓝紫通道天然过亮，红绿需补偿
+        vec3 c = vec3(r,g,b)*clamp(f,0.,1.);
+        c *= vec3(1.25, 1.05, 0.62);
+        return c;
+      }
+    `;
+
+    const VS_FULLSCREEN = /* glsl */ `#version 300 es
+      layout(location=0) in vec2 aPos;
+      out vec2 vUv;
+      void main(){ vUv = aPos*0.5+0.5; gl_Position = vec4(aPos, 0., 1.); }
+    `;
+
+    // ----------------------------------------------------------
+    // 1) 背景：深空星云
+    // ----------------------------------------------------------
+    const FS_BG = /* glsl */ `#version 300 es
+      precision highp float;
+      in vec2 vUv;
+      uniform vec2 uRes;
+      uniform float uTime;
+      uniform vec2 uPar;
+      out vec4 fragColor;
+      ${GLSL_LIB}
+      void main(){
+        vec2 p = (vUv - .5) * vec2(uRes.x/uRes.y, 1.);
+        vec3 q = vec3(p*1.5 + uPar*0.05, uTime*0.010);
+        float w1 = fbm(q + fbm(q + vec3(0.,0.,uTime*0.007))*0.8);
+        float w2 = fbm(q*1.9 - fbm(q*0.7 + vec3(3.1))*0.6 + 7.7);
+        float nebA = smoothstep(0.05, 0.85, w1*0.5+0.5);
+        float nebB = smoothstep(0.1, 0.9, w2*0.5+0.5);
+        vec3 col = vec3(0.011, 0.013, 0.019);
+        col += vec3(0.016, 0.015, 0.017) * nebA * 0.22;
+        col += vec3(0.020, 0.014, 0.012) * nebB * 0.14;
+        col += vec3(0.022, 0.017, 0.012) * pow(nebA*nebB, 2.6)*0.18;
+        // 向中心的微弱辉光（棱镜位置）
+        // 收紧 + 压暗：它是背景的聚焦暗示，不是罩住棱镜的光雾
+        float d = length(p - uPar*0.04);
+        col += vec3(0.026, 0.024, 0.030) * 0.035 / (1.0 + d*d*38.0);
+        col *= 1.0 - smoothstep(0.42, 1.28, length(p)) * 0.66;
+        col += (hash12(gl_FragCoord.xy + fract(uTime)*17.0) - 0.5) * (1.5/255.0);
+        fragColor = vec4(col, 1.0);
+      }
+    `;
+
+    // ----------------------------------------------------------
+    // 2) 光学场景：SDF 棱镜 + Snell 折射 + 光谱色散 + 光束
+    // ----------------------------------------------------------
+    const FS_SCENE = /* glsl */ `#version 300 es
+      precision highp float;
+      in vec2 vUv;
+      uniform vec2 uRes;
+      uniform float uTime;
+      uniform vec2 uMouse;      // 归一化 -1..1（未访问时居中）
+      uniform float uBoost;     // 鼠标接近激励 0..1
+      out vec4 fragColor;
+      ${GLSL_LIB}
+
+      // —— 纯 2D 光学场景：没有棱镜实体，没有 3D 相机，只有"光的行为" ——
+      // 移除棱镜后场景退化为屏幕空间 2D：星云/星光/光束/光谱全部直接
+      // 在 uv 域计算，省去整套 3D 相机投影与 3D 噪声采样。
+
+      // —— 深空背景（3D 方向星云 + 星光，随相机视角旋转）——
+      vec3 env(vec3 rd){
+        vec3 col = vec3(0.008, 0.010, 0.015);
+        vec3 axis = normalize(vec3(0.3, 1.0, 0.15));
+        float band = 1.0 - abs(dot(rd, axis));
+        float neb = fbm(rd*3.0 + vec3(0.0, uTime*0.004, 0.0));
+        col += vec3(0.010, 0.010, 0.012) * pow(band, 3.5) * (0.3 + 0.7*smoothstep(-0.2, 0.8, neb));
+        col += vec3(0.013, 0.008, 0.010) * pow(band, 8.0) * 0.15;
+        vec3 g = rd * 110.0;
+        vec3 id = floor(g);
+        vec3 f = fract(g) - 0.5;
+        vec3 rnd = hash33(id);
+        float star = smoothstep(0.22, 0.0, length(f + (rnd-0.5)*0.6));
+        float tw = 0.7 + 0.3*sin(uTime*(1.0+rnd.y*2.6) + rnd.x*40.0);
+        col += vec3(0.85, 0.9, 1.0) * step(0.994, rnd.z) * star * tw * 1.3;
+        col += vec3(1.0, 0.9, 0.7) * step(0.998, rnd.z) * star * 1.8;
+        return col;
+      }
+
+      // —— 光谱扇形：从色散界面沿 Snell 方向展开逐波长着色 ——
+      vec3 spectralFan(vec2 toIface, float baseAng, float spread){
+        vec3 acc = vec3(0.0);
+        float wls[5] = float[5](620., 570., 510., 475., 445.);
+        for (int i = 0; i < 5; i++) {
+          float fi = float(i) / 4.0;            // 0=红 1=紫
+          float ang = baseAng + (fi - 0.5) * spread;
+          vec2 dir = vec2(cos(ang), sin(ang));
+          float proj = dot(toIface, dir);
+          float perp = dot(toIface, vec2(-dir.y, dir.x));
+          float beam = smoothstep(0.02, 0.20, proj)
+                     * exp(-proj * 1.5)
+                     * exp(-perp * perp * 420.0);
+          acc += waveColor(wls[i]) * beam;
+        }
+        return acc;
+      }
+
+      void main(){
+        vec2 frag = gl_FragCoord.xy;
+        vec2 uv = (frag - 0.5*uRes) / uRes.y;
+
+        // —— 相机视差：只作用于背景星云，前景光路保持屏幕固定 ——
+        // 鼠标驱动视线方向偏转，让 3D 星云以视角速率转动（背景动感），
+        // 而色散界面/激光/光谱锚定在屏幕坐标上（主体稳定，构图不偏）
+        const float FOCAL = 2.0;
+        vec3 ro = vec3(uMouse.x*0.7, 0.25 + uMouse.y*0.45, 4.1);
+        vec3 ta = vec3(uMouse.x*0.42, 0.02 + uMouse.y*0.27, 0.0);
+        vec3 fw = normalize(ta - ro);
+        vec3 ri = normalize(cross(fw, vec3(0.0,1.0,0.0)));
+        vec3 up = cross(ri, fw);
+        vec3 rd = normalize(fw*FOCAL + ri*uv.x + up*uv.y);
+
+        vec3 col = env(rd);
+
+        // —— 色散界面：屏幕坐标锚定，随时间轻微漂移 ——
+        // 位置偏向左上，与左侧顶部射入的激光形成更舒展的折线，视觉更平衡
+        vec2 iface = vec2(0.24 + uMouse.x*0.012, 0.18 + sin(uTime*0.4)*0.02 - uMouse.y*0.010);
+        vec2 toIface = uv - iface;
+        float ifaceDist = length(toIface);
+
+        // —— 入射激光：从左侧顶部射向色散界面（终点即界面，光路不断裂）——
+        // 起点在屏幕左缘外上方，光束以更倾斜的角度横贯画面、
+        // 从左上方斜射向右下方的界面，入射角更接近水平
+        vec2 beamFrom = vec2(-1.20, 0.78);
+        vec2 beamTo = iface;
+        vec2 bd = normalize(beamTo - beamFrom);
+        vec2 bp = uv - beamFrom;
+        float bAlong = dot(bp, bd);
+        float bPerp = abs(dot(bp, vec2(-bd.y, bd.x)));
+        float bLen = length(beamTo - beamFrom);
+        float inBeam = smoothstep(0.0, 0.1, bAlong)
+                     * smoothstep(bLen, bLen - 0.06, bAlong)
+                     * exp(-bPerp * bPerp * 5200.0);
+        col += vec3(0.95, 0.96, 1.0) * inBeam * 0.58;
+        col += vec3(0.65, 0.70, 0.85) * exp(-bPerp * bPerp * 6500.0)
+             * smoothstep(0.0, 0.1, bAlong) * smoothstep(bLen, bLen - 0.06, bAlong) * 0.13;
+
+        // —— 色散界面辉光：激光命中处的能量积聚（小而亮，不是雾）——
+        float core = exp(-ifaceDist * ifaceDist * 900.0);
+        col += vec3(0.85, 0.90, 1.0) * core * (0.9 + uBoost*0.5);
+
+        // —— 光谱扇形：从色散界面沿"入射方向向下偏折"的方向展开 ——
+        // 物理：光从左上射入，穿过界面后向下偏折（折射率突变），
+        // 短波（紫）偏折角更大，长波（红）更小，形成向下张开的扇形
+        float inAng = atan(bd.y, bd.x);                    // 入射方向角
+        float bend = 0.55 + uMouse.x*0.10 + uMouse.y*0.06; // 界面偏折角（更明显的"弯折"）
+        float baseAng = inAng - bend;                      // 出射基准方向（向下偏）
+        float spread = 0.30 + uBoost*0.30;                 // 色散张角
+        col += spectralFan(toIface, baseAng, spread) * (0.36 + uBoost*0.40);
+
+        // —— 出射光束的径向辉光：光谱扇形起点处的柔和光晕 ——
+        float exitGlow = exp(-ifaceDist * ifaceDist * 220.0);
+        col += vec3(0.55, 0.62, 0.78) * exitGlow * 0.10;
+
+        // 输出：场景 + 辉光强度打包（a 通道存亮度供 bloom）
+        float lum = dot(col, vec3(0.299, 0.587, 0.114));
+        float glow = smoothstep(0.30, 1.1, lum);
+        fragColor = vec4(col, glow);
+      }
+    `;
+
+    // ----------------------------------------------------------
+    // 3) 合成：场景 + 选择性辉光 + 抖动
+    // ----------------------------------------------------------
+    const FS_COMP = /* glsl */ `#version 300 es
+      precision highp float;
+      in vec2 vUv;
+      uniform sampler2D uScene;
+      uniform sampler2D uBloom;
+      uniform vec2 uRes;
+      out vec4 fragColor;
+      ${GLSL_LIB}
+      void main(){
+        vec3 col = texture(uScene, vUv).rgb;
+        // 半分辨率辉光（选择性，只取亮部；克制，光晕不该洗掉玻璃本体）
+        vec3 bloom = texture(uBloom, vUv).rgb;
+        col += bloom * 0.38;
+        // 轻微色调映射
+        col = col / (1.0 + col*0.45);
+        // 抖动去色带（PCG）
+        uvec2 v = floatBitsToUint(gl_FragCoord.xy);
+        v = v*1664525u + 1013904223u;
+        v.x += v.y*v.y*1664525u + 1013904223u;
+        v.y += v.x*v.x*1664525u + 1013904223u;
+        v ^= v>>16u;
+        float dither = (float(v.x ^ v.y)/float(0xffffffffu) - 0.5) / 255.0;
+        col += dither;
+        fragColor = vec4(col, 1.0);
+      }
+    `;
+
+    // ----------------------------------------------------------
+    // 4) 辉光提取 + 高斯模糊（乒乓 2 pass）
+    // ----------------------------------------------------------
+    const FS_BLOOM_EXTRACT = /* glsl */ `#version 300 es
+      precision highp float;
+      in vec2 vUv;
+      uniform sampler2D uScene;
+      uniform vec2 uRes;
+      out vec4 fragColor;
+      void main(){
+        vec4 s = texture(uScene, vUv);
+        // 软阈值：只取光谱带与真正的高光。棱镜 body 亮度 ~0.08-0.15，
+        // 必须被阈值挡在门外，否则整块玻璃被高斯模糊后再回灌 = 糊
+        float lum = dot(s.rgb, vec3(0.299, 0.587, 0.114));
+        float w = smoothstep(0.48, 1.15, lum);
+        fragColor = vec4(s.rgb * w, 1.0);
+      }
+    `;
+    const FS_BLUR = /* glsl */ `#version 300 es
+      precision highp float;
+      in vec2 vUv;
+      uniform sampler2D uTex;
+      uniform vec2 uRes;
+      uniform vec2 uDir;   // (1,0) 或 (0,1)
+      out vec4 fragColor;
+      void main(){
+        vec2 texel = uDir / uRes;
+        vec3 c = texture(uTex, vUv).rgb * 0.227027;
+        c += texture(uTex, vUv + texel*1.3846).rgb * 0.3162162;
+        c += texture(uTex, vUv - texel*1.3846).rgb * 0.3162162;
+        c += texture(uTex, vUv + texel*3.2308).rgb * 0.0702703;
+        c += texture(uTex, vUv - texel*3.2308).rgb * 0.0702703;
+        fragColor = vec4(c, 1.0);
+      }
+    `;
+
+    // ----------------------------------------------------------
+    // 编译全部程序
+    // ----------------------------------------------------------
+    const prgBg      = program(VS_FULLSCREEN, FS_BG);
+    const prgScene   = program(VS_FULLSCREEN, FS_SCENE);
+    const prgComp    = program(VS_FULLSCREEN, FS_COMP);
+    const prgExtract = program(VS_FULLSCREEN, FS_BLOOM_EXTRACT);
+    const prgBlur    = program(VS_FULLSCREEN, FS_BLUR);
+    if (!prgBg || !prgScene || !prgComp || !prgExtract || !prgBlur) {
+      host.removeChild(canvas); delete host.dataset.bound; return;
+    }
+
+    const U = (p: WebGLProgram, n: string) => gl!.getUniformLocation(p, n);
+    const uBg    = { res: U(prgBg,'uRes'), time: U(prgBg,'uTime'), par: U(prgBg,'uPar') };
+    const uScene = { res: U(prgScene,'uRes'), time: U(prgScene,'uTime'), mouse: U(prgScene,'uMouse'), boost: U(prgScene,'uBoost') };
+    const uComp  = { scene: U(prgComp,'uScene'), bloom: U(prgComp,'uBloom'), res: U(prgComp,'uRes') };
+    const uExt   = { scene: U(prgExtract,'uScene'), res: U(prgExtract,'uRes') };
+    const uBlur  = { tex: U(prgBlur,'uTex'), res: U(prgBlur,'uRes'), dir: U(prgBlur,'uDir') };
+
+    // 全屏三角形
+    const vao = gl.createVertexArray()!;
+    gl.bindVertexArray(vao);
+    const vb = gl.createBuffer()!;
+    gl.bindBuffer(gl.ARRAY_BUFFER, vb);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    gl.bindVertexArray(null);
+
+    // ----------------------------------------------------------
+    // 渲染目标（场景 0.75× + 辉光乒乓 0.25×）
+    // ----------------------------------------------------------
+    let sceneT: ReturnType<typeof makeTarget> | null = null;
+    let bloomA: ReturnType<typeof makeTarget> | null = null;
+    let bloomB: ReturnType<typeof makeTarget> | null = null;
+    const BLOOM_SCALE = 0.25;
+    // 自适应降质只作用于场景 pass：降它的渲染比例，不重建整链 FBO（无闪屏）
+    const QUALITY_SCENE = [0.75, 0.60, 0.48];
+
+    function allocScene(w: number, h: number, scale: number) {
+      if (sceneT) { gl!.deleteTexture(sceneT.tex); gl!.deleteFramebuffer(sceneT.fbo); }
+      sceneT = makeTarget(Math.max(2, Math.floor(w*scale)), Math.max(2, Math.floor(h*scale)));
+    }
+    function allocBloom(w: number, h: number) {
+      if (bloomA) { gl!.deleteTexture(bloomA.tex); gl!.deleteFramebuffer(bloomA.fbo); }
+      if (bloomB) { gl!.deleteTexture(bloomB.tex); gl!.deleteFramebuffer(bloomB.fbo); }
+      bloomA = makeTarget(Math.max(2, Math.floor(w*BLOOM_SCALE)), Math.max(2, Math.floor(h*BLOOM_SCALE)));
+      bloomB = makeTarget(Math.max(2, Math.floor(w*BLOOM_SCALE)), Math.max(2, Math.floor(h*BLOOM_SCALE)));
+    }
+
+    // ----------------------------------------------------------
+    // 鼠标状态（spring-damper 惯性在 JS 侧）
+    // ----------------------------------------------------------
+    const mouse = { x: 0, y: 0, tx: 0, ty: 0, vx: 0, vy: 0 };
+    let boost = 0, boostT = 0;
+    function onPointer(e: PointerEvent) {
+      const w = window.innerWidth, h = window.innerHeight;
+      mouse.tx = (e.clientX / w) * 2 - 1;
+      mouse.ty = -((e.clientY / h) * 2 - 1);
+      const hero = host.parentElement;
+      if (hero) {
+        const r = hero.getBoundingClientRect();
+        const cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.48;
+        const d = Math.hypot(e.clientX - cx, e.clientY - cy) / Math.max(r.width, 1);
+        boostT = Math.max(0, 1 - d * 2.2);
+      }
+    }
+    window.addEventListener('pointermove', onPointer, { passive: true });
+
+    // ----------------------------------------------------------
+    // 尺寸与自适应质量
+    // ----------------------------------------------------------
+    let dprCap = 1.75;
+    let quality = 0;   // QUALITY_SCENE 下标：0=全质，越大越省
+    let frameCost = 16.7;
+    function resize() {
+      const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
+      const w = host.clientWidth, h = host.clientHeight;
+      if (!w || !h) return;
+      canvas.width = Math.max(2, Math.floor(w * dpr));
+      canvas.height = Math.max(2, Math.floor(h * dpr));
+      allocScene(canvas.width, canvas.height, QUALITY_SCENE[quality]);
+      allocBloom(canvas.width, canvas.height);
+    }
+    // 降质：只重建场景 FBO，辉光/背景分辨率不变（无闪屏、无整链重建）
+    function degrade() {
+      if (quality >= QUALITY_SCENE.length - 1) return;
+      quality++;
+      allocScene(canvas.width, canvas.height, QUALITY_SCENE[quality]);
+    }
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(host);
+
+    // ----------------------------------------------------------
+    // 渲染
+    // ----------------------------------------------------------
+    let raf = 0;
+    let running = false;
+    let inView = true;
+    const t0 = performance.now();
+
+    function drawFrame(nowMs: number) {
+      const t = (nowMs - t0) / 1000;
+      const W = canvas.width, H = canvas.height;
+
+      // spring-damper 鼠标平滑
+      const dt = 1/60, K = 22, D = 9;
+      mouse.vx += ((mouse.tx - mouse.x)*K - mouse.vx*D) * dt;
+      mouse.vy += ((mouse.ty - mouse.y)*K - mouse.vy*D) * dt;
+      mouse.x += mouse.vx*dt; mouse.y += mouse.vy*dt;
+      boost += (boostT - boost) * (1 - Math.exp(-dt*4.5));
+
+      gl!.disable(gl!.DEPTH_TEST);
+      gl!.disable(gl!.BLEND);
+
+      // pass 1: 背景（全分辨率）
+      gl!.bindFramebuffer(gl!.FRAMEBUFFER, null);
+      gl!.viewport(0, 0, W, H);
+      gl!.useProgram(prgBg);
+      gl!.uniform2f(uBg.res, W, H);
+      gl!.uniform1f(uBg.time, t);
+      gl!.uniform2f(uBg.par, mouse.x, mouse.y);
+      gl!.bindVertexArray(vao);
+      gl!.drawArrays(gl!.TRIANGLES, 0, 3);
+
+      // pass 2: 光学场景（半分辨率 FBO）
+      gl!.bindFramebuffer(gl!.FRAMEBUFFER, sceneT!.fbo);
+      gl!.viewport(0, 0, sceneT!.w, sceneT!.h);
+      gl!.useProgram(prgScene);
+      gl!.uniform2f(uScene.res, sceneT!.w, sceneT!.h);
+      gl!.uniform1f(uScene.time, t);
+      gl!.uniform2f(uScene.mouse, mouse.x, mouse.y);
+      gl!.uniform1f(uScene.boost, boost);
+      gl!.drawArrays(gl!.TRIANGLES, 0, 3);
+
+      // pass 3a: 辉光提取（低分辨率）
+      gl!.bindFramebuffer(gl!.FRAMEBUFFER, bloomA!.fbo);
+      gl!.viewport(0, 0, bloomA!.w, bloomA!.h);
+      gl!.useProgram(prgExtract);
+      gl!.activeTexture(gl!.TEXTURE0);
+      gl!.bindTexture(gl!.TEXTURE_2D, sceneT!.tex);
+      gl!.uniform1i(uExt.scene, 0);
+      gl!.uniform2f(uExt.res, sceneT!.w, sceneT!.h);
+      gl!.drawArrays(gl!.TRIANGLES, 0, 3);
+
+      // pass 3b/3c: 高斯模糊乒乓
+      gl!.useProgram(prgBlur);
+      gl!.uniform1i(uBlur.tex, 0);
+      gl!.bindFramebuffer(gl!.FRAMEBUFFER, bloomB!.fbo);
+      gl!.viewport(0, 0, bloomB!.w, bloomB!.h);
+      gl!.bindTexture(gl!.TEXTURE_2D, bloomA!.tex);
+      gl!.uniform2f(uBlur.res, bloomA!.w, bloomA!.h);
+      gl!.uniform2f(uBlur.dir, 1, 0);
+      gl!.drawArrays(gl!.TRIANGLES, 0, 3);
+      gl!.bindFramebuffer(gl!.FRAMEBUFFER, bloomA!.fbo);
+      gl!.bindTexture(gl!.TEXTURE_2D, bloomB!.tex);
+      gl!.uniform2f(uBlur.res, bloomB!.w, bloomB!.h);
+      gl!.uniform2f(uBlur.dir, 0, 1);
+      gl!.drawArrays(gl!.TRIANGLES, 0, 3);
+
+      // pass 4: 合成到屏幕（场景 + 辉光，覆盖在背景上）
+      gl!.bindFramebuffer(gl!.FRAMEBUFFER, null);
+      gl!.viewport(0, 0, W, H);
+      gl!.useProgram(prgComp);
+      gl!.activeTexture(gl!.TEXTURE0);
+      gl!.bindTexture(gl!.TEXTURE_2D, sceneT!.tex);
+      gl!.uniform1i(uComp.scene, 0);
+      gl!.activeTexture(gl!.TEXTURE1);
+      gl!.bindTexture(gl!.TEXTURE_2D, bloomA!.tex);
+      gl!.uniform1i(uComp.bloom, 1);
+      gl!.uniform2f(uComp.res, W, H);
+      gl!.enable(gl!.BLEND);
+      gl!.blendFunc(gl!.ONE, gl!.ONE);   // 加法混合：光学场景叠在星云背景上
+      gl!.drawArrays(gl!.TRIANGLES, 0, 3);
+      gl!.disable(gl!.BLEND);
+
+      gl!.bindVertexArray(null);
+    }
+
+    let lastFrame = 0;
+    function loop(now: number) {
+      if (!running) return;
+      const cost = now - lastFrame;
+      lastFrame = now;
+      frameCost += (Math.min(cost, 100) - frameCost) * 0.05;
+      if (now - t0 > 2500 && Math.floor(now/3500) !== Math.floor((now-cost)/3500)) {
+        if (frameCost > 28) degrade();
+      }
+      drawFrame(now);
+      raf = requestAnimationFrame(loop);
+    }
+    function start() {
+      if (running || !inView || document.hidden) return;
+      running = true;
+      lastFrame = performance.now();
+      raf = requestAnimationFrame(loop);
+    }
+    function stop() { running = false; cancelAnimationFrame(raf); raf = 0; }
+
+    const io = new IntersectionObserver(([entry]) => {
+      inView = entry.isIntersecting;
+      if (inView) start(); else stop();
+    }, { threshold: 0.02 });
+    io.observe(host);
+    function onVis() { if (document.hidden) stop(); else start(); }
+    document.addEventListener('visibilitychange', onVis);
+
+    if (reduced) drawFrame(performance.now());
+    else start();
+
+    // ----------------------------------------------------------
+    // 全量清理
+    // ----------------------------------------------------------
+    teardownCore = function () {
+      stop();
+      io.disconnect();
+      ro.disconnect();
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('pointermove', onPointer);
+      [sceneT, bloomA, bloomB].forEach(t => {
+        if (t) { gl!.deleteTexture(t.tex); gl!.deleteFramebuffer(t.fbo); }
+      });
+      gl!.deleteBuffer(vb);
+      gl!.deleteVertexArray(vao);
+      [prgBg, prgScene, prgComp, prgExtract, prgBlur].forEach(p => gl!.deleteProgram(p));
+      const ext = gl!.getExtension('WEBGL_lose_context');
+      ext?.loseContext();
+      host.removeChild(canvas);
+      delete host.dataset.bound;
+    };
+  }
+
+  document.addEventListener('astro:page-load', setupSignalCore);
+  document.addEventListener('themechange', () => {
+    teardownCore?.();
+    teardownCore = null;
+    setupSignalCore();
+  });
+  document.addEventListener('astro:before-swap', () => {
+    teardownCore?.();
+    teardownCore = null;
+  });
+  setupSignalCore();
+</script>

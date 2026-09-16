@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import SiteFooter from "../components/SiteFooter.astro";
+import DarkAbout from "../components/dark/DarkAbout.astro";
 ---
 
 <BaseLayout lang="zh-CN" title="About — Aloha" description="Aloha — learning backend development.">
@@ -9,9 +10,18 @@ import SiteFooter from "../components/SiteFooter.astro";
     <p class="eyebrow" data-reveal style="--reveal-delay: 60ms">/ about</p>
   </section>
 
-  <section class="about container" aria-label="About">
+  {/* 深色分支：字符签名（dmesg 启动日志已按 D-2 决策全部移除，2026-09-16 签核） */}
+  <div class="dark-about">
+    <DarkAbout />
+  </div>
+
+  {/* 浅色分支：原始排版（一字未动） */}
+  <section class="about container light-about" aria-label="About">
     <h1 data-reveal style="--reveal-delay: 120ms"><span data-scramble>Aloha</span><span class="about__cursor" aria-hidden="true">_</span></h1>
     <p class="about__line" data-reveal style="--reveal-delay: 200ms" data-scramble>learning backend development.</p>
+
+    {/* 作者语言占位：由 Aloha 本人替换为 2–3 句（为什么写、Monostich 意味着什么），合计 ≤100 字 */}
+    <p class="about__intro" data-reveal style="--reveal-delay: 300ms">这里等待补充。</p>
 
     <dl class="about__facts" data-reveal style="--reveal-delay: 400ms">
       <div class="about__fact">
@@ -22,18 +32,19 @@ import SiteFooter from "../components/SiteFooter.astro";
         <dt data-scramble>github</dt>
         <dd><a href="https://github.com/A1oha666" target="_blank" rel="noopener" data-scramble>@A1oha666</a></dd>
       </div>
-      <div class="about__fact">
-        <dt data-scramble>Location</dt>
-        <dd data-scramble>Here</dd>
-      </div>
     </dl>
   </section>
   <SiteFooter />
 </BaseLayout>
 
 <style>
+  /* 主题分流 */
+  :root:not([data-theme='dark']) .dark-about { display: none; }
+  :root[data-theme='dark'] .light-about { display: none; }
+
   /* .page-head / .back-home / .eyebrow 样式在 global.css 统一维护 */
-  .about { padding-bottom: var(--space-4xl); }
+  /* 内容少时收窄到阅读宽度，避免通栏左对齐配三行字的空荡构图 */
+  .about { max-width: var(--maxw-prose); padding-bottom: var(--space-4xl); }
   h1 {
     font-family: var(--font-body);
     font-size: 48px;
@@ -57,6 +68,14 @@ import SiteFooter from "../components/SiteFooter.astro";
     font-family: var(--mono);
     font-size: 0.95rem;
     color: var(--text);
+  }
+
+  .about__intro {
+    margin-top: var(--space-xl);
+    max-width: 46ch;
+    font-size: 1rem;
+    line-height: 1.8;
+    color: var(--text-muted);
   }
 
   .about__facts {

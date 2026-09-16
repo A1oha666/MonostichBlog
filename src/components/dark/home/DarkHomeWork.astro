@@ -1,0 +1,144 @@
+---
+/**
+ * DarkHomeWork —— 项目 · gutter 行号列表（与文章/实验室同构）
+ *
+ * 结构：行号 | 名 | 述 | 状态灯
+ * 状态灯文案与浅色同义（[可使用] / [开发中] / [已归档]）
+ */
+import { projects } from '../../../data/projects.js';
+
+const statusLabel = (s: string) =>
+  s === 'active' ? '可使用' : s === 'developing' ? '开发中' : s === 'archived' ? '已归档' : s;
+const statusTone = (s: string) => (s === 'active' ? 'live' : s === 'developing' ? 'dev' : 'arc');
+---
+
+<section class="section container work" id="projects" aria-labelledby="work-heading">
+  <div class="module-head" data-reveal>
+    <h2 id="work-heading" data-scramble data-no="02">项目</h2>
+    <a href="https://github.com/A1oha666" target="_blank" rel="noopener">GitHub ↗</a>
+  </div>
+
+  <ol class="work-list" lang="zh-CN">
+    {projects.map((project, index) => {
+      const linked = project.repo && project.repo !== '#';
+      const reveal = `--reveal-delay: ${Math.min(index * 60, 180)}ms`;
+      const inner = (
+        <>
+          <span class="work-list__no" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+          <span class="work-row__body">
+            <h3>{project.name}</h3>
+          </span>
+          <span class="work-row__desc">{project.desc}</span>
+          <span class={`work-row__status work-row__status--${statusTone(project.status)}`}>
+            <span class="work-row__led" aria-hidden="true"></span>[{statusLabel(project.status)}]
+          </span>
+        </>
+      );
+      return (
+        <li data-reveal style={reveal}>
+          {linked ? (
+            <a class="work-row" href={project.repo} target="_blank" rel="noopener" data-spotlight>
+              {inner}
+            </a>
+          ) : (
+            <div class="work-row work-row--static" data-spotlight>
+              {inner}
+            </div>
+          )}
+        </li>
+      );
+    })}
+  </ol>
+</section>
+
+<style>
+  .work-list { list-style: none; padding: 0; margin: 0; }
+  .work-list > li { border-bottom: 1px solid var(--border-subtle); }
+  .work-list > li:first-child { border-top: 1px solid var(--border-subtle); }
+
+  .work-list__no {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    align-self: stretch;
+    padding-right: 18px;
+    border-right: 1px solid var(--border-subtle);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+    transition: color var(--dur-base) var(--ease-out);
+  }
+
+  .work-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: 56px minmax(0, auto) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0 22px;
+    padding-block: 20px;
+    isolation: isolate;
+  }
+  .work-row--static { cursor: default; }
+
+  /* 行内跟随光斑 */
+  .work-row::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: radial-gradient(
+      300px circle at var(--mx, 50%) 50%,
+      rgba(122, 148, 255, 0.07),
+      transparent 70%
+    );
+    opacity: 0;
+    transition: opacity 320ms var(--ease-out);
+  }
+  .work-row:hover::before { opacity: 1; }
+
+  .work-row h3 {
+    font-family: var(--font-body);
+    font-size: 1.05rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: transform var(--dur-base) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  }
+  .work-row__desc {
+    color: var(--text-faint);
+    /* 描述是给人读的一句话，不是终端日志：与浅色项目描述同族（Google Sans + PingFang） */
+    font-family: var(--font-body);
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: color var(--dur-base) var(--ease-out);
+  }
+
+  .work-row__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--text-faint);
+    white-space: nowrap;
+  }
+  .work-row__led { width: 5px; height: 5px; border-radius: 50%; background: var(--text-faint); }
+  .work-row__status--live { color: var(--code-green); }
+  .work-row__status--live .work-row__led { background: var(--code-green); box-shadow: 0 0 7px rgba(156, 191, 155, 0.8); }
+  /* 开发中：琥珀静态点 —— 静态信息不伪装实时监控，闪烁只留给真正的活体（终端/信号核） */
+  .work-row__status--dev { color: var(--accent); }
+  .work-row__status--dev .work-row__led { background: var(--accent); box-shadow: 0 0 7px var(--accent-glow); }
+
+  .work-list > li:focus-within .work-list__no,
+  .work-row:hover .work-list__no { color: var(--accent); }
+  a.work-row:hover h3 { transform: translateX(6px); color: var(--accent); }
+  a.work-row:hover .work-row__desc { color: var(--text-muted); }
+
+  @media (max-width: 640px) {
+    .work-row { grid-template-columns: 40px minmax(0, 1fr) auto; row-gap: 6px; padding-block: 16px; }
+    .work-list__no { padding-right: 12px; }
+    .work-row__desc { grid-column: 2 / -1; white-space: normal; }
+  }
+</style>

@@ -78,11 +78,12 @@
 }
 
 /* =========================================================
-   Type — 规则：正文 = Google Sans(拉丁)+Noto Sans SC(中文)；
-   大标题 h1 = Fraunces(拉丁)+华文中宋(中文)；mono 部位不动。
-   --font-body 全站正文 / --font-zh 中文阅读 / --font-display 大标题 /
+   Type — 现状：正文与浅色大标题 = 系统无衬线栈（--font-body 直通）；
+   mono = JetBrains Mono；深色 --font-heading 在 dark.css 覆盖为 var(--mono)。
+   --font-body 全站正文 / --font-zh 中文阅读 / --font-display 大标题（现=正文栈） /
    --mono 等宽
    ========================================================= */
+/* Google Sans 自托管（fontsource 无此家族，故本地声明） */
 @font-face {
   font-family: 'Google Sans';
   src: url('/fonts/GoogleSans-Variable.woff2') format('woff2');
@@ -97,41 +98,23 @@
   font-style: italic;
   font-display: swap;
 }
-@font-face {
-  font-family: 'JetBrains Mono';
-  src: url('/fonts/JetBrainsMono-Regular.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'JetBrains Mono';
-  src: url('/fonts/JetBrainsMono-Italic.woff2') format('woff2');
-  font-weight: 400;
-  font-style: italic;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'JetBrains Mono';
-  src: url('/fonts/JetBrainsMono-Medium.woff2') format('woff2');
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'JetBrains Mono';
-  src: url('/fonts/JetBrainsMono-Bold.woff2') format('woff2');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
+/* JetBrains Mono 由 BaseLayout 的 @fontsource 包加载（唯一来源，含各 unicode-range 子集）；
+   不再自托管本地副本 */
 
 :root {
-  --font-body: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
-  --font-zh: 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
-  /* 标题专用：拉丁 Fraunces + 中文华文中宋 —— 仅大标题 h1 使用 */
+  /* 拉丁优先 Google Sans；中文 Mac 首选 PingFang SC（系统字），其它平台回落系统中黑。
+     深色仅覆盖 --font-heading 为 mono，正文栈两主题共用 */
+  --font-body: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  /* 纯中文阅读槽位：与 --font-body 同源（拉丁在前不影响中文命中），保留独立 token 供局部覆盖 */
+  --font-zh: 'Google Sans', 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  /* 标题专用槽位：当前直通正文栈（衬线方案未启用），仅大标题 h1 引用 */
   --font-display: var(--font-body);
   --mono: 'JetBrains Mono', 'Cascadia Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* 主题级 h1 tokens */
+  --font-heading: var(--font-display);
+  --h1-size-page: 56px;
+  --h1-size-article: 44px;
 
   /* spacing scale */
   --space-xs: 4px;
@@ -295,9 +278,9 @@ img, svg { display: block; max-width: 100%; }
 .back-home:hover::before,
 .back-home:hover::after { color: var(--accent); }
 .page-head h1 {
-  /* 标题回到原来的栈：拉丁 Fraunces + 中文华文中宋衬线，与 ArticleLayout h1 一致 */
-  font-family: var(--font-display);
-  font-size: 56px;
+  /* 标题字族与字号引用主题级 token */
+  font-family: var(--font-heading);
+  font-size: var(--h1-size-page);
   font-weight: 600;
   line-height: 1.12;
   overflow-wrap: anywhere;

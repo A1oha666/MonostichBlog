@@ -1,0 +1,97 @@
+---
+/**
+ * DarkGrain —— 微噪点颗粒层
+ *
+ * 单张 128×128 程序生成噪声 tile（data URI，构建期内联，零请求），
+ * background-repeat 平铺 + steps() 逐帧跳变，制造胶片颗粒感。
+ * mix-blend-mode: overlay 让它只影响明暗，不污染色相。
+ * 极低成本：无 canvas、无 rAF；reduced-motion 下静止。
+ */
+
+// 构建期生成一张确定性噪声 tile（无需 sharp/canvas，纯字节运算）
+const S = 128;
+const bytes = new Uint8Array(S * S);
+let seed = 0x2f6e2b1;
+const rand = () => {
+  // xorshift32：确定性输出，tile 内容稳定
+  seed ^= seed << 13; seed >>>= 0;
+  seed ^= seed >> 17;
+  seed ^= seed << 5; seed >>>= 0;
+  return seed / 0xffffffff;
+};
+for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(rand() * 256);
+
+// 手写最小 PNG 编码（灰度 8bit）—— 避免引入任何依赖
+function crc32(buf: number[]): number {
+  let c = ~0;
+  for (const b of buf) {
+    c ^= b;
+    for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1));
+  }
+  return ~c >>> 0;
+}
+function chunk(type: string, data: number[]): number[] {
+  const len = data.length;
+  const head = [(len >>> 24) & 255, (len >>> 16) & 255, (len >>> 8) & 255, len & 255, ...[...type].map((ch) => ch.charCodeAt(0))];
+  const crc = crc32([...head.slice(4), ...data]);
+  return [...head, ...data, (crc >>> 24) & 255, (crc >>> 16) & 255, (crc >>> 8) & 255, crc & 255];
+}
+// zlib store 块（无压缩，每 ≤65535 字节一块；此处按行塞 filter 字节）
+const raw: number[] = [];
+for (let y = 0; y < S; y++) {
+  raw.push(0); // filter: none
+  for (let x = 0; x < S; x++) raw.push(bytes[y * S + x]);
+}
+const zdata: number[] = [0x78, 0x01]; // zlib header
+let pos = 0;
+while (pos < raw.length) {
+  const n = Math.min(65535, raw.length - pos);
+  const last = pos + n >= raw.length ? 1 : 0;
+  zdata.push(last, n & 255, (n >>> 8) & 255, ~n & 255, (~n >>> 8) & 255);
+  for (let i = 0; i < n; i++) zdata.push(raw[pos + i]);
+  pos += n;
+}
+// adler32
+let a = 1, b = 0;
+for (const byte of raw) { a = (a + byte) % 65521; b = (b + a) % 65521; }
+zdata.push((b >>> 8) & 255, b & 255, (a >>> 8) & 255, a & 255);
+
+const ihdr = [
+  (S >>> 24) & 255, (S >>> 16) & 255, (S >>> 8) & 255, S & 255,
+  (S >>> 24) & 255, (S >>> 16) & 255, (S >>> 8) & 255, S & 255,
+  8, 0, 0, 0, 0, // 8bit 灰度
+];
+const png = [
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+  ...chunk('IHDR', ihdr),
+  ...chunk('IDAT', zdata),
+  ...chunk('IEND', []),
+];
+const noiseUri = `data:image/png;base64,${Buffer.from(png).toString('base64')}`;
+---
+
+<div class="grain" style={`--noise: url("${noiseUri}")`} aria-hidden="true"></div>
+
+<style>
+  .grain {
+    position: fixed;
+    inset: -100px;
+    z-index: 60;
+    pointer-events: none;
+    background-image: var(--noise);
+    background-repeat: repeat;
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+    animation: grain-shift 0.9s steps(4) infinite;
+  }
+  @keyframes grain-shift {
+    0% { transform: translate(0, 0); }
+    25% { transform: translate(-32px, 18px); }
+    50% { transform: translate(24px, -28px); }
+    75% { transform: translate(-14px, -12px); }
+    100% { transform: translate(0, 0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .grain { animation: none; }
+  }
+</style>
