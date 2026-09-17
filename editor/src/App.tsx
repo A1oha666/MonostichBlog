@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { ArticleListPanel } from './components/ArticleListPanel';
 import { LoginDialog } from './components/LoginDialog';
 import { MetaBar } from './components/MetaBar';
 import { MdEditor } from './components/MdEditor';
+import { ProfilePanel } from './components/ProfilePanel';
 import { useAuth, logout } from './lib/auth';
 import {
   errMsg,
@@ -103,18 +105,10 @@ export default function App() {
     };
   }, []);
 
-  // 载入既有文章（?id=）
-  useEffect(() => {
-    if (!isLoggedIn) {
-      setLoading(false);
-      return;
-    }
-    const id = new URLSearchParams(window.location.search).get('id');
-    if (!id) {
-      setLoading(false);
-      return;
-    }
-    (async () => {
+  // 载入既有文章：?id= 直链与「打开」面板共用同一入口
+  const loadArticle = useCallback(
+    async (id: string) => {
+      setLoading(true);
       try {
         const rec = await fetchArticle(id);
         setRecordIdState(rec.id);
@@ -129,13 +123,41 @@ export default function App() {
           content: rec.content ?? '',
         });
         setDirty(false);
+        syncIdToUrl(rec.id);
       } catch (e) {
         push(`载入文章失败：${errMsg(e)}`, 'err');
       } finally {
         setLoading(false);
       }
-    })();
-  }, [isLoggedIn, push]);
+    },
+    [push],
+  );
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setLoading(false);
+      return;
+    }
+    const id = new URLSearchParams(window.location.search).get('id');
+    if (!id) {
+      setLoading(false);
+      return;
+    }
+    void loadArticle(id);
+  }, [isLoggedIn, loadArticle]);
+
+  // 新建空白草稿（面板内确认后调用）
+  const newArticle = useCallback(() => {
+    if (dirty && !window.confirm('当前文章有未保存改动，新建后将丢失，继续？')) return;
+    setRecordIdState(null);
+    setStatus(null);
+    setMeta(EMPTY_META);
+    setDirty(false);
+    setSlugError('');
+    const url = new URL(window.location.href);
+    url.searchParams.delete('id');
+    window.history.replaceState(null, '', url.toString());
+  }, [dirty]);
 
   const patchMeta = useCallback((patch: Partial<SaveMeta>) => {
     setMeta((m) => ({ ...m, ...patch }));
@@ -192,6 +214,11 @@ export default function App() {
           </span>
         </div>
         <div className="topbar-right">
+          <button className="btn ghost" onClick={newArticle}>
+            新建
+          </button>
+          <ArticleListPanel currentId={recordId} dirty={dirty} onOpen={(id) => void loadArticle(id)} onError={onError} />
+          <ProfilePanel push={push} />
           <button className="btn" disabled={saving} onClick={() => void doSave('draft')}>
             {saving ? '保存中…' : '存草稿'}
           </button>

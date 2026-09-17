@@ -1,5 +1,5 @@
 import { defineCollection, z } from "astro:content";
-import { pocketBaseLoader } from "./lib/pocketbase-loader";
+import { pocketBaseLoader, siteProfileLoader } from "./lib/pocketbase-loader";
 
 // PocketBase 的日期字段为空时返回 ""，z.coerce.date() 会把 "" 转成
 // Invalid Date（NaN）而不是校验失败，页面侧 new Date()/toISOString() 随之
@@ -25,8 +25,16 @@ const articleSchema = z.object({
   draft: z.boolean().default(false),
 });
 
+// About 页个人介绍（site_profile 单例）；bio 是 body 经 markdown 渲染，
+// 这里只声明联系字段。
+const profileSchema = z.object({
+  email: z.string().default(""),
+  github: z.string().default(""),
+});
+
 export const collections = {
   notes: defineCollection({ loader: pocketBaseLoader("notes"), schema: articleSchema }),
   thinkings: defineCollection({ loader: pocketBaseLoader("thinkings"), schema: articleSchema }),
   moments: defineCollection({ loader: pocketBaseLoader("moments"), schema: articleSchema }),
+  profile: defineCollection({ loader: siteProfileLoader(), schema: profileSchema }),
 };

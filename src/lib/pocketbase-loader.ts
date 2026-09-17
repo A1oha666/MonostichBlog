@@ -80,6 +80,39 @@ async function fetchAllPublished(base: string, type: string, includeDrafts: bool
   return items;
 }
 
+// 构建环境初始化：本地 .env 兜底 + PB 地址归一，文章与 profile loader 共用。
+function resolveBase(): string {
+  loadDotEnv(path.resolve('pb/.env.local'));
+  loadDotEnv(path.resolve('.env'));
+  return (process.env.PB_BASE_URL ?? DEFAULT_BASE).replace(/\/$/, '');
+}
+
+const markdownInit = {
+  gfm: true,
+  remarkPlugins: [remarkMath],
+  rehypePlugins: [rehypeKatex],
+  shikiConfig: {
+    themes: { light: 'github-light', dark: 'github-dark' },
+    defaultColor: false,
+    langAlias: {
+      golang: 'go',
+      Java: 'java',
+      Go: 'go',
+    },
+  },
+} as const;
+
+async function getMarkdownProcessor() {
+  if (!processorPromise) {
+    // 数学公式：remark-math 解析 $...$ / $$...$$，rehype-katex 渲染成
+    // HTML（错误时回退原文并给出 vfile 警告，不会让构建失败）。
+    // langAlias 补常见别名：shiki 默认只加载 go 本体，
+    // golang/Java/Go 等首字母大写或别名写法会回退 plaintext
+    processorPromise = createMarkdownProcessor(markdownInit);
+  }
+  return processorPromise;
+}
+
 // 从 HTML 的属性值里找出 /api/files/articles/<recordId>/<filename> 引用并返回文件名
 const PB_FILE_RE = /(?:src|href)=["']([^"']*\/api\/files\/articles\/[^"']+)["']/g;
 
@@ -144,32 +177,9 @@ export function pocketBaseLoader(type: 'notes' | 'thinkings' | 'moments'): Conte
   return {
     name: `pocketbase-${type}`,
     async load({ store }: { store: AnyStore; logger?: any }) {
-      loadDotEnv(path.resolve('pb/.env.local'));
-      loadDotEnv(path.resolve('.env'));
-      const base = (process.env.PB_BASE_URL ?? DEFAULT_BASE).replace(/\/$/, '');
+      const base = resolveBase();
       const includeDrafts = process.env.INCLUDE_DRAFTS === '1';
-
-      if (!processorPromise) {
-        // 数学公式：remark-math 解析 $...$ / $$...$$，rehype-katex 渲染成
-        // HTML（错误时回退原文并给出 vfile 警告，不会让构建失败）。
-        // langAlias 补常见别名：shiki 默认只加载 go 本体，
-        // golang/Java/Go 等首字母大写或别名写法会回退 plaintext
-        processorPromise = createMarkdownProcessor({
-          gfm: true,
-          remarkPlugins: [remarkMath],
-          rehypePlugins: [rehypeKatex],
-          shikiConfig: {
-            themes: { light: 'github-light', dark: 'github-dark' },
-            defaultColor: false,
-            langAlias: {
-              golang: 'go',
-              Java: 'java',
-              Go: 'go',
-            },
-          },
-        });
-      }
-      const processor = await processorPromise;
+      const processor = await getMarkdownProcessor();
 
       const records = await fetchAllPublished(base, type, includeDrafts);
       store.clear();
@@ -250,6 +260,39 @@ export function pocketBaseLoader(type: 'notes' | 'thinkings' | 'moments'): Conte
           },
         });
       }
+    },
+  };
+}
+
+// About 页个人介绍：site_profile 单例集合（公开可读，构建机无需凭据）。
+// bio 走同一 markdown 管线渲染，支持换行与行内标记；集合为空（未迁移
+// 或初始化失败）时跳过，页面侧按 undefined 兜底，不让构建失败。
+export function siteProfileLoader(): ContentLayerLoader {
+  return {
+    name: 'pocketbase-site-profile',
+    async load({ store }: { store: AnyStore; logger?: any }) {
+      const base = resolveBase();
+      const processor = await getMarkdownProcessor();
+
+      const res = await pbApi<{ items: AnyRecord[] }>(
+        base,
+        'GET',
+        '/collections/site_profile/records?perPage=1&page=1',
+      );
+      store.clear();
+      const rec = res.items[0];
+      if (!rec) return;
+
+      const rendered = await processor.render(rec.bio ?? '');
+      store.set({
+        id: 'profile',
+        body: rec.bio ?? '',
+        data: {
+          email: rec.email ?? "",
+          github: rec.github ?? '',
+        },
+        rendered: { html: rendered.code },
+      });
     },
   };
 }
