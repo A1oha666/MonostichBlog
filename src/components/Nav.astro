@@ -5,7 +5,6 @@ const links = [
   { href: '/notes', label: '笔记', darkLabel: 'Notes', base: '/notes' },
   { href: '/thinkings', label: '随想', darkLabel: 'Thinkings', base: '/thinkings' },
   { href: '/archive', label: '归档', darkLabel: 'Archive', base: '/archive' },
-  { href: '/#projects', label: '项目', darkLabel: 'Work' },
   { href: '/lab', label: '实验室', darkLabel: 'Lab', base: '/lab' },
   { href: '/about', label: '关于', darkLabel: 'About', base: '/about' },
 ];
@@ -15,11 +14,11 @@ const links = [
     <a class="nav__brand" href="/">Aloha.</a>
     <div class="nav__links" id="primary-links">
       {links.map((link, index) => (
-        <a href={link.href} style={`--menu-index: ${index}`} data-nav-base={link.base} data-project-link={!link.base || undefined} aria-current={link.base && (pathname === link.base || pathname.startsWith(`${link.base}/`)) ? 'page' : undefined}><span class="nav__label-light">{link.label}</span><span class="nav__label-dark">{link.darkLabel}</span><ArrowUpRight class="nav__link-arrow" size={20} aria-hidden="true" /></a>
+        <a href={link.href} style={`--menu-index: ${index}`} data-nav-base={link.base} aria-current={link.base && (pathname === link.base || pathname.startsWith(`${link.base}/`)) ? 'page' : undefined}><span class="nav__label-light">{link.label}</span><span class="nav__label-dark">{link.darkLabel}</span><ArrowUpRight class="nav__link-arrow" size={20} aria-hidden="true" /></a>
       ))}
     </div>
     <div class="nav__tools">
-      <a class="nav__search" href="/archive/?search=1" aria-label="搜索文章" title="搜索文章"><Search size={17} aria-hidden="true" /></a>
+      <a class="nav__search" href="/search/" aria-label="搜索文章" title="搜索文章"><Search size={17} aria-hidden="true" /></a>
       <button class="nav__theme" id="theme-toggle" type="button" aria-label="切换主题" title="切换主题">
         <Sun class="ic--sun" size={18} aria-hidden="true" />
         <Moon class="ic--moon" size={18} aria-hidden="true" />
@@ -52,7 +51,7 @@ const links = [
     const theme = document.getElementById('theme-toggle');
     const menu = document.getElementById('menu-toggle');
     if (!nav || !theme || !menu) return;
-    // 首页深浅两分支各自渲染 #projects/#recent 等 id（树序深色在前），
+    // 首页深浅两分支各自渲染 #recent 等 id（树序深色在前），
     // 按 id 查找会命中 display:none 的隐藏分支节点，scrollIntoView 对零矩形元素是无操作。
     // 统一按「当前有布局盒」解析目标。
     const visibleElementById = (id: string): HTMLElement | null =>
@@ -67,15 +66,11 @@ const links = [
       menu.setAttribute('aria-label', '打开导航');
       menu.title = '打开导航';
     };
-    const syncTheme = (restoreAnchor = true) => {
+    const syncTheme = () => {
       const dark = document.documentElement.dataset.theme === 'dark';
       const label = dark ? '切换到浅色主题' : '切换到深色主题';
       theme.setAttribute('aria-label', label);
       theme.title = label;
-      nav.querySelector('[data-project-link]')?.setAttribute('href', '/#projects');
-      if (restoreAnchor && location.pathname === '/' && location.hash === '#projects') {
-        requestAnimationFrame(() => visibleElementById('projects')?.scrollIntoView({ behavior: 'instant' }));
-      }
     };
     closeMenu();
     if (window.matchMedia('(min-width: 701px)').matches) nav.querySelector('.nav__links')?.removeAttribute('inert');
@@ -105,7 +100,7 @@ const links = [
       document.documentElement.dataset.theme = next;
       try { localStorage.setItem('theme', next); } catch {}
       document.querySelector('meta[name="theme-color"]')?.setAttribute('content', next === 'dark' ? '#101216' : '#ffffff');
-      syncTheme(false);
+      syncTheme();
       if (isHome) {
         requestAnimationFrame(() => {
           const target = anchorId ? visibleElementById(anchorId) : null;

@@ -5,28 +5,33 @@ import { dotDate, isoDate, safeDate } from "../lib/format";
 import { getBlogCollections } from "../lib/content";
 
 const { notes } = await getBlogCollections();
-const entries = notes.sort((a, b) => safeDate(b.data.date).valueOf() - safeDate(a.data.date).valueOf());
+const entries = notes
+  .sort((a, b) => safeDate(b.data.date).valueOf() - safeDate(a.data.date).valueOf())
+  // 摘要与标题重复（或为空）时不占第二行
+  .map((entry) => {
+    const title = entry.data.title.trim();
+    const summary = entry.data.summary.trim();
+    const redundant = summary && (summary.startsWith(title) || title.startsWith(summary) || summary === title);
+    return { entry, summary: redundant ? "" : summary };
+  });
 ---
 
-<BaseLayout lang="zh-CN" title="Notes — Aloha" description="Aloha 的工程笔记。">
+<BaseLayout lang="zh-CN" title="笔记 — Aloha" description="Aloha 的工程笔记。">
   <section class="page-head container">
-    <a class="back-home" href="/" data-reveal><span aria-hidden="true">←</span> 返回主页</a>
-    <p class="eyebrow" data-reveal style="--reveal-delay: 60ms">/ notes</p>
-    <h1 data-reveal style="--reveal-delay: 120ms">笔记</h1>
-    <p data-reveal style="--reveal-delay: 200ms">一些简单的笔记整理。</p>
+    <h1>笔记<span class="page-head__count">{entries.length} 篇</span></h1>
+    <p>一些简单的笔记整理。</p>
   </section>
 
-  <section class="notes container" aria-label="Notes">
-    <p class="notes__count" data-reveal>{entries.length} 篇笔记</p>
+  <section class="notes container" aria-label="笔记列表">
     <ol class="notes__list">
       {
-        entries.map((entry, index) => (
-          <li data-reveal style={`--reveal-delay: ${Math.min(index * 50, 300)}ms`}>
+        entries.map(({ entry, summary }) => (
+          <li>
             <a class="note" href={`/notes/${entry.id}/`}>
               <time datetime={isoDate(entry.data.date)}>{dotDate(entry.data.date)}</time>
               <div class="note__body">
                 <h2>{entry.data.title}</h2>
-                <p>{entry.data.summary}</p>
+                {summary && <p>{summary}</p>}
               </div>
             </a>
           </li>
@@ -38,8 +43,8 @@ const entries = notes.sort((a, b) => safeDate(b.data.date).valueOf() - safeDate(
 </BaseLayout>
 
 <style>
-  /* .page-head / .back-home / .eyebrow / h1 字号在 global.css 统一维护 */
-  .notes__count { padding-bottom: var(--space-md); border-bottom: 1px solid var(--border-strong); color: var(--text-faint); font-family: var(--mono); font-size: 12.5px; }
+  /* .page-head 样式在 global.css 统一维护；page-head__count 为页面级补充 */
+  .page-head__count { margin-left: 10px; color: var(--text-faint); font-family: var(--mono); font-size: 13px; font-weight: 400; }
   .notes__list { margin: 0; padding: 0; list-style: none; }
   .notes__list > li { border-bottom: 1px solid var(--border-subtle); transition: background var(--dur-fast) var(--ease-out); }
   .note { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: var(--space-lg); padding-block: var(--space-xl); }
@@ -48,7 +53,7 @@ const entries = notes.sort((a, b) => safeDate(b.data.date).valueOf() - safeDate(
   .note__body > p { max-width: 65ch; margin-top: var(--space-sm); color: var(--text-muted); font-size: 0.98rem; }
   @media (hover: hover) {
     .notes__list > li:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
-    .note:hover h2 { color: var(--accent); transform: translateX(3px); }
+    .note:hover h2 { color: var(--accent); }
   }
   @media (max-width: 600px) {
     .page-head { padding-top: var(--space-3xl); }

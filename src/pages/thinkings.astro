@@ -3,16 +3,15 @@ import { render } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import { dotDate, isoDate, safeDate } from "../lib/format";
-import { getBlogCollections } from "../lib/content";
+import { getBlogCollections, momentTitle } from "../lib/content";
 
-// Thinkings 吸收原「小记」：两条流按时间倒序混排进同一个栏目。
-// thinking 走标题卡（详情页），moment 直接内联正文（无详情页）。
+// 随想 = 长随想（有详情页）+ 小记（一两句话，原文内联直读）。
+// 按时间倒序混排；小记不做整块卡片，日期即永久链接。
 const { thinkings, moments } = await getBlogCollections();
 
 const renderedMoments = await Promise.all(
   moments.map(async (entry) => {
     const { Content } = await render(entry);
-    // 正文可能为空（短句直接写在摘要字段里），此时卡片回退展示 summary
     const hasBody = Boolean(entry.rendered?.html?.trim());
     return { entry, content: hasBody ? Content : null };
   }),
@@ -23,7 +22,6 @@ type Item = {
   id: string;
   date: Date;
   title: string;
-  label: string;
   summary: string;
   href?: string;
 };
@@ -34,7 +32,6 @@ const items: Item[] = [
     id: entry.id,
     date: safeDate(entry.data.date),
     title: entry.data.title,
-    label: entry.data.label ?? "",
     summary: entry.data.summary,
     href: `/thinkings/${entry.id}/`,
   })),
@@ -43,7 +40,6 @@ const items: Item[] = [
     id: entry.id,
     date: safeDate(entry.data.date),
     title: entry.data.title,
-    label: "小记",
     summary: entry.data.summary,
   })),
 ];
@@ -52,37 +48,43 @@ items.sort((a, b) => b.date.valueOf() - a.date.valueOf());
 const momentContents = new Map(renderedMoments.map(({ entry, content }) => [entry.id, content]));
 ---
 
-<BaseLayout lang="zh-CN" title="Thinkings — Aloha" description="Aloha 的短思考与随手小记。">
+<BaseLayout lang="zh-CN" title="随想 — Aloha" description="Aloha 的短思考与随手小记。">
   <section class="page-head container">
-    <a class="back-home" href="/" data-reveal><span aria-hidden="true">←</span> 返回主页</a>
-    <p class="eyebrow" data-reveal style="--reveal-delay: 60ms">/ thinkings</p>
-    <h1 data-reveal style="--reveal-delay: 120ms">随想</h1>
-    <p data-reveal style="--reveal-delay: 200ms">思绪需要一些出口。</p>
+    <h1>随想<span class="page-head__count">{items.length} 条</span></h1>
+    <p>思绪需要一些出口。</p>
   </section>
 
-  <section class="thinking-list container" aria-label="Thinkings">
+  <section class="thinking-list container" aria-label="随想列表">
     {
-      items.map((item, index) => {
+      items.map((item) => {
         const MomentContent = item.kind === "moment" ? momentContents.get(item.id) : null;
-        return (
-          <article class="thinking" id={item.id} data-reveal style={`--reveal-delay: ${Math.min(index * 60, 300)}ms`}>
-            <div class="thinking__meta">
-              {item.kind === "moment" ? <p class="thinking__kind">小记</p> : item.label && <p>{item.label}</p>}
+        return item.kind === "thinking" ? (
+          /* 长随想：标题、摘要与明确的「阅读全文」入口 */
+          <article class="thinking thinking--long" id={item.id}>
+            <div class="thinking__side">
               <time datetime={isoDate(item.date)}>{dotDate(item.date)}</time>
             </div>
-            {item.kind === "thinking" ? (
-              <div class="thinking__body">
-                <h2><a href={item.href}>{item.title}</a></h2>
-                <p class="prose-zh">{item.summary}</p>
+            <div class="thinking__body">
+              <h2><a href={item.href}>{item.title}</a></h2>
+              {item.summary && <p class="thinking__summary">{item.summary}</p>}
+              <a class="thinking__more" href={item.href}>阅读全文 →</a>
+            </div>
+          </article>
+        ) : (
+          /* 小记：无标题的直接展示正文；日期即永久链接 */
+          <article class="thinking thinking--moment" id={item.id}>
+            <div class="thinking__side">
+              <a class="thinking__date" href={`/thinkings#${item.id}`} data-permalink aria-label="复制本条小记链接">
+                <time datetime={isoDate(item.date)}>{dotDate(item.date)}</time>
+                <span class="thinking__copied" aria-hidden="true"></span>
+              </a>
+            </div>
+            <div class="thinking__body thinking__body--moment">
+              {item.title && <h2 class="thinking__moment-title">{item.title}</h2>}
+              <div class="thinking__moment-content prose-zh">
+                {MomentContent ? <MomentContent /> : item.summary && <p>{item.summary}</p>}
               </div>
-            ) : (
-              <div class="thinking__body thinking__body--moment">
-                {item.title && <h2 class="thinking__moment-title">{item.title}</h2>}
-                <div class="thinking__moment-content prose-zh">
-                  {MomentContent ? <MomentContent /> : item.summary && <p>{item.summary}</p>}
-                </div>
-              </div>
-            )}
+            </div>
           </article>
         );
       })
@@ -91,52 +93,101 @@ const momentContents = new Map(renderedMoments.map(({ entry, content }) => [entr
   <SiteFooter />
 </BaseLayout>
 
+<script>
+  // 小记永久链接：点击复制链接（不跳转）；从首页/搜索带锚点跳来时，
+  // 目标条目短暂突出，随后恢复常态。
+  function setupMoments() {
+    if (location.hash) {
+      let id = location.hash.slice(1);
+      try { id = decodeURIComponent(id); } catch {}
+      const target = document.getElementById(id);
+      if (target && !target.dataset.flashBound) {
+        target.dataset.flashBound = "1";
+        target.classList.add("is-flash");
+        setTimeout(() => target.classList.remove("is-flash"), 2200);
+      }
+    }
+    document.querySelectorAll<HTMLAnchorElement>("[data-permalink]").forEach((a) => {
+      if (a.dataset.bound) return;
+      a.dataset.bound = "1";
+      a.addEventListener("click", async (event) => {
+        event.preventDefault();
+        const url = `${location.origin}/thinkings#${a.closest("article")?.id ?? ""}`;
+        let done = false;
+        try {
+          await navigator.clipboard.writeText(url);
+          done = true;
+        } catch {}
+        const tip = a.querySelector(".thinking__copied");
+        if (tip) {
+          tip.textContent = done ? "已复制链接" : "复制失败";
+          tip.classList.add("is-visible");
+          setTimeout(() => tip.classList.remove("is-visible"), 1400);
+        }
+      });
+    });
+  }
+  document.addEventListener("astro:page-load", setupMoments);
+  setupMoments();
+</script>
+
 <style>
-  /* .page-head / .back-home / .eyebrow / h1 字号在 global.css 统一维护；
-     斜体是 Thinkings 栏目有意保留的性格差异 */
-  .page-head h1 { font-weight: 600; }
+  /* .page-head 样式在 global.css 统一维护；page-head__count 为页面级补充 */
+  .page-head__count { margin-left: 10px; color: var(--text-faint); font-family: var(--mono); font-size: 13px; font-weight: 400; }
   .thinking-list { border-top: 1px solid var(--border-strong); }
-  .thinking { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: var(--space-2xl); padding-block: var(--space-3xl); border-bottom: 1px solid var(--border-subtle); scroll-margin-top: calc(var(--nav-height) + var(--space-lg)); }
-  .thinking__meta { padding-top: 7px; font-family: var(--mono); font-size: 12px; }
-  .thinking__meta p { color: var(--accent); }
-  /* 「小记」比 thinking 的栏目标签再降半级，让位给正题 */
-  .thinking__kind { color: var(--text-faint) !important; }
-  time { display: block; margin-top: var(--space-sm); color: var(--text-faint); font-family: var(--mono); }
-  .thinking__body { position: relative; max-width: 720px; }
-  /* thinking 标题与小记标题：小标题走 Google Sans（拉丁）+ Noto Sans SC（中文） */
-  h2 { font-family: var(--font-body); font-size: 26px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
-  /* 标题即唯一入口：静止态用下划线线索可辨识为链接，hover 只发生在链接自身 */
+  .thinking {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: var(--space-lg);
+    border-bottom: 1px solid var(--border-subtle);
+    scroll-margin-top: calc(var(--nav-height) + var(--space-lg));
+  }
+  /* 小记按真实内容比例：上下 24–32px，不套用长文章的展示高度 */
+  .thinking--moment { padding-block: 26px; }
+  .thinking--long { padding-block: var(--space-2xl); }
+  .thinking__side { padding-top: 5px; font-family: var(--mono); font-size: 12.5px; }
+  .thinking__side time { color: var(--text-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .thinking__date { position: relative; display: inline-flex; align-items: baseline; gap: 8px; transition: color var(--dur-fast) var(--ease-out); }
+  .thinking__date:hover { color: var(--accent); }
+  .thinking__date:hover time { color: var(--accent); }
+  .thinking__copied {
+    position: absolute;
+    left: 0;
+    top: calc(100% + 4px);
+    color: var(--accent);
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease-out);
+  }
+  .thinking__copied.is-visible { opacity: 1; }
+
+  .thinking__body { min-width: 0; max-width: 720px; }
+  h2 { font-family: var(--font-body); font-size: 24px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
   h2 a { display: inline-block; text-decoration: underline; text-decoration-color: var(--border-strong); text-underline-offset: 6px; text-decoration-thickness: 1px; transition: color var(--dur-fast) var(--ease-out), text-decoration-color var(--dur-fast) var(--ease-out); }
-  .thinking__body > p { max-width: 58ch; margin-top: var(--space-lg); color: var(--text-muted); }
   @media (hover: hover) {
-    .thinking__body > h2 a:hover { color: var(--accent); text-decoration-color: var(--accent); }
+    h2 a:hover { color: var(--accent); text-decoration-color: var(--accent); }
   }
-  /* 焦点样式在变色之外保留几何 outline：仅靠颜色差对低视力/色弱用户不稳健 */
   h2 a:focus-visible { color: var(--accent); text-decoration-color: var(--accent); outline: 1px solid var(--accent); outline-offset: 4px; }
+  .thinking__summary { max-width: 60ch; margin-top: var(--space-md); color: var(--text-muted); font-size: 16px; line-height: 1.8; }
+  .thinking__more { display: inline-block; margin-top: var(--space-md); color: var(--accent); font-size: 14.5px; transition: color var(--dur-fast) var(--ease-out); }
+  .thinking__more:hover { color: var(--accent-deep); }
 
-  /* thinking 摘要 / 小记正文：走全局 .prose-zh 正文配方 —— Google Sans +
-     Noto Sans SC、弱色、1.7 行高、左对齐（与「造物」简介同一套） */
-  .thinking__body .prose-zh {
-    font-family: var(--font-body);
-    font-size: 17px;
-    line-height: 1.85;
-    letter-spacing: 0;
-    color: var(--text);
-  }
-
-  /* 小记：无详情页，标题弱化为条目级、正文直接内联展示 */
-  .thinking__moment-title { padding-right: 0; font-size: 22px; font-weight: 500; line-height: 1.45; }
-  .thinking__moment-content { max-width: 65ch; margin-top: var(--space-md); color: var(--text-muted); }
+  /* 小记正文：原文直读，文字区域保持可选择 */
+  .thinking__moment-title { font-size: 19px; font-weight: 600; line-height: 1.45; }
+  .thinking__moment-content { max-width: 65ch; color: var(--text); font-size: 16.5px; }
+  .thinking__moment-title + .thinking__moment-content { margin-top: var(--space-sm); }
   .thinking__moment-content :global(> :first-child) { margin-top: 0; }
-  .thinking__moment-content :global(p + p) { margin-top: var(--space-md); }
+  .thinking__moment-content :global(p + p) { margin-top: var(--space-sm); }
   .thinking__moment-content :global(a) { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
-  .thinking__moment-content :global(blockquote) { margin: var(--space-md) 0 0; border-left: 2px solid var(--accent); padding-left: var(--space-md); }
+  .thinking__moment-content :global(blockquote) { margin: var(--space-sm) 0 0; border-left: 2px solid var(--accent); padding-left: var(--space-md); color: var(--text-muted); }
   .thinking__moment-content :global(img) { width: 100%; height: auto; margin-top: var(--space-md); border-radius: var(--radius-sm); }
 
+  /* 锚点跳入的短暂突出：行底淡染，2.2s 后由脚本移除 */
+  .thinking.is-flash { background: var(--accent-soft); transition: background 600ms var(--ease-out); }
+
   @media (max-width: 600px) {
-    .page-head { padding-top: var(--space-3xl); }
-    .thinking { grid-template-columns: 1fr; gap: var(--space-lg); padding-block: var(--space-2xl); }
-    .thinking__meta { display: flex; gap: var(--space-md); align-items: center; }
-    time { margin: 0; }
+    .thinking { grid-template-columns: 1fr; gap: 4px; }
+    .thinking__side { padding-top: 0; }
   }
 </style>

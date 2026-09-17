@@ -9,26 +9,33 @@
  * 单 rAF 驱动；离屏暂停；before-swap 释放全部监听与动画帧。
  */
 const GLYPHS = '01<>[]{}#$%&*+=/\\';
+interface Props {
+  showFacts?: boolean;
+  variant?: 'dark' | 'light';
+}
+const { showFacts = true, variant = 'dark' } = Astro.props;
 ---
 
-<div class="dabout" data-dabout data-glyphs={GLYPHS}>
-  <h1 class="dabout__title"><span data-scramble>关于我</span><span class="dabout__cursor" aria-hidden="true">_</span></h1>
-
+<div class:list={['dabout', `dabout--${variant}`]} data-dabout data-glyphs={GLYPHS}>
   <!-- 字符签名：字符解体画布呈现 ALOHA 字母 -->
   <div class="dabout__soul-wrap">
     <canvas class="dabout__soul" data-soul aria-label="Aloha 的字符签名：鼠标掠过，字母被吹散又归位" role="img"></canvas>
   </div>
 
-  <dl class="dabout__facts" data-reveal>
-    <div class="dabout__fact">
-      <dt>email</dt>
-      <dd><a href="mailto:292081295@qq.com">292081295@qq.com</a></dd>
-    </div>
-    <div class="dabout__fact">
-      <dt>github</dt>
-      <dd><a href="https://github.com/A1oha666" target="_blank" rel="noopener">@A1oha666</a></dd>
-    </div>
-  </dl>
+  <p class="dabout__intro" data-reveal>一名 2028 届本科 CS 学生，正在学习后端开发，尝试掌握 Golang。</p>
+
+  {showFacts && (
+    <dl class="dabout__facts" data-reveal>
+      <div class="dabout__fact">
+        <dt>email</dt>
+        <dd><a href="mailto:292081295@qq.com">292081295@qq.com</a></dd>
+      </div>
+      <div class="dabout__fact">
+        <dt>github</dt>
+        <dd><a href="https://github.com/A1oha666" target="_blank" rel="noopener">@A1oha666</a></dd>
+      </div>
+    </dl>
+  )}
 </div>
 
 <style>
@@ -42,17 +49,8 @@ const GLYPHS = '01<>[]{}#$%&*+=/\\';
     padding-bottom: var(--space-3xl);
   }
 
-  .dabout__title {
-    font-family: var(--mono);
-    font-size: clamp(40px, 6vw, 56px);
-    font-weight: 500;
-    line-height: 1.1;
-  }
-  .dabout__cursor { color: var(--accent); animation: cursor-blink 2.6s steps(1) infinite; }
-  @media (prefers-reduced-motion: reduce) { .dabout__cursor { animation: none; } }
-
   /* ---------- 数字灵魂画布 ---------- */
-  .dabout__soul-wrap { margin-top: var(--space-2xl); }
+  .dabout__soul-wrap { margin-top: 0; }
   .dabout__soul {
     display: block;
     width: 100%;
@@ -61,6 +59,14 @@ const GLYPHS = '01<>[]{}#$%&*+=/\\';
     border: 1px solid var(--border-strong);
     background: color-mix(in srgb, var(--surface) 70%, transparent);
     touch-action: pan-y;
+  }
+
+  .dabout__intro {
+    max-width: 46ch;
+    margin: var(--space-2xl) 0 0;
+    color: var(--text-muted);
+    font-size: 1rem;
+    line-height: 1.8;
   }
 
   /* ---------- facts ---------- */
@@ -86,9 +92,10 @@ const GLYPHS = '01<>[]{}#$%&*+=/\\';
   let teardownSoul: (() => void) | null = null;
 
   function setupSoul() {
-    if (document.documentElement.dataset.theme !== 'dark') return;
-    const canvas = document.querySelector<HTMLCanvasElement>('[data-soul]');
-    const root = document.querySelector<HTMLElement>('[data-dabout]');
+    // 深浅主题各自保留一份 DOM，仅初始化当前有布局盒的那一份。
+    const root = [...document.querySelectorAll<HTMLElement>('[data-dabout]')]
+      .find((candidate) => candidate.getClientRects().length > 0);
+    const canvas = root?.querySelector<HTMLCanvasElement>('[data-soul]');
     if (!canvas || !root || canvas.dataset.bound === '1') return;
     canvas.dataset.bound = '1';
 
@@ -97,6 +104,9 @@ const GLYPHS = '01<>[]{}#$%&*+=/\\';
 
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const GLYPHS = root.dataset.glyphs || '01<>[]{}#$%&*+=/\\';
+    const dark = document.documentElement.dataset.theme === 'dark';
+    const coreColor = dark ? '255,178,36' : '0,102,204';
+    const coolColor = dark ? '190,205,235' : '93,99,108';
 
     interface Cell {
       gx: number; gy: number;   // 网格坐标（像素，相对画布）
@@ -167,7 +177,7 @@ const GLYPHS = '01<>[]{}#$%&*+=/\\';
       ctx!.textBaseline = 'middle';
       for (const c of cells) {
         const a = c.lum > 0.12 ? 0.42 + c.lum * 0.56 : 0.2;
-        ctx!.fillStyle = c.lum > 0.72 ? `rgba(255,178,36,${a})` : `rgba(190,205,235,${a})`;
+        ctx!.fillStyle = c.lum > 0.72 ? `rgba(${coreColor},${a})` : `rgba(${coolColor},${a})`;
         ctx!.fillText(c.ch, c.gx, c.gy);
       }
     }
@@ -211,8 +221,8 @@ const GLYPHS = '01<>[]{}#$%&*+=/\\';
         const glow = Math.min(displaced / 26, 1);
         const a = Math.min(base + glow * 0.5, 1);
         ctx!.fillStyle = (c.lum > 0.72 || glow > 0.4)
-          ? `rgba(255,178,36,${a})`
-          : `rgba(190,205,235,${a})`;
+          ? `rgba(${coreColor},${a})`
+          : `rgba(${coolColor},${a})`;
         ctx!.fillText(c.ch, c.x, c.y);
       }
       raf = requestAnimationFrame(frame);

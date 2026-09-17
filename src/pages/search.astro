@@ -1,0 +1,69 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import SiteFooter from "../components/SiteFooter.astro";
+import "@pagefind/default-ui/css/ui.css";
+---
+
+<BaseLayout lang="zh-CN" title="搜索 — Aloha" description="搜索 Aloha 的笔记与随想。">
+  <section class="page-head container">
+    <h1 data-reveal>搜索</h1>
+  </section>
+
+  <section class="search-page container" aria-label="站内搜索">
+    <div id="site-search" role="search" data-reveal></div>
+  </section>
+  <SiteFooter />
+</BaseLayout>
+
+<script>
+  import { PagefindUI } from "@pagefind/default-ui";
+
+  function initSearch() {
+    const el = document.getElementById("site-search");
+    if (!el || el.dataset.initialized) return;
+    el.dataset.initialized = "true";
+    new PagefindUI({
+      element: "#site-search",
+      showSubResults: true,
+      showImages: false,
+      excerptLength: 26,
+      debounceTimeoutMs: 200,
+      translations: {
+        placeholder: "搜索标题或内容…",
+        clear_search: "清除",
+        load_more: "加载更多",
+        search_label: "站内搜索",
+        filters_label: "筛选",
+        zero_results: "没有找到「[SEARCH_TERM]」相关内容",
+        many_results: "找到 [COUNT] 条「[SEARCH_TERM]」相关结果",
+        one_result: "找到 1 条「[SEARCH_TERM]」相关结果",
+        alt_search: "没有找到「[SEARCH_TERM]」，试试「[DIFFERENT_TERM]」？",
+        search_suggestion: "没有找到「[SEARCH_TERM]」，你可能想找：[DIFFERENT_TERMS]",
+        searching: "正在搜索「[SEARCH_TERM]」…",
+      },
+    });
+  }
+
+  document.addEventListener("astro:page-load", initSearch);
+  initSearch();
+</script>
+
+<style>
+  .search-page {
+    min-height: 42vh;
+    padding-bottom: var(--space-4xl);
+  }
+
+  /* 使用 Pagefind 官方 UI，仅通过公开变量跟随站点明暗主题。 */
+  #site-search {
+    --pagefind-ui-scale: 0.9;
+    --pagefind-ui-primary: var(--accent);
+    --pagefind-ui-text: var(--text);
+    --pagefind-ui-background: var(--surface);
+    --pagefind-ui-border: var(--border-strong);
+    --pagefind-ui-tag: var(--surface-2);
+    --pagefind-ui-border-width: 1px;
+    --pagefind-ui-border-radius: var(--radius-sm);
+    --pagefind-ui-font: var(--font-body);
+  }
+</style>
