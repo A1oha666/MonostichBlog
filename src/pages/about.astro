@@ -4,10 +4,9 @@ import SiteFooter from "../components/SiteFooter.astro";
 import DarkAbout from "../components/dark/DarkAbout.astro";
 ---
 
-<BaseLayout lang="zh-CN" title="About — Aloha" description="Aloha — learning backend development.">
+<BaseLayout lang="zh-CN" title="About — Aloha" description="一名 2028 届本科 CS 学生，正在学习后端开发，尝试掌握 Golang。">
   <section class="page-head container">
-    <a class="back-home" href="/" data-reveal><span aria-hidden="true">←</span> 返回主页</a>
-    <p class="eyebrow" data-reveal style="--reveal-delay: 60ms">/ about</p>
+    <h1 data-reveal>关于我</h1>
   </section>
 
   {/* 深色分支：字符签名（dmesg 启动日志已按 D-2 决策全部移除，2026-09-16 签核） */}
@@ -15,15 +14,13 @@ import DarkAbout from "../components/dark/DarkAbout.astro";
     <DarkAbout />
   </div>
 
-  {/* 浅色分支：原始排版（一字未动） */}
+  {/* 浅色分支：简洁的作者介绍与联系方式 */}
   <section class="about container light-about" aria-label="About">
-    <h1 data-reveal style="--reveal-delay: 120ms"><span data-scramble>Aloha</span><span class="about__cursor" aria-hidden="true">_</span></h1>
-    <p class="about__line" data-reveal style="--reveal-delay: 200ms" data-scramble>learning backend development.</p>
+    <div class="light-about__soul">
+      <DarkAbout showFacts={false} variant="light" />
+    </div>
 
-    {/* 作者语言占位：由 Aloha 本人替换为 2–3 句（为什么写、Monostich 意味着什么），合计 ≤100 字 */}
-    <p class="about__intro" data-reveal style="--reveal-delay: 300ms">这里等待补充。</p>
-
-    <dl class="about__facts" data-reveal style="--reveal-delay: 400ms">
+    <dl class="about__facts" data-reveal style="--reveal-delay: 240ms">
       <div class="about__fact">
         <dt data-scramble>email</dt>
         <dd><a href="mailto:292081295@qq.com" data-scramble>292081295@qq.com</a></dd>
@@ -42,42 +39,14 @@ import DarkAbout from "../components/dark/DarkAbout.astro";
   :root:not([data-theme='dark']) .dark-about { display: none; }
   :root[data-theme='dark'] .light-about { display: none; }
 
-  /* .page-head / .back-home / .eyebrow 样式在 global.css 统一维护 */
+  /* .page-head 样式在 global.css 统一维护 */
   /* 内容少时收窄到阅读宽度，避免通栏左对齐配三行字的空荡构图 */
   .about { max-width: var(--maxw-prose); padding-bottom: var(--space-4xl); }
-  h1 {
-    font-family: var(--font-body);
-    font-size: 48px;
-    font-weight: 500;
-    line-height: 1.1;
+  .light-about__soul :global(.dabout) {
+    max-width: none;
+    padding-inline: 0;
+    padding-bottom: var(--space-2xl);
   }
-  /* 终端式硬闪烁光标，节奏与首页 Hero 横线光标一致（2.6s steps(1)） */
-  .about__cursor {
-    display: none;
-    margin-left: 2px;
-    color: var(--accent);
-    animation: cursor-blink 2.6s steps(1) infinite;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .about__cursor { animation: none; }
-  }
-
-  .about__line {
-    margin-top: var(--space-lg);
-    max-width: 46ch;
-    font-family: var(--mono);
-    font-size: 0.95rem;
-    color: var(--text);
-  }
-
-  .about__intro {
-    margin-top: var(--space-xl);
-    max-width: 46ch;
-    font-size: 1rem;
-    line-height: 1.8;
-    color: var(--text-muted);
-  }
-
   .about__facts {
     margin: var(--space-3xl) 0 0;
     display: grid;

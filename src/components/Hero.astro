@@ -1,8 +1,3 @@
----
-interface Props { notesCount: number; projectsCount: number; }
-const { notesCount, projectsCount } = Astro.props;
----
-
 <header class="intro">
   <div class="intro__content container">
   <a href="/about" class="intro__portrait" aria-label="关于 Aloha">
@@ -10,12 +5,6 @@ const { notesCount, projectsCount } = Astro.props;
   </a>
   <h1><span data-scramble>Aloha.</span></h1>
   <p class="intro__description" lang="zh-CN" data-reveal>记录一些想法与实践。</p>
-  </div>
-  {/* 统计行同时承担 /archive 与 #projects 的功能入口，删 CTA 后保留链接本身、去掉「更新于」（活跃度由列表证明） */}
-  <div class="intro__meta container" aria-label="站点统计">
-    <a href="/archive">{notesCount} 篇记录</a>
-    <span aria-hidden="true">·</span>
-    <a href="#projects">{projectsCount} 个项目</a>
   </div>
 </header>
 
@@ -33,21 +22,17 @@ const { notesCount, projectsCount } = Astro.props;
 </script>
 
 <style>
-  .intro { display: grid; grid-template-rows: minmax(min-content, 1fr) auto; min-height: calc(100svh - var(--nav-height) - 80px); background: var(--surface-2); text-align: center; }
+  .intro { display: grid; min-height: calc(100svh - var(--nav-height)); background: var(--surface-2); text-align: center; }
   .intro__content { align-self: center; padding-block: 56px; }
   .intro__portrait { display: block; width: 56px; height: 56px; margin: 0 auto 16px; border-radius: 50%; transition: transform 400ms var(--ease-out); }
   .intro__portrait:hover { transform: scale(1.07); }
   .intro__portrait img { border-radius: 50%; object-fit: cover; }
   h1 { font-family: var(--font-display); font-size: 76px; font-weight: 650; line-height: 1.05; }
   .intro__description { margin-top: 16px; font-size: 18px; color: var(--text-muted); }
-  .intro__meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 12px; padding-block: 12px 24px; color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-  .intro__meta a { display: inline-flex; align-items: center; min-height: 32px; }
-  .intro__meta a:hover { color: var(--accent); }
   @media (max-width: 640px) {
     .intro__content { padding-block: 40px; }
     h1 { font-size: 56px; }
     .intro__description { font-size: 16px; }
-    .intro__meta { gap: 2px 8px; font-size: 11px; padding-bottom: 16px; }
   }
   @media (max-height: 700px) {
     .intro__content { padding-block: 20px; }
@@ -55,6 +40,5 @@ const { notesCount, projectsCount } = Astro.props;
     .intro__portrait img { width: 48px; height: 48px; }
     h1 { font-size: 56px; }
     .intro__description { font-size: 16px; }
-    .intro__meta { padding-block: 8px 12px; }
   }
 </style>

@@ -8,37 +8,18 @@ import HomeExcerpt from '../components/HomeExcerpt.astro';
 import { dotDate, isoDate, safeDate } from '../lib/format';
 import { getBlogCollections, momentTitle } from '../lib/content';
 import { lab } from '../data/lab.js';
-import { projects } from '../data/projects.js';
 
 // 主题在客户端决定：两套分支都由服务端输出，浅色分支用 CSS 隐藏深色分支。
 // 两分支都是合法 HTML，JS 不可用时按浅色呈现（渐进增强）。
 const { notes, thinkings, moments } = await getBlogCollections();
 
-// 「一行」：最新一条小记，作为本站点题的单行诗
-const latestMoment = [...moments]
-  .map((entry) => ({ id: entry.id, date: safeDate(entry.data.date), text: momentTitle(entry) }))
-  .filter((m) => m.text)
-  .sort((a, b) => b.date.valueOf() - a.date.valueOf())[0];
-
-const allEntries = [...notes, ...thinkings, ...moments];
-
-// 首页展示最近五篇（Notes 与 Thinkings 含小记混排），完整回溯走 /archive。
-// 数据层提供完整列表：Light 模板跳过已被「一行」引用的最新小记（避免相邻两节重复），
-// Dark 没有「一行」区，全量渲染 —— 两主题首页的「最新内容可达集合」必须一致。
-// 注意过滤在 slice 之前：先截断再过滤会让浅色列表静默缩水为 4 行。
+// 首页展示最近五条：笔记、长随想与小记统一混排，完整回溯走 /archive。
 const recentSorted = [
   ...notes.map((entry) => ({ key: `notes/${entry.id}`, date: safeDate(entry.data.date), title: entry.data.title, summary: entry.data.summary, category: '笔记', href: `/notes/${entry.id}/` })),
   ...thinkings.map((entry) => ({ key: `thinkings/${entry.id}`, date: safeDate(entry.data.date), title: entry.data.title, summary: entry.data.summary, category: '随想', href: `/thinkings/${entry.id}/` })),
   ...moments.map((entry) => ({ key: `moments/${entry.id}`, date: safeDate(entry.data.date), title: momentTitle(entry), summary: '', category: '小记', href: `/thinkings#${entry.id}` })),
 ].sort((a, b) => b.date.valueOf() - a.date.valueOf());
 const recentAll = recentSorted.slice(0, 5);
-const recentLight = recentSorted
-  .filter((item) => item.key !== `moments/${latestMoment?.id}`)
-  .slice(0, 5);
-
-// Hero 统计行：真实统计
-const notesCount = allEntries.length;
-const projectsCount = projects.length;
 ---
 
 <BaseLayout lang="zh-CN" bodyClass="home">
@@ -49,29 +30,15 @@ const projectsCount = projects.length;
 
   {/* ============ 浅色分支：原始 Apple 风首页（一字未动） ============ */}
   <div class="light-home">
-    <Hero notesCount={notesCount} projectsCount={projectsCount} />
-
-    {latestMoment && (
-      <section class="oneline" aria-labelledby="home-oneline-heading">
-        <div class="container">
-          <div class="module-head" data-reveal>
-            <h2 id="home-oneline-heading" data-scramble data-no="01">随想</h2>
-          </div>
-          <figure class="oneline__figure" data-reveal style="--reveal-delay: 80ms">
-            <blockquote lang="zh-CN"><a href={`/thinkings#${latestMoment.id}`}>{latestMoment.text}</a></blockquote>
-            <figcaption><time datetime={isoDate(latestMoment.date)}>{dotDate(latestMoment.date)}</time></figcaption>
-          </figure>
-        </div>
-      </section>
-    )}
+    <Hero />
 
     <section class="section container recent" id="recent" aria-labelledby="home-recent-heading">
       <div class="module-head" data-reveal>
-            <h2 id="home-recent-heading" data-scramble data-no="02">文章</h2>
-        <a href="/archive" aria-label="全部文章">全部 →</a>
+        <h2 id="home-recent-heading" data-scramble data-no="01">最近更新</h2>
+        <a href="/archive" aria-label="全部内容">全部 →</a>
       </div>
       <ol class="recent-list" lang="zh-CN">
-        {recentLight.map((item, index) => (
+        {recentAll.map((item, index) => (
           <li data-reveal style={`--reveal-delay: ${Math.min(index * 60, 240)}ms`}>
             <a class="recent-row" href={item.href}>
               <span class="recent-list__no" aria-hidden="true">{index + 1}</span>
@@ -84,7 +51,7 @@ const projectsCount = projects.length;
           </li>
         ))}
       </ol>
-      {recentLight.length === 0 && <p class="recent__empty">文章正在酝酿中。</p>}
+      {recentAll.length === 0 && <p class="recent__empty">内容正在酝酿中。</p>}
     </section>
 
     <Projects />
@@ -135,25 +102,16 @@ const projectsCount = projects.length;
   :root:not([data-theme='dark']) {
     /* 浅色为纯编辑排版：终端式编号 // 01 仅深色显示 */
     .module-head__no { display: none; }
-    .oneline { background: var(--surface-2); padding-block: 56px; }
-    .oneline .module-head h2 { font-size: 17px; color: var(--text-muted); }
-    .oneline__figure { margin: 0; text-align: center; }
-    .oneline__figure blockquote { max-width: 36ch; margin: 32px auto; font-size: 36px; font-weight: 500; line-height: 1.6; overflow-wrap: anywhere; }
-    .oneline__figure blockquote a { color: inherit; }
-    .oneline__figure figcaption { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px 24px; }
-    .oneline__figure time { font-size: 13px; }
-
     .recent, .lab { text-align: initial; }
     .recent .module-head h2, .lab .module-head h2 { font-size: 24px; }
-    .recent-list { max-width: 704px; margin: 0 auto; }
+    .recent .recent-list { width: 100%; max-width: none; }
+    .lab .recent-list { max-width: 704px; margin: 0 auto; }
     .recent-list li { border-top: 1px solid var(--border); }
     /* 目录制式：日期在左 112px 侧栏、标题左对齐为扫描起点 —— 与 Notes 页同构 */
     .recent-row { position: relative; display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: var(--space-lg); align-items: baseline; padding-block: 28px; isolation: isolate; }
     .recent-row time { grid-column: 1; font-size: 12.5px; font-family: var(--mono); color: var(--text-faint); }
     .recent-row__body { grid-column: 2; min-width: 0; }
-    .recent-row::before { content: ''; position: absolute; inset: 4px -16px; background: var(--surface-2); opacity: 0; z-index: -1; transition: opacity 220ms ease; border-radius: 6px; }
-    @media (hover: hover) { .recent-row:hover::before { opacity: 1; } }
-    .recent-row h3 { font-size: 20px; line-height: 1.45; font-weight: 600; overflow-wrap: anywhere; transition: color 220ms ease; }
+    .recent-row h3 { font-size: 20px; line-height: 1.45; font-weight: 600; overflow-wrap: anywhere; transition: color var(--dur-fast) var(--ease-out); }
     .recent-row__summary { max-width: 60ch; margin: 8px 0 0; color: var(--text-muted); font-size: 15px; line-height: 1.75; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .recent-row:hover h3 { color: var(--accent); }
   }
@@ -169,8 +127,6 @@ const projectsCount = projects.length;
       .recent .recent-row__body { grid-column: 1 / -1; grid-row: 2; }
       .lab .recent-row__body { grid-column: 1 / -1; grid-row: 1; }
       .recent-row h3 { font-size: 18px; }
-      .oneline__figure blockquote { font-size: 23px; }
-      .oneline { padding-block: 36px; }
     }
   }
 </style>

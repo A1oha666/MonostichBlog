@@ -5,7 +5,10 @@ const year = new Date().getFullYear();
 <footer class="footer">
   <slot />
   <div class="footer__inner container">
-  <p>© {year} Aloha</p>
+  <div class="footer__meta">
+    <p>© {year} Aloha</p>
+    <p class="footer__visitors" aria-label="本站独立访客数">本站访客 <span id="busuanzi_site_uv" data-site-visitors aria-live="polite">—</span></p>
+  </div>
   <div class="footer__links">
     <a href="https://github.com/A1oha666" target="_blank" rel="noopener">GitHub ↗<span class="sr-only">（在新窗口打开）</span></a>
     <a href="/rss.xml">RSS</a>
@@ -16,6 +19,45 @@ const year = new Date().getFullYear();
   </div>
   </div>
 </footer>
+
+<script>
+  const COUNTER_SRC = 'https://cdn.busuanzi.cc/busuanzi/3.6.9/busuanzi.min.js';
+
+  function setupSiteVisitors() {
+    const counter = document.querySelector<HTMLElement>('[data-site-visitors]');
+    if (!counter) return;
+
+    try {
+      const cached = sessionStorage.getItem('site:visitors');
+      if (cached) {
+        counter.textContent = cached;
+        return;
+      }
+    } catch {}
+
+    if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return;
+
+    const observer = new MutationObserver(() => {
+      const value = counter.textContent?.trim();
+      if (!value || value === '—' || value.includes('加载')) return;
+      try { sessionStorage.setItem('site:visitors', value); } catch {}
+      observer.disconnect();
+    });
+    observer.observe(counter, { childList: true, characterData: true, subtree: true });
+
+    if (!document.querySelector<HTMLScriptElement>('script[data-site-counter]')) {
+      const script = document.createElement('script');
+      script.src = COUNTER_SRC;
+      script.async = true;
+      script.dataset.siteCounter = 'true';
+      script.addEventListener('error', () => observer.disconnect(), { once: true });
+      document.head.append(script);
+    }
+  }
+
+  document.addEventListener('astro:page-load', setupSiteVisitors);
+  setupSiteVisitors();
+</script>
 
 <style>
   .footer {
@@ -33,6 +75,8 @@ const year = new Date().getFullYear();
     padding-top: var(--space-lg);
     padding-bottom: var(--space-lg);
   }
+  .footer__meta { display: flex; flex-wrap: wrap; gap: var(--space-sm) var(--space-lg); }
+  .footer__visitors { color: var(--text-faint); font-variant-numeric: tabular-nums; }
   .footer__links { display: flex; flex-wrap: wrap; gap: var(--space-sm) var(--space-lg); }
   /* :lang(zh-CN) 直接命中链接元素，mono 不能只靠 .footer 的继承 */
   .footer a { display: inline-flex; align-items: center; min-height: 44px; color: var(--text-muted); font-family: var(--font-body); transition: color var(--dur-fast) var(--ease-out); }

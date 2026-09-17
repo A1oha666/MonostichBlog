@@ -1,17 +1,16 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import SiteFooter from "../../components/SiteFooter.astro";
 import { lab } from "../../data/lab.js";
 ---
 
 <BaseLayout lang="zh-CN" title="实验室 — Aloha" description="交互演示与小工具。">
   <section class="page-head container">
-    <a class="back-home" href="/" data-reveal><span aria-hidden="true">←</span> 返回主页</a>
-    <p class="eyebrow" data-reveal style="--reveal-delay: 60ms">/ lab</p>
-    <h1 data-reveal style="--reveal-delay: 120ms">实验室</h1>
-    <p data-reveal style="--reveal-delay: 200ms">交互演示与小工具：把一个想法做成可以动手玩的机器。</p>
+    <h1 data-reveal>实验室</h1>
+    <p data-reveal style="--reveal-delay: 80ms">小玩具与实验产物</p>
   </section>
 
-  <section class="section container" aria-labelledby="lab-heading">
+  <section class="lab-index container" aria-label="实验列表">
     <ol class="lab-list">
       {
         lab.map((item, index) => (
@@ -26,10 +25,13 @@ import { lab } from "../../data/lab.js";
       }
     </ol>
   </section>
+  <SiteFooter />
 </BaseLayout>
 
 <style>
-  /* .page-head / .back-home / .eyebrow / h1 字号在 global.css / dark.css 统一维护 */
+  /* .page-head / h1 字号在 global.css / dark.css 统一维护 */
+
+  .lab-index { padding-bottom: var(--space-3xl); }
 
   /* 与造物同一制式：三栏一行 —— 名 / 述 / 门类 */
   .lab-list { margin: 0; padding: 0; list-style: none; }
