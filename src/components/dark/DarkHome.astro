@@ -226,10 +226,9 @@ const { recent } = Astro.props;
 
     // ----------------------------------------------------------
     // 4) 微声效：WebAudio 合成（hover tick / click blip），无任何音频资源
-    //    默认关闭；按 M 切换，状态存 localStorage('mono-audio')。
+    //    已按需求整体停用（按钮不响应，不读 localStorage）。
     // ----------------------------------------------------------
     let audioOn = false;
-    try { audioOn = localStorage.getItem('mono-audio') === '1'; } catch {}
     let actx: AudioContext | null = null;
     let master: GainNode | null = null;
     function ensureCtx() {
@@ -309,12 +308,6 @@ const { recent } = Astro.props;
       if (progress === SEQ.length) {
         progress = 0;
         document.dispatchEvent(new CustomEvent('konami'));
-        if (audioOn) { ensureCtx(); bootSweep(); }
-      }
-      if (key === 'm') {
-        audioOn = !audioOn;
-        try { localStorage.setItem('mono-audio', audioOn ? '1' : '0'); } catch {}
-        if (audioOn) { ensureCtx(); bootSweep(); }
       }
     }
     document.addEventListener('keydown', onKey);
