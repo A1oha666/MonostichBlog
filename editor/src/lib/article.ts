@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { pb, pbFileUrl, ARTICLES_COLLECTION, type ArticleRecord } from './pb';
+import {
+  pb,
+  pbFileUrl,
+  ARTICLES_COLLECTION,
+  PROFILE_COLLECTION,
+  type ArticleRecord,
+  type ProfileRecord,
+} from './pb';
 
 export interface SaveMeta {
   title: string;
@@ -115,6 +122,35 @@ export function errMsg(e: unknown): string {
 // 读取 ?id= 并载入文章
 export async function fetchArticle(id: string): Promise<ArticleRecord> {
   return pb.collection(ARTICLES_COLLECTION).getOne<ArticleRecord>(id);
+}
+
+// 「打开」面板：列出最近编辑的文章（草稿 + 已发布），editors 身份可读全部。
+// 列表只取展示所需字段，避免把全部正文拉回前端。
+export async function fetchRecentArticles(perPage = 50): Promise<ArticleRecord[]> {
+  const res = await pb.collection(ARTICLES_COLLECTION).getList<ArticleRecord>(1, perPage, {
+    sort: '-editedAt',
+    fields: 'id,title,slug,type,status,editedAt,publishedAt',
+  });
+  return res.items;
+}
+
+// ---------- 个人介绍（About 页，site_profile 单例） ----------
+
+export interface ProfileForm {
+  bio: string;
+  email: string;
+  github: string;
+}
+
+// 单例语义：始终取第一条记录；集合为空（未迁移/被清空）返回 null，由调用方走创建。
+export async function fetchProfile(): Promise<ProfileRecord | null> {
+  const res = await pb.collection(PROFILE_COLLECTION).getList<ProfileRecord>(1, 1);
+  return res.items[0] ?? null;
+}
+
+export async function saveProfile(id: string | null, form: ProfileForm): Promise<ProfileRecord> {
+  if (id) return pb.collection(PROFILE_COLLECTION).update<ProfileRecord>(id, { ...form });
+  return pb.collection(PROFILE_COLLECTION).create<ProfileRecord>({ ...form });
 }
 
 export async function saveArticle(
