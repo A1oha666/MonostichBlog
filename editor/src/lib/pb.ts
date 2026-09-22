@@ -41,8 +41,20 @@ export interface ProfileRecord {
   github: string;
 }
 
+export interface ExcerptItem {
+  text: string;
+  author?: string;
+  source?: string;
+}
+
+export interface SiteExcerptsRecord {
+  id: string;
+  items: ExcerptItem[];
+}
+
 // 编辑器的写权限依赖 editors 集合（articles 的 create/update 对认证用户开放）。
 export const EDITORS_COLLECTION = 'editors';
 export const ARTICLES_COLLECTION = 'articles';
 // About 页个人介绍（单例集合，取第一条记录读写）
 export const PROFILE_COLLECTION = 'site_profile';
+export const EXCERPTS_COLLECTION = 'site_excerpts';

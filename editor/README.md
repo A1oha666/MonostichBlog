@@ -32,6 +32,7 @@ npm run dev        # http://127.0.0.1:5174/editor/
 4. **存草稿** `status=draft`；**立即发布** `status=published`（`publishedAt` 为空补当前）。
    快捷键：`Cmd/Ctrl+S` 存草稿，`Cmd/Ctrl+Shift+S` 发布。
 5. 编辑已有文章：`/editor/?id=<recordId>` 载入回显；保存后地址栏自动写入 `?id=`。
+6. 顶栏“页脚摘抄”可管理首页页脚的有序列表：添加、编辑、上下移动或删除，保存后自动触发博客重建。需要先部署后端的 `site_excerpts` 迁移和重建钩子。
 
 ## 部署
 

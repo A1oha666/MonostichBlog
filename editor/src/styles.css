@@ -283,7 +283,7 @@ input, button { font-family: inherit; }
 .user-dropdown-item:hover { background: var(--accent); color: var(--accent-contrast); }
 
 /* ---------- 「打开」文章列表面板 ---------- */
-.open-menu, .profile-menu { position: relative; }
+.open-menu, .profile-menu, .excerpts-menu { position: relative; }
 
 .btn.active { background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--border); }
 
@@ -417,6 +417,40 @@ input, button { font-family: inherit; }
 }
 
 .profile-actions { display: flex; justify-content: flex-end; margin-top: 2px; }
+
+/* ---------- 「页脚摘抄」有序列表面板 ---------- */
+.excerpts-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: min(420px, calc(100vw - 24px));
+  max-height: min(680px, calc(100vh - 80px));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: var(--bg);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-pop);
+  z-index: 50;
+  animation: menu-in 0.16s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  transform-origin: top right;
+}
+.excerpts-head { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; }
+.excerpts-help { margin: 0; color: var(--text-dim); font-size: 12px; line-height: 1.5; }
+.excerpts-list { min-height: 0; overflow-y: auto; display: grid; gap: 10px; }
+.excerpts-empty { padding: 24px 12px; margin: 0; color: var(--text-faint); text-align: center; font-size: 12px; }
+.excerpt-row { position: relative; display: grid; gap: 7px; min-width: 0; margin: 0; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-s); }
+.excerpt-row legend { padding: 0 5px; color: var(--text-dim); font-size: 11px; font-weight: 600; }
+.excerpt-row-actions { display: flex; justify-content: flex-end; gap: 4px; margin-top: -6px; }
+.excerpt-row-actions .btn { padding: 3px 8px; font-size: 12px; }
+.excerpt-remove { margin-left: 4px; }
+.excerpt-meta-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.excerpt-meta-fields input { width: 100%; min-width: 0; }
+.excerpt-field-error { margin-top: -4px; color: var(--danger); font-size: 11px; }
+.excerpts-actions { display: flex; justify-content: space-between; gap: 8px; border-top: 1px solid var(--hairline); padding-top: 10px; }
+.excerpts-error { display: grid; justify-items: start; gap: 10px; padding: 12px; background: var(--danger-soft); border-radius: var(--radius-s); color: var(--text); font-size: 12px; overflow-wrap: anywhere; }
 
 /* ---------- 元信息条 ---------- */
 .meta-bar {
@@ -809,6 +843,12 @@ input, button { font-family: inherit; }
 
 /* ---------- 窄屏适配 ---------- */
 @media (max-width: 720px) {
+  .topbar { height: auto; min-height: var(--toolbar-h); flex-wrap: wrap; padding-block: 8px; }
+  .topbar-right { flex-wrap: wrap; justify-content: flex-end; }
+  .excerpts-dropdown { position: fixed; top: 96px; right: 12px; left: 12px; width: auto; max-height: calc(100dvh - 108px); }
+  .excerpt-row-actions .btn { min-width: 44px; min-height: 44px; }
+  .excerpts-dropdown .profile-field input,
+  .excerpts-dropdown .profile-field textarea { font-size: 16px; }
   .user-email { display: none; }
   .md-editor { padding: 8px; }
   .md-editor .bytemd { border-radius: var(--radius-m); }

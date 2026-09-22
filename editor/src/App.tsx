@@ -4,6 +4,7 @@ import { LoginDialog } from './components/LoginDialog';
 import { MetaBar } from './components/MetaBar';
 import { MdEditor } from './components/MdEditor';
 import { ProfilePanel } from './components/ProfilePanel';
+import { ExcerptsPanel } from './components/ExcerptsPanel';
 import { useAuth, logout } from './lib/auth';
 import {
   errMsg,
@@ -219,6 +220,7 @@ export default function App() {
           </button>
           <ArticleListPanel currentId={recordId} dirty={dirty} onOpen={(id) => void loadArticle(id)} onError={onError} />
           <ProfilePanel push={push} />
+          <ExcerptsPanel push={push} />
           <button className="btn" disabled={saving} onClick={() => void doSave('draft')}>
             {saving ? '保存中…' : '存草稿'}
           </button>

@@ -16,6 +16,7 @@ import DarkHomeWork from './home/DarkHomeWork.astro';
 import DarkHomeLab from './home/DarkHomeLab.astro';
 import SiteFooter from '../SiteFooter.astro';
 import HomeExcerpt from '../HomeExcerpt.astro';
+import type { Excerpt } from '../../data/excerpts';
 
 interface RecentItem {
   key: string;
@@ -27,8 +28,9 @@ interface RecentItem {
 }
 interface Props {
   recent: RecentItem[];
+  excerpts: Excerpt[];
 }
-const { recent } = Astro.props;
+const { recent, excerpts } = Astro.props;
 ---
 
 <div class="dhome" data-dhome>
@@ -44,7 +46,7 @@ const { recent } = Astro.props;
   <DarkHomeWork />
   <DarkHomeLab />
 
-  <SiteFooter><HomeExcerpt /></SiteFooter>
+  <SiteFooter><HomeExcerpt excerpts={excerpts} /></SiteFooter>
 </div>
 
 <style>

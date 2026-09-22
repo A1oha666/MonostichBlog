@@ -4,8 +4,11 @@ import {
   pbFileUrl,
   ARTICLES_COLLECTION,
   PROFILE_COLLECTION,
+  EXCERPTS_COLLECTION,
   type ArticleRecord,
+  type ExcerptItem,
   type ProfileRecord,
+  type SiteExcerptsRecord,
 } from './pb';
 
 export interface SaveMeta {
@@ -151,6 +154,17 @@ export async function fetchProfile(): Promise<ProfileRecord | null> {
 export async function saveProfile(id: string | null, form: ProfileForm): Promise<ProfileRecord> {
   if (id) return pb.collection(PROFILE_COLLECTION).update<ProfileRecord>(id, { ...form });
   return pb.collection(PROFILE_COLLECTION).create<ProfileRecord>({ ...form });
+}
+
+// 首页页脚摘抄（单例 JSON 列表）；顺序由数组位置决定。
+export async function fetchExcerpts(): Promise<SiteExcerptsRecord | null> {
+  const res = await pb.collection(EXCERPTS_COLLECTION).getList<SiteExcerptsRecord>(1, 1);
+  return res.items[0] ?? null;
+}
+
+export async function saveExcerpts(id: string | null, items: ExcerptItem[]): Promise<SiteExcerptsRecord> {
+  if (id) return pb.collection(EXCERPTS_COLLECTION).update<SiteExcerptsRecord>(id, { items });
+  return pb.collection(EXCERPTS_COLLECTION).create<SiteExcerptsRecord>({ items });
 }
 
 export async function saveArticle(

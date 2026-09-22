@@ -8,10 +8,12 @@ import HomeExcerpt from '../components/HomeExcerpt.astro';
 import { dotDate, isoDate, safeDate } from '../lib/format';
 import { getBlogCollections, momentTitle } from '../lib/content';
 import { lab } from '../data/lab.js';
+import { getEntry } from 'astro:content';
 
 // 主题在客户端决定：两套分支都由服务端输出，浅色分支用 CSS 隐藏深色分支。
 // 两分支都是合法 HTML，JS 不可用时按浅色呈现（渐进增强）。
 const { notes, thinkings, moments } = await getBlogCollections();
+const excerpts = (await getEntry('excerpts', 'excerpts'))?.data.items ?? [];
 
 // 首页展示最近五条：笔记、长随想与小记统一混排，完整回溯走 /archive。
 const recentSorted = [
@@ -25,7 +27,7 @@ const recentAll = recentSorted.slice(0, 5);
 <BaseLayout lang="zh-CN" bodyClass="home">
   {/* ============ 深色分支：信号核控制台（浅色下 display:none） ============ */}
   <div class="dark-home">
-    <DarkHome recent={recentAll} />
+    <DarkHome recent={recentAll} excerpts={excerpts} />
   </div>
 
   {/* ============ 浅色分支：原始 Apple 风首页（一字未动） ============ */}
@@ -76,7 +78,7 @@ const recentAll = recentSorted.slice(0, 5);
       </ol>
     </section>
 
-    <SiteFooter><HomeExcerpt /></SiteFooter>
+    <SiteFooter><HomeExcerpt excerpts={excerpts} /></SiteFooter>
   </div>
 </BaseLayout>
 

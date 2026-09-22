@@ -296,3 +296,22 @@ export function siteProfileLoader(): ContentLayerLoader {
     },
   };
 }
+
+// 首页摘抄列表：顺序即每日轮换顺序。允许空数组，此时首页不显示摘抄。
+export function siteExcerptsLoader(): ContentLayerLoader {
+  return {
+    name: 'pocketbase-site-excerpts',
+    async load({ store }: { store: AnyStore; logger?: any }) {
+      const base = resolveBase();
+      const res = await pbApi<{ items: AnyRecord[] }>(
+        base,
+        'GET',
+        '/collections/site_excerpts/records?perPage=1&page=1',
+      );
+      store.clear();
+      const rec = res.items[0];
+      if (!rec) return;
+      store.set({ id: 'excerpts', data: { items: rec.items ?? [] } });
+    },
+  };
+}

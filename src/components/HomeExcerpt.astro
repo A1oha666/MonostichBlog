@@ -1,6 +1,8 @@
 ---
-import { excerpts } from '../data/excerpts';
+import type { Excerpt } from '../data/excerpts';
 
+interface Props { excerpts: Excerpt[] }
+const { excerpts } = Astro.props;
 const excerpt = excerpts[0];
 ---
 
@@ -17,18 +19,19 @@ const excerpt = excerpts[0];
   import type { Excerpt } from '../data/excerpts';
 
   function setupExcerpt() {
-    const host = document.querySelector<HTMLElement>('[data-excerpts]');
-    if (!host || host.dataset.bound) return;
-    host.dataset.bound = 'true';
-    const entries: Excerpt[] = JSON.parse(host.dataset.excerpts ?? '[]');
-    if (!entries.length) return;
-    const date = new Date();
-    const day = Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000);
-    const entry = entries[day % entries.length];
-    host.querySelector('blockquote')!.textContent = entry.text;
-    const caption = host.querySelector('figcaption')!;
-    caption.textContent = [entry.author, entry.source].filter(Boolean).join(' / ');
-    caption.hidden = !caption.textContent;
+    document.querySelectorAll<HTMLElement>('[data-excerpts]').forEach((host) => {
+      if (host.dataset.bound) return;
+      host.dataset.bound = 'true';
+      const entries: Excerpt[] = JSON.parse(host.dataset.excerpts ?? '[]');
+      if (!entries.length) return;
+      const date = new Date();
+      const day = Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000);
+      const entry = entries[day % entries.length];
+      host.querySelector('blockquote')!.textContent = entry.text;
+      const caption = host.querySelector('figcaption')!;
+      caption.textContent = [entry.author, entry.source].filter(Boolean).join(' / ');
+      caption.hidden = !caption.textContent;
+    });
   }
   document.addEventListener('astro:page-load', setupExcerpt);
   setupExcerpt();
