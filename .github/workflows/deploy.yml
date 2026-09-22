@@ -33,6 +33,24 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # 后端和博客分别部署：博客构建必须等 site_excerpts 迁移在线上生效。
+      - name: Wait for PocketBase excerpts collection
+        env:
+          PB_BASE_URL: https://admin.monostich.cloud
+        run: |
+          for attempt in {1..60}; do
+            status=$(curl -sS -o /dev/null -w '%{http_code}' \
+              "$PB_BASE_URL/api/collections/site_excerpts/records?perPage=1&page=1" || true)
+            if [ "$status" = 200 ]; then
+              echo 'PocketBase site_excerpts is ready.'
+              exit 0
+            fi
+            echo "PocketBase site_excerpts is not ready (HTTP $status, attempt $attempt/60)."
+            sleep 5
+          done
+          echo '::error::PocketBase site_excerpts migration is not available after 5 minutes.'
+          exit 1
+
       - name: Build site
         run: npm run build
         env:
