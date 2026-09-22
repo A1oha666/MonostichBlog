@@ -1,0 +1,148 @@
+---
+const GISCUS_REPO = "A1oha666/MonostichBlog";
+const GISCUS_REPO_ID = "R_kgDOUDmsJQ";
+const GISCUS_CATEGORY = "Announcements";
+const GISCUS_CATEGORY_ID = "DIC_kwDOUDmsJc4DF_le";
+---
+
+<section class="comments container" aria-labelledby="comments-title" data-pagefind-ignore>
+  <div class="comments__inner">
+    <header class="comments__header">
+      <h2 id="comments-title">讨论</h2>
+      <p>
+        评论由 GitHub Discussions 提供。登录 GitHub 后即可参与，内容会公开保存到本站仓库。
+      </p>
+    </header>
+    <div
+      class="comments__mount giscus"
+      data-giscus-comments
+      data-repo={GISCUS_REPO}
+      data-repo-id={GISCUS_REPO_ID}
+      data-category={GISCUS_CATEGORY}
+      data-category-id={GISCUS_CATEGORY_ID}
+      aria-busy="true"
+    >
+      <p class="comments__loading" role="status">正在加载评论…</p>
+      <noscript>
+        请启用 JavaScript，或前往
+        <a href="https://github.com/A1oha666/MonostichBlog/discussions">GitHub Discussions</a>
+        查看与参与讨论。
+      </noscript>
+    </div>
+  </div>
+</section>
+
+<script>
+  const lightTheme = 'noborder_light';
+  const darkTheme = 'transparent_dark';
+
+  const currentGiscusTheme = () =>
+    document.documentElement.dataset.theme === 'dark' ? darkTheme : lightTheme;
+
+  function syncGiscusTheme() {
+    const frame = document.querySelector<HTMLIFrameElement>('iframe.giscus-frame');
+    frame?.contentWindow?.postMessage(
+      { giscus: { setConfig: { theme: currentGiscusTheme() } } },
+      'https://giscus.app',
+    );
+  }
+
+  function initComments() {
+    const mount = document.querySelector<HTMLElement>('[data-giscus-comments]');
+    if (!mount || mount.querySelector('iframe.giscus-frame, script[src="https://giscus.app/client.js"]')) return;
+
+    const repo = mount.dataset.repo;
+    const repoId = mount.dataset.repoId;
+    const category = mount.dataset.category;
+    const categoryId = mount.dataset.categoryId;
+    if (!repo || !repoId || !category || !categoryId || repoId.startsWith('__') || categoryId.startsWith('__')) {
+      mount.dataset.unconfigured = 'true';
+      mount.setAttribute('aria-busy', 'false');
+      const status = mount.querySelector<HTMLElement>('.comments__loading');
+      if (status) status.textContent = '评论服务等待完成 GitHub 授权配置。';
+      return;
+    }
+
+    const observer = new MutationObserver(() => {
+      const frame = mount.querySelector<HTMLIFrameElement>('iframe.giscus-frame');
+      if (!frame) return;
+      mount.setAttribute('aria-busy', 'false');
+      mount.querySelector<HTMLElement>('.comments__loading')?.setAttribute('hidden', '');
+      syncGiscusTheme();
+      observer.disconnect();
+    });
+    observer.observe(mount, { childList: true, subtree: true });
+    document.addEventListener('astro:before-swap', () => observer.disconnect(), { once: true });
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.dataset.repo = repo;
+    script.dataset.repoId = repoId;
+    script.dataset.category = category;
+    script.dataset.categoryId = categoryId;
+    script.dataset.mapping = 'pathname';
+    script.dataset.strict = '1';
+    script.dataset.reactionsEnabled = '1';
+    script.dataset.emitMetadata = '0';
+    script.dataset.inputPosition = 'top';
+    script.dataset.theme = currentGiscusTheme();
+    script.dataset.lang = 'zh-CN';
+    script.dataset.loading = 'lazy';
+    mount.appendChild(script);
+  }
+
+  document.addEventListener('astro:page-load', initComments);
+  document.addEventListener('themechange', syncGiscusTheme);
+  initComments();
+</script>
+
+<style>
+  .comments { padding-top: var(--space-xl); padding-bottom: var(--space-2xl); }
+  .comments__inner {
+    max-width: var(--maxw-prose);
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-2xl);
+  }
+  .comments__header { margin-bottom: var(--space-xl); }
+  .comments__header h2 {
+    font-family: var(--font-body);
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+  .comments__header p {
+    max-width: 58ch;
+    margin-top: var(--space-sm);
+    color: var(--text-muted);
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .comments__mount {
+    min-width: 0;
+    min-height: 220px;
+    overflow: hidden;
+  }
+  .comments__loading {
+    color: var(--text-faint);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .comments__loading[hidden] { display: none; }
+  .comments__mount:has(iframe.giscus-frame) .comments__loading { display: none; }
+  .comments__mount[data-unconfigured='true'] { min-height: 0; }
+  .comments__mount :global(a) {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  :global(.giscus), :global(.giscus-frame) { width: 100%; }
+
+  @media (max-width: 640px) {
+    .comments { padding-top: var(--space-lg); }
+    .comments__inner { padding-top: var(--space-xl); }
+    .comments__header h2 { font-size: 22px; }
+    .comments__mount { min-height: 180px; }
+  }
+</style>

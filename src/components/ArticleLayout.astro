@@ -1,5 +1,6 @@
 ---
 import { safeDate, dotDate, isoDate } from "../lib/format";
+import Comments from "./Comments.astro";
 
 interface Heading {
   depth: number;
@@ -101,6 +102,8 @@ const formatDate = dotDate;
       </aside>
     )}
   </div>
+
+  <Comments />
 
   {/* 文末返回栏目 + 前后篇；没有相邻文章的一侧不留空链接（仅占位平衡栅格） */}
   {(previous || next) && (

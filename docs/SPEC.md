@@ -38,6 +38,7 @@
 | 命令式按钮 | `[ ... ]` 方括号，`.btn` / `.btn--primary` | `global.css` |
 | 阅读进度条 | 文章页 nav 下沿 2px accent，滚动映射 `scaleX`（非动画） | `ArticleLayout.astro` |
 | 代码块语言条 | `data-lang` 由包装脚本写入，`::before` 读取，不新增 DOM | `ArticleLayout.astro` |
+| 文章讨论 | 文末嵌入 giscus；使用 GitHub Discussions、按 pathname 严格映射，跟随站点主题并懒加载 | `Comments.astro` / `giscus.json` |
 | 模块头 | `// NN 名目`，mono、`--text-faint`，`//` 用 `--accent-dim` | `.module-head` |
 | h1 字号 | 主题级 token `--font-heading` / `--h1-size-page` / `--h1-size-article` | `global.css` / `dark.css` |
 
@@ -57,6 +58,10 @@ SignalCore(WebGL 光谱仪) → DarkHomeHero → DarkHomeRecent → DarkHomeWork
 
 所有列表模块（Recent / Work / Lab）统一为 **gutter 行号列表**，不再使用卡片网格。
 浅色首页 = `Hero` + 随想 section + `Projects` + lab section。
+
+文章页（Notes / Thinkings）共用 `ArticleLayout`；正文后、前后篇导航前统一渲染
+`Comments`。评论数据公开存储在本仓库 GitHub Discussions 的 Announcements 分类，
+访客需登录 GitHub 参与，站点本身不保存评论账号或内容。
 
 > 注：`DarkHomeOneline.astro` / `DarkHomeTerminal.astro` 已删除（随想 bento 移除后无引用，2026-09-16 随 code review 清理）。`dark/SignalCore.astro` 为原生 WebGL2 实现；早期的 Shadertoy `pixelScreen` 像素屏管线（`lib/pixelscreen/` + `shaders/pixelScreen/`）已于 2026-09-15 清理。
 
