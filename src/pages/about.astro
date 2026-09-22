@@ -1,7 +1,16 @@
 ---
+import { getEntry } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import DarkAbout from "../components/dark/DarkAbout.astro";
+
+// 个人介绍来自 site_profile 单例集合（编辑器「个人介绍」面板维护）；
+// 集合为空/未迁移时 entry 为 undefined，全部字段按内置兜底渲染。
+const entry = await getEntry("profile", "profile");
+const bioHtml = entry?.rendered?.html;
+const email = entry?.data.email || "292081295@qq.com";
+const github = entry?.data.github || "@A1oha666";
+const githubUrl = `https://github.com/${github.replace(/^@/, "")}`;
 ---
 
 <BaseLayout lang="zh-CN" title="About — Aloha" description="一名 2028 届本科 CS 学生，正在学习后端开发，尝试掌握 Golang。">
@@ -11,24 +20,28 @@ import DarkAbout from "../components/dark/DarkAbout.astro";
 
   {/* 深色分支：字符签名（dmesg 启动日志已按 D-2 决策全部移除，2026-09-16 签核） */}
   <div class="dark-about">
-    <DarkAbout />
+    <DarkAbout bioHtml={bioHtml} email={email} github={github} />
   </div>
 
   {/* 浅色分支：简洁的作者介绍与联系方式 */}
   <section class="about container light-about" aria-label="About">
     <div class="light-about__soul">
-      <DarkAbout showFacts={false} variant="light" />
+      <DarkAbout showFacts={false} variant="light" bioHtml={bioHtml} />
     </div>
 
     <dl class="about__facts" data-reveal style="--reveal-delay: 240ms">
-      <div class="about__fact">
-        <dt data-scramble>email</dt>
-        <dd><a href="mailto:292081295@qq.com" data-scramble>292081295@qq.com</a></dd>
-      </div>
-      <div class="about__fact">
-        <dt data-scramble>github</dt>
-        <dd><a href="https://github.com/A1oha666" target="_blank" rel="noopener" data-scramble>@A1oha666</a></dd>
-      </div>
+      {email && (
+        <div class="about__fact">
+          <dt data-scramble>email</dt>
+          <dd><a href={`mailto:${email}`} data-scramble>{email}</a></dd>
+        </div>
+      )}
+      {github && (
+        <div class="about__fact">
+          <dt data-scramble>github</dt>
+          <dd><a href={githubUrl} target="_blank" rel="noopener" data-scramble>{github}</a></dd>
+        </div>
+      )}
     </dl>
   </section>
   <SiteFooter />

@@ -12,8 +12,21 @@ const GLYPHS = '01<>[]{}#$%&*+=/\\';
 interface Props {
   showFacts?: boolean;
   variant?: 'dark' | 'light';
+  /** bio 经 markdown 渲染的 HTML（site_profile 集合）；缺省回退到内置文案 */
+  bioHtml?: string;
+  email?: string;
+  /** 显示用 GitHub 句柄，如 @A1oha666 */
+  github?: string;
 }
-const { showFacts = true, variant = 'dark' } = Astro.props;
+const {
+  showFacts = true,
+  variant = 'dark',
+  bioHtml,
+  email = '292081295@qq.com',
+  github = '@A1oha666',
+} = Astro.props;
+// 句柄缺 @ 前缀时拼 URL 会错，这里统一剥掉再组链接
+const githubUrl = `https://github.com/${github.replace(/^@/, '')}`;
 ---
 
 <div class:list={['dabout', `dabout--${variant}`]} data-dabout data-glyphs={GLYPHS}>
@@ -22,18 +35,26 @@ const { showFacts = true, variant = 'dark' } = Astro.props;
     <canvas class="dabout__soul" data-soul aria-label="Aloha 的字符签名：鼠标掠过，字母被吹散又归位" role="img"></canvas>
   </div>
 
+  {bioHtml ? (
+  <div class="dabout__intro" data-reveal set:html={bioHtml} />
+  ) : (
   <p class="dabout__intro" data-reveal>一名 2028 届本科 CS 学生，正在学习后端开发，尝试掌握 Golang。</p>
+  )}
 
   {showFacts && (
     <dl class="dabout__facts" data-reveal>
-      <div class="dabout__fact">
-        <dt>email</dt>
-        <dd><a href="mailto:292081295@qq.com">292081295@qq.com</a></dd>
-      </div>
-      <div class="dabout__fact">
-        <dt>github</dt>
-        <dd><a href="https://github.com/A1oha666" target="_blank" rel="noopener">@A1oha666</a></dd>
-      </div>
+      {email && (
+        <div class="dabout__fact">
+          <dt>email</dt>
+          <dd><a href={`mailto:${email}`}>{email}</a></dd>
+        </div>
+      )}
+      {github && (
+        <div class="dabout__fact">
+          <dt>github</dt>
+          <dd><a href={githubUrl} target="_blank" rel="noopener">{github}</a></dd>
+        </div>
+      )}
     </dl>
   )}
 </div>
@@ -68,6 +89,9 @@ const { showFacts = true, variant = 'dark' } = Astro.props;
     font-size: 1rem;
     line-height: 1.8;
   }
+  /* bio 走 markdown 渲染时带 <p> 等块级标签，清掉首段默认外边距保持原构图 */
+  .dabout__intro :global(p:first-child) { margin-top: 0; }
+  .dabout__intro :global(p:last-child) { margin-bottom: 0; }
 
   /* ---------- facts ---------- */
   .dabout__facts {
