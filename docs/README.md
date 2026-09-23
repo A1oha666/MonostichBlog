@@ -22,5 +22,6 @@
 
 ## 其他文档
 
+- [`models-center-plan.md`](models-center-plan.md) — Models 舆情中心一期设计方案与 Go 后端边界。
 - 仓库根 [`README.md`](../README.md) — 项目总览、技术栈、部署。
 - [`editor/docs/`](../editor/docs/) — 编辑器子工程文档（独立子工程）。

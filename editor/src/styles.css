@@ -842,7 +842,43 @@ input, button { font-family: inherit; }
 }
 
 /* ---------- 窄屏适配 ---------- */
+.models-admin { flex: 1; overflow: auto; width: 100%; padding: 40px max(24px, calc((100vw - 1100px) / 2)) 80px; }
+.models-admin-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
+.models-admin-heading h1 { font-size: 29px; letter-spacing: -0.04em; margin: 6px 0 10px; }
+.models-admin-heading p:last-child { color: var(--text-dim); line-height: 1.6; margin: 0; }
+.models-admin-eyebrow { color: var(--text-faint); font-size: 11px; font-weight: 700; letter-spacing: .12em; margin: 0; }
+.models-admin-summary { display: flex; gap: 32px; flex-wrap: wrap; padding: 25px 0; margin: 28px 0 14px; border-block: 1px solid var(--hairline); color: var(--text-dim); }
+.models-admin-summary strong { color: var(--text); font-size: 24px; margin-right: 5px; }
+.models-admin-list { display: grid; gap: 12px; }
+.models-admin-vendor { border: 1px solid var(--border); border-radius: var(--radius-l); padding: 20px 24px; background: var(--bg); }
+.models-admin-vendor-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.models-admin-vendor h2 { display: inline; font-size: 17px; margin: 0 10px 0 0; }
+.models-admin-id, .models-admin-mode { font-size: 11px; color: var(--text-faint); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.models-admin-status { flex: 0 0 auto; font-size: 12px; border: 1px solid var(--border); border-radius: 999px; padding: 4px 9px; color: var(--text-dim); background: var(--bg-soft); }
+.models-admin-status.ok { color: var(--ok-strong); }
+.models-admin-status.error, .models-admin-status.degraded { color: var(--danger); border-color: var(--danger); }
+.models-admin-placeholder { color: var(--text-faint); margin: 13px 0 0; font-size: 13px; }
+.models-admin-source { margin-top: 18px; padding-top: 17px; border-top: 1px solid var(--hairline); }
+.models-admin-source-main { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; align-items: center; }
+.models-admin-source-main strong { font-size: 14px; margin-right: 10px; }
+.models-admin-source-main a { color: var(--text-dim); text-decoration: none; font-size: 12px; }
+.models-admin-source-main a:hover { color: var(--text); text-decoration: underline; }
+.models-admin-times { display: flex; gap: 35px; flex-wrap: wrap; margin: 16px 0; }
+.models-admin-times div { display: flex; gap: 7px; font-size: 12px; }
+.models-admin-times dt { color: var(--text-faint); }
+.models-admin-times dd { margin: 0; color: var(--text-dim); }
+.models-admin-source-error { color: var(--danger); background: var(--danger-soft); padding: 9px 11px; border-radius: var(--radius-s); font-size: 12px; overflow-wrap: anywhere; }
+.models-admin-actions { display: flex; gap: 8px; }
+.models-admin-message { margin: 12px 0; padding: 10px 12px; border-radius: var(--radius-s); background: var(--ok-soft); }
+.models-admin-message.error { color: var(--danger); background: var(--danger-soft); }
+.models-admin-empty { color: var(--text-dim); }
+
 @media (max-width: 720px) {
+  .models-admin { padding: 24px 16px 60px; }
+  .models-admin-heading { flex-direction: column; gap: 16px; }
+  .models-admin-summary { gap: 18px; }
+  .models-admin-vendor { padding: 17px; }
+  .models-admin-times { display: grid; gap: 7px; }
   .topbar { height: auto; min-height: var(--toolbar-h); flex-wrap: wrap; padding-block: 8px; }
   .topbar-right { flex-wrap: wrap; justify-content: flex-end; }
   .excerpts-dropdown { position: fixed; top: 96px; right: 12px; left: 12px; width: auto; max-height: calc(100dvh - 108px); }

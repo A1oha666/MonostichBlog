@@ -51,11 +51,33 @@ jobs:
           echo '::error::PocketBase site_excerpts migration is not available after 5 minutes.'
           exit 1
 
+      - name: Wait for Models API
+        if: ${{ vars.MODELS_SERVICE_URL != '' }}
+        env:
+          MODELS_SERVICE_URL: ${{ vars.MODELS_SERVICE_URL }}
+        run: |
+          MODELS_SERVICE_URL="${MODELS_SERVICE_URL%/}"
+          for attempt in {1..60}; do
+            status=$(curl -sS -o /dev/null -w '%{http_code}' "$MODELS_SERVICE_URL/readyz" || true)
+            if [ "$status" = 200 ]; then
+              echo 'Models API is ready.'
+              exit 0
+            fi
+            echo "Models API is not ready (HTTP $status, attempt $attempt/60)."
+            sleep 5
+          done
+          echo '::error::Models API did not become ready after 5 minutes.'
+          exit 1
+
       - name: Build site
         run: npm run build
         env:
           # 构建时从线上 PocketBase 拉取 published 内容并物化附件
           PB_BASE_URL: https://admin.monostich.cloud
+          # 配置仓库变量 MODELS_SERVICE_URL 后，构建会抓取模型快照与 RSS
+          MODELS_SERVICE_URL: ${{ vars.MODELS_SERVICE_URL }}
+          # 浏览器走本站 nginx 同域代理，无需跨域配置
+          PUBLIC_MODELS_SERVICE_URL: ${{ vars.MODELS_SERVICE_URL != '' && '/models-api' || '' }}
 
       - name: Install editor dependencies
         working-directory: editor
