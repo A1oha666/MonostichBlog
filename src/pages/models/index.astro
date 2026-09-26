@@ -1,0 +1,344 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { eventTypeLabel, getModelCatalog, getModelReleases, getModelSourceStatuses, modelStatusLabel, releaseDateValue, sourceStatusLabel } from '../../lib/models';
+
+export const prerender = true;
+const [releases, sources, models] = await Promise.all([getModelReleases(), getModelSourceStatuses(), getModelCatalog()]);
+const builtAt = new Date();
+const years = [...new Set(releases.map((item) => item.announced_at.slice(0, 4)))].sort().reverse();
+const vendors = sources.map((source) => [source.vendor_id, source.vendor] as const).sort((a, b) => a[1].localeCompare(b[1], 'zh-CN'));
+const filters = new URLSearchParams(Astro.url.searchParams);
+---
+
+<BaseLayout title="模型情报站 — Aloha" description="实时读取已核实的模型清单与官方公布的状态。" lang="zh-CN">
+  <div class="container models-page">
+    <header class="page-head models-head">
+      <a class="back-home" href="/">[← 返回主页]</a>
+      <p class="eyebrow">/ MODELS INTELLIGENCE</p>
+      <h1>模型情报站</h1>
+      <p class="models-intro">实时读取已核实的模型清单。状态依据官方发布事件与公布的可用渠道，不代表本站已实时检测 API 调用结果。</p>
+      <p class="models-generated" id="models-live-status" data-built-at={builtAt.toISOString()} role="status" aria-live="polite">构建快照更新于 <time datetime={builtAt.toISOString()}>{new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(builtAt)}</time>；正在连接实时数据…</p>
+      <a class="models-rss" href="/models/rss.xml">[ 订阅模型动态 RSS ↗ ]</a>
+    </header>
+
+    <section class="model-catalog" aria-label="模型清单">
+      <div class="models-list__meta"><span>// 模型清单</span><span id="model-catalog-count">{models.length} 个模型</span></div>
+      <p class="model-catalog__note">页面打开后立即更新，随后每 30 秒刷新。状态取自最近一条已核实并发布的官方事件。</p>
+      <ul class="model-catalog__list" id="model-catalog-list">
+        {models.map((model) => (
+          <li class="model-catalog__row">
+            <div><span class="model-catalog__vendor">{model.vendor_name}</span><a href={`/models/${model.release_id}/`}>{model.model_family} <span class="model-catalog__id">{model.model_id}</span></a></div>
+            <div class="model-catalog__facts"><span class:list={['model-catalog__status', `model-catalog__status--${model.status}`]}>{modelStatusLabel(model.status)}</span><span>{model.status === 'retired' ? '以退役公告为准' : model.availability.length ? model.availability.join('、') : '渠道未注明'}</span><time datetime={model.announced_at}>{releaseDateValue(model.announced_at)}</time><a href={model.source_url} target="_blank" rel="noopener noreferrer">官方来源 ↗</a></div>
+          </li>
+        ))}
+      </ul>
+      <p class="models-empty" id="model-catalog-empty" hidden={models.length > 0}>暂无已核实的模型；接入后会自动显示。</p>
+    </section>
+
+    <section class="models-filter" aria-label="筛选发布动态">
+      <form action="/models/" method="get" id="models-filter-form">
+        <label>厂商
+          <select name="vendor">
+            <option value="">全部厂商</option>
+            {vendors.map(([id, name]) => <option value={id} selected={filters.get('vendor') === id}>{name}</option>)}
+          </select>
+        </label>
+        <label>事件
+          <select name="type">
+            <option value="">全部事件</option>
+            {(['new_model', 'model_update', 'availability', 'retirement'] as const).map((type) => <option value={type} selected={filters.get('type') === type}>{eventTypeLabel(type)}</option>)}
+          </select>
+        </label>
+        <label>年份
+          <select name="year">
+            <option value="">全部年份</option>
+            {years.map((year) => <option value={year} selected={filters.get('year') === year}>{year}</option>)}
+          </select>
+        </label>
+        <button class="btn models-filter__submit" type="submit">[ 筛选 ]</button>
+        {filters.size > 0 && <a class="models-filter__reset" href="/models/">清除</a>}
+      </form>
+    </section>
+
+    <section class="models-list" aria-label="已发布的模型事件">
+      <div class="models-list__meta"><span>// 已核实发布</span><span id="models-count">{releases.length} 条记录</span></div>
+      <ol class="models-timeline" id="models-timeline">
+        {releases.map((item, index) => (
+          <li class="models-row" data-vendor={item.vendor_id} data-type={item.event_type} data-year={item.announced_at.slice(0, 4)}>
+            <span class="models-row__index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+            <time class="models-row__date" datetime={item.announced_at}>{releaseDateValue(item.announced_at)}</time>
+            <div class="models-row__content">
+              <div class="models-row__meta"><span>{item.vendor_name}</span><span aria-hidden="true">/</span><span>{item.model_family}</span><span class="models-row__type">{eventTypeLabel(item.event_type)}</span></div>
+              <h2><a href={`/models/${item.id}/`}>{item.title}<span class="models-row__arrow" aria-hidden="true"> ↗</span></a></h2>
+              <p>{item.summary}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+      <p class="models-empty" id="models-filter-empty" hidden={releases.length > 0}>没有符合筛选条件的记录。</p>
+    </section>
+
+    <aside class="models-sources" aria-label="来源接入状态">
+      <p class="models-list__meta"><span>// 来源状态</span><span id="models-source-count">{sources.length} 家厂商</span></p>
+      <ul id="models-sources-list">
+        {sources.map((source) => <li><span>{source.vendor}</span><span>{sourceStatusLabel(source)}</span></li>)}
+      </ul>
+      <p class="models-source-note">自动发现结果在核实前只作为后台线索，不会进入公开时间线。</p>
+    </aside>
+  </div>
+<script>
+  import type { ModelCatalogItem, ModelRelease, ModelSourceStatus } from '../../lib/models';
+  let liveTimer: number | undefined;
+  let lastSuccess: Date | null = null;
+  let refreshing = false;
+
+  function dateText(value: string) {
+    return value.length === 10 ? value : new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium' }).format(new Date(value));
+  }
+  function make(tag: string, className: string, value: string) {
+    const element = document.createElement(tag);
+    element.className = className;
+    element.textContent = value;
+    return element;
+  }
+  function renderModels(items: ModelCatalogItem[]) {
+    const list = document.getElementById('model-catalog-list');
+    const count = document.getElementById('model-catalog-count');
+    const empty = document.getElementById('model-catalog-empty');
+    if (!list) return;
+    const labels = { announced: '已宣布', documented_available: '官方记录可用', retired: '已退役' };
+    const rows = items.map((item) => {
+      const row = make('li', 'model-catalog__row', '');
+      const title = document.createElement('div');
+      title.append(make('span', 'model-catalog__vendor', item.vendor_name));
+      const link = make('a', '', `${item.model_family} · ${item.model_id}`) as HTMLAnchorElement;
+      link.href = `/models/release/?id=${encodeURIComponent(item.release_id)}`;
+      title.append(link);
+      const facts = make('div', 'model-catalog__facts', '');
+      facts.append(make('span', `model-catalog__status model-catalog__status--${item.status}`, labels[item.status] || '状态未明'));
+      facts.append(make('span', '', item.status === 'retired' ? '以退役公告为准' : item.availability.length ? item.availability.join('、') : '渠道未注明'));
+      const date = make('time', '', dateText(item.announced_at)) as HTMLTimeElement;
+      date.dateTime = item.announced_at;
+      facts.append(date);
+      const source = make('a', '', '官方来源 ↗') as HTMLAnchorElement;
+      source.href = item.source_url;
+      source.target = '_blank';
+      source.rel = 'noopener noreferrer';
+      facts.append(source);
+      row.append(title, facts);
+      return row;
+    });
+    list.replaceChildren(...rows);
+    if (count) count.textContent = `${items.length} 个模型`;
+    if (empty) empty.hidden = items.length > 0;
+  }
+  function renderReleases(items: ModelRelease[]) {
+    const list = document.getElementById('models-timeline');
+    const years = document.querySelector<HTMLSelectElement>('#models-filter-form select[name="year"]');
+    if (!list || !years) return;
+    const labels = { new_model: '新模型', model_update: '模型更新', availability: '开放渠道变化', retirement: '退役' };
+    const rows = items.map((item, index) => {
+      const row = make('li', 'models-row', '');
+      row.dataset.vendor = item.vendor_id;
+      row.dataset.type = item.event_type;
+      row.dataset.year = item.announced_at.slice(0, 4);
+      const number = make('span', 'models-row__index', String(index + 1).padStart(2, '0'));
+      number.setAttribute('aria-hidden', 'true');
+      const date = make('time', 'models-row__date', dateText(item.announced_at)) as HTMLTimeElement;
+      date.dateTime = item.announced_at;
+      const content = make('div', 'models-row__content', '');
+      const meta = make('div', 'models-row__meta', '');
+      meta.append(make('span', '', item.vendor_name), make('span', '', '/'), make('span', '', item.model_family), make('span', 'models-row__type', labels[item.event_type] || item.event_type));
+      const heading = document.createElement('h2');
+      const link = make('a', '', `${item.title} ↗`) as HTMLAnchorElement;
+      link.href = `/models/release/?id=${encodeURIComponent(item.id)}`;
+      heading.append(link);
+      content.append(meta, heading, make('p', '', item.summary));
+      row.append(number, date, content);
+      return row;
+    });
+    list.replaceChildren(...rows);
+    const selectedYear = years.value;
+    years.replaceChildren(new Option('全部年份', ''), ...[...new Set(items.map((item) => item.announced_at.slice(0, 4)))].sort().reverse().map((year) => new Option(year, year)));
+    years.value = selectedYear;
+    setupModelFilters();
+  }
+  function renderSources(items: ModelSourceStatus[]) {
+    const list = document.getElementById('models-sources-list');
+    const count = document.getElementById('models-source-count');
+    if (!list) return;
+    const modeLabel = (value: string) => value === 'mixed' ? '多源' : value.toUpperCase();
+    list.replaceChildren(...items.map((source) => {
+      const row = document.createElement('li');
+      const status = source.status === 'manual_only' ? '人工核验'
+        : source.status === 'not_enabled' ? '未启用'
+        : source.status === 'ok' ? `${modeLabel(source.mode)} 正常`
+        : source.status === 'error' ? `${modeLabel(source.mode)} 检查失败`
+        : source.status === 'degraded' ? '部分来源异常'
+        : source.status === 'pending' ? `${modeLabel(source.mode)} 等待首检` : '状态未知';
+      row.append(make('span', '', source.vendor), make('span', '', status));
+      return row;
+    }));
+    if (count) count.textContent = `${items.length} 家厂商`;
+  }
+  async function fetchReleases(apiURL: string): Promise<ModelRelease[]> {
+    const items: ModelRelease[] = [];
+    let cursor = '';
+    for (let page = 0; page < 20; page += 1) {
+      const query = new URLSearchParams({ limit: '100' });
+      if (cursor) query.set('cursor', cursor);
+      const response = await fetch(`${apiURL}/v1/releases?${query}`, { cache: 'no-store', signal: AbortSignal.timeout(10000) });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json() as { items: ModelRelease[]; next_cursor: string };
+      if (!Array.isArray(data.items)) throw new Error('invalid releases response');
+      items.push(...data.items);
+      if (!data.next_cursor) return items;
+      cursor = data.next_cursor;
+    }
+    throw new Error('release list exceeds 2,000 items');
+  }
+  async function refreshModels() {
+    const status = document.getElementById('models-live-status');
+    const apiURL = import.meta.env.PUBLIC_MODELS_SERVICE_URL?.replace(/\/$/, '');
+    if (!status) return;
+    if (!apiURL) {
+      status.textContent = `实时数据未配置；当前显示 ${new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(status.dataset.builtAt || ''))} 的构建快照。`;
+      return;
+    }
+    if (refreshing || document.hidden) return;
+    refreshing = true;
+    try {
+      const [data, releases, sourceData] = await Promise.all([
+        fetch(`${apiURL}/v1/models`, { cache: 'no-store', signal: AbortSignal.timeout(10000) }).then(async (response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.json() as Promise<{ items: ModelCatalogItem[]; generated_at: string }>;
+        }),
+        fetchReleases(apiURL),
+        fetch(`${apiURL}/v1/sources/status`, { cache: 'no-store', signal: AbortSignal.timeout(10000) }).then(async (response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.json() as Promise<{ items: ModelSourceStatus[] }>;
+        }),
+      ]);
+      if (!Array.isArray(data.items) || !Array.isArray(sourceData.items)) throw new Error('invalid models response');
+      renderModels(data.items);
+      renderReleases(releases);
+      renderSources(sourceData.items);
+      lastSuccess = new Date();
+      status.textContent = `实时数据已连接 · 最近刷新 ${new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'medium' }).format(lastSuccess)} · 每 30 秒刷新`;
+    } catch {
+      status.textContent = lastSuccess
+        ? `实时连接中断；显示 ${new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(lastSuccess)} 的数据。`
+        : `实时连接失败；当前显示 ${new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(status.dataset.builtAt || ''))} 的构建快照。`;
+    } finally {
+      refreshing = false;
+    }
+  }
+  function startLiveModels() {
+    if (liveTimer !== undefined) window.clearInterval(liveTimer);
+    lastSuccess = null;
+    void refreshModels();
+    liveTimer = window.setInterval(() => { void refreshModels(); }, 30000);
+  }
+  document.addEventListener('astro:page-load', startLiveModels);
+  document.addEventListener('astro:before-swap', () => { if (liveTimer !== undefined) window.clearInterval(liveTimer); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) void refreshModels(); });
+  startLiveModels();
+
+  function setupModelFilters() {
+    const form = document.getElementById('models-filter-form') as HTMLFormElement | null;
+    const list = document.getElementById('models-timeline');
+    const empty = document.getElementById('models-filter-empty');
+    const count = document.getElementById('models-count');
+    if (!form || !list) return;
+    const params = new URLSearchParams(location.search);
+    const vendor = params.get('vendor') || '';
+    const type = params.get('type') || '';
+    const year = params.get('year') || '';
+    const vendorSelect = form.querySelector<HTMLSelectElement>('select[name="vendor"]');
+    const typeSelect = form.querySelector<HTMLSelectElement>('select[name="type"]');
+    const yearSelect = form.querySelector<HTMLSelectElement>('select[name="year"]');
+    if (!vendorSelect || !typeSelect || !yearSelect) return;
+    vendorSelect.value = vendor;
+    typeSelect.value = type;
+    yearSelect.value = year;
+    let visible = 0;
+    list.querySelectorAll<HTMLElement>('.models-row').forEach((row) => {
+      const show = (!vendor || row.dataset.vendor === vendor) && (!type || row.dataset.type === type) && (!year || row.dataset.year === year);
+      row.hidden = !show;
+      if (show) visible += 1;
+    });
+    if (empty) empty.hidden = visible > 0;
+    if (count) count.textContent = `${visible} 条记录`;
+  }
+  document.addEventListener('astro:page-load', setupModelFilters);
+  setupModelFilters();
+</script>
+</BaseLayout>
+
+<style>
+  .models-page { max-width: 960px; padding-top: 42px; padding-bottom: 96px; }
+  .models-head { max-width: 740px; margin-bottom: 52px; }
+  .models-head h1 { margin-top: 22px; }
+  .models-intro { max-width: 680px; margin-top: 18px; color: var(--text-muted); }
+  .models-generated { margin-top: 18px; color: var(--text-faint); font: 12px var(--mono); }
+  .models-rss { display: inline-block; margin-top: 12px; color: var(--accent); font: 12px var(--mono); }
+  .model-catalog { margin: 0 0 48px; }
+  .model-catalog__note { margin: 12px 0 14px; color: var(--text-faint); font-size: 13px; }
+  .model-catalog__list { list-style: none; padding: 0; margin: 0; }
+  :global(.model-catalog__row) { display: flex; justify-content: space-between; gap: 16px 24px; padding: 16px 8px; border-top: 1px solid var(--border-subtle); }
+  :global(.model-catalog__row:last-child) { border-bottom: 1px solid var(--border-subtle); }
+  :global(.model-catalog__row > div:first-child) { display: grid; gap: 4px; min-width: 0; }
+  :global(.model-catalog__row > div:first-child > a) { color: var(--text); font-size: 16px; font-weight: 550; overflow-wrap: anywhere; }
+  :global(.model-catalog__vendor) { color: var(--text-faint); font-size: 12px; }
+  :global(.model-catalog__id) { color: var(--text-muted); font: 12px var(--mono); }
+  :global(.model-catalog__facts) { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 7px 14px; color: var(--text-muted); font-size: 12px; text-align: right; }
+  :global(.model-catalog__facts > a) { color: var(--accent); }
+  :global(.model-catalog__status) { color: var(--text); font-weight: 600; }
+  :global(.model-catalog__status--retired) { color: var(--text-faint); }
+  .models-filter { padding-block: 20px; border-block: 1px solid var(--border); }
+  .models-filter form { display: flex; flex-wrap: wrap; align-items: end; gap: 12px 20px; }
+  .models-filter label { display: grid; gap: 5px; color: var(--text-muted); font-size: 13px; }
+  .models-filter select { min-width: 140px; min-height: 44px; border: 1px solid var(--border-strong); border-radius: 4px; padding: 8px 34px 8px 10px; background: var(--bg); color: var(--text); font: inherit; }
+  .models-filter__submit { min-height: 44px; cursor: pointer; }
+  .models-filter__reset { min-height: 44px; display: inline-flex; align-items: center; color: var(--text-muted); font-size: 13px; text-decoration: underline; text-underline-offset: 4px; }
+  .models-list { margin-top: 32px; }
+  .models-list__meta { display: flex; justify-content: space-between; gap: 16px; color: var(--text-faint); font: 12px var(--mono); }
+  .models-list__meta > :first-child::first-letter { color: var(--accent); }
+  .models-timeline { list-style: none; padding: 0; margin: 18px 0 0; }
+  :global(.models-row) { display: grid; grid-template-columns: 36px 116px minmax(0, 1fr); gap: 16px; padding: 23px 8px; border-top: 1px solid var(--border-subtle); }
+  :global(.models-row:last-child) { border-bottom: 1px solid var(--border-subtle); }
+  :global(.models-row[hidden]) { display: none; }
+  :global(.models-row__index) { color: var(--text-faint); font: 12px var(--mono); padding-top: 3px; }
+  :global(.models-row__date) { color: var(--text-muted); font: 12px var(--mono); padding-top: 3px; white-space: nowrap; }
+  :global(.models-row__meta) { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; color: var(--text-muted); font-size: 12px; }
+  :global(.models-row__type) { margin-left: 4px; color: var(--accent); }
+  :global(.models-row h2) { margin-top: 6px; font-size: 19px; font-weight: 550; line-height: 1.4; }
+  :global(.models-row h2 a) { color: var(--text); }
+  :global(.models-row p) { margin-top: 4px; color: var(--text-muted); font-size: 14px; line-height: 1.65; }
+  :global(.models-row__arrow) { color: var(--text-faint); font-size: .8em; }
+  @media (hover: hover) { :global(.models-row h2 a:hover) { color: var(--accent); } :global(.models-row h2 a:hover .models-row__arrow) { color: var(--accent); } }
+  .models-empty { margin-top: 24px; padding: 22px 0; color: var(--text-muted); }
+  .models-empty p + p { margin-top: 6px; font-size: 14px; }
+  .models-empty a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+  .models-sources { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--border); }
+  .models-sources ul { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 24px; list-style: none; padding: 0; margin: 14px 0 0; }
+  :global(.models-sources li) { display: flex; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border-subtle); font-size: 13px; }
+  :global(.models-sources li span:last-child) { color: var(--text-faint); }
+  .models-source-note { margin-top: 14px; color: var(--text-faint); font-size: 13px; }
+  @media (max-width: 700px) {
+    .models-page { padding-top: 26px; padding-bottom: 68px; }
+    .models-head { margin-bottom: 34px; }
+    .models-head h1 { font-size: clamp(34px, 9vw, 48px); }
+    :global(.model-catalog__row) { display: block; padding-inline: 0; }
+    :global(.model-catalog__facts) { justify-content: flex-start; margin-top: 8px; text-align: left; }
+    .models-filter form { gap: 10px 12px; }
+    .models-filter label { flex: 1 1 calc(50% - 12px); }
+    .models-filter select { width: 100%; }
+    :global(.models-row) { grid-template-columns: 28px minmax(0,1fr); gap: 4px 12px; padding: 19px 0; }
+    :global(.models-row__index) { grid-row: span 2; }
+    :global(.models-row__date) { padding-top: 0; }
+    :global(.models-row__content) { grid-column: 2; }
+    :global(.models-row h2) { font-size: 17px; }
+    .models-sources ul { grid-template-columns: 1fr 1fr; gap: 0 14px; }
+  }
+</style>

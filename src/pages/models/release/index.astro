@@ -1,0 +1,109 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+
+export const prerender = true;
+---
+
+<BaseLayout title="模型事件 — 模型情报站" description="查看模型发布事件和官方证据。" lang="zh-CN">
+  <article class="container model-live-detail">
+    <a class="back-home" href="/models/">[← 返回模型情报站]</a>
+    <p class="eyebrow">/ MODELS INTELLIGENCE</p>
+    <h1 id="release-title">正在读取模型事件…</h1>
+    <p id="release-message" role="status" aria-live="polite"></p>
+    <p id="release-summary"></p>
+    <dl id="release-facts"></dl>
+    <section id="release-evidence" hidden>
+      <h2>// 官方证据</h2>
+      <ul id="release-evidence-list"></ul>
+    </section>
+  </article>
+  <script>
+    import type { ModelRelease } from '../../../lib/models';
+    function fact(label: string, value: string) {
+      const row = document.createElement('div');
+      const term = document.createElement('dt');
+      term.textContent = label;
+      const description = document.createElement('dd');
+      description.textContent = value;
+      row.append(term, description);
+      return row;
+    }
+    async function loadRelease() {
+      const title = document.getElementById('release-title');
+      const message = document.getElementById('release-message');
+      const summary = document.getElementById('release-summary');
+      const facts = document.getElementById('release-facts');
+      const evidenceSection = document.getElementById('release-evidence');
+      const evidenceList = document.getElementById('release-evidence-list');
+      if (!title || !message || !summary || !facts || !evidenceSection || !evidenceList) return;
+      const id = new URLSearchParams(location.search).get('id');
+      const apiURL = import.meta.env.PUBLIC_MODELS_SERVICE_URL?.replace(/\/$/, '');
+      if (!id || !apiURL) {
+        title.textContent = '无法读取模型事件';
+        message.textContent = id ? '实时数据服务尚未配置。' : '链接缺少事件 ID。';
+        return;
+      }
+      try {
+        const response = await fetch(`${apiURL}/v1/releases/${encodeURIComponent(id)}`, { cache: 'no-store', signal: AbortSignal.timeout(10000) });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const item = await response.json() as ModelRelease;
+        title.textContent = item.title;
+        document.title = `${item.title} — 模型情报站`;
+        message.textContent = '已从实时数据服务读取；内容依据官方来源。';
+        summary.textContent = item.summary;
+        facts.replaceChildren(
+          fact('厂商', item.vendor_name),
+          fact('模型', `${item.model_family} · ${item.model_id}`),
+          fact('事件', ({ new_model: '新模型', model_update: '模型更新', availability: '开放渠道变化', retirement: '退役' } as Record<string, string>)[item.event_type] || item.event_type),
+          fact('官方宣布', item.announced_at),
+          fact('本站发布', new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(item.published_at))),
+          fact('可用渠道', item.availability.length ? item.availability.join('、') : '未注明'),
+        );
+        const links = item.evidence.filter((entry) => entry.official).map((entry) => {
+          const row = document.createElement('li');
+          const link = document.createElement('a');
+          link.href = entry.source_url;
+          link.textContent = '查看厂商原始公告 ↗';
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          const kind = document.createElement('span');
+          kind.textContent = ` ${entry.source_kind || '官方公告'} · 收录于 ${new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium' }).format(new Date(entry.captured_at))}`;
+          row.append(link, kind);
+          if (entry.excerpt) {
+            const excerpt = document.createElement('p');
+            excerpt.textContent = entry.excerpt;
+            row.append(excerpt);
+          }
+          return row;
+        });
+        evidenceList.replaceChildren(...links);
+        evidenceSection.hidden = links.length === 0;
+      } catch {
+        title.textContent = '暂时无法读取模型事件';
+        message.textContent = '请稍后重试，或返回模型清单查看官方来源。';
+      }
+    }
+    document.addEventListener('astro:page-load', loadRelease);
+    void loadRelease();
+  </script>
+</BaseLayout>
+
+<style>
+  .model-live-detail { max-width: 860px; padding-top: 42px; padding-bottom: 104px; }
+  .model-live-detail .eyebrow { margin-top: 22px; }
+  .model-live-detail h1 { margin-top: 14px; }
+  #release-message { margin-top: 16px; color: var(--text-faint); font: 12px var(--mono); }
+  #release-summary { margin-top: 16px; color: var(--text-muted); }
+  #release-facts { margin-top: 40px; border-top: 1px solid var(--border); }
+  :global(#release-facts > div) { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 20px; padding: 16px 0; border-bottom: 1px solid var(--border-subtle); }
+  :global(#release-facts dt) { color: var(--text-faint); font: 12px var(--mono); }
+  :global(#release-facts dd) { margin: 0; color: var(--text); overflow-wrap: anywhere; }
+  #release-evidence { margin-top: 48px; }
+  #release-evidence h2 { color: var(--text-faint); font: 13px var(--mono); }
+  #release-evidence ul { list-style: none; margin: 16px 0 0; padding: 0; }
+  :global(#release-evidence li) { padding: 18px 0; border-top: 1px solid var(--border-subtle); }
+  :global(#release-evidence li a) { color: var(--accent); text-decoration: underline; text-underline-offset: 4px; }
+  :global(#release-evidence li span) { display: block; margin-top: 6px; color: var(--text-faint); font-size: 12px; }
+  :global(#release-evidence li p) { margin-top: 12px; color: var(--text-muted); font-size: 14px; }
+  @media (max-width: 700px) { .model-live-detail { padding-top: 26px; padding-bottom: 72px; } :global(#release-facts > div) { grid-template-columns: 96px minmax(0,1fr); gap: 12px; } }
+</style>

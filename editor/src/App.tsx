@@ -5,6 +5,7 @@ import { MetaBar } from './components/MetaBar';
 import { MdEditor } from './components/MdEditor';
 import { ProfilePanel } from './components/ProfilePanel';
 import { ExcerptsPanel } from './components/ExcerptsPanel';
+import { ModelSourcesPage } from './components/ModelSourcesPage';
 import { useAuth, logout } from './lib/auth';
 import {
   errMsg,
@@ -42,6 +43,7 @@ export default function App() {
   const [slugError, setSlugError] = useState('');
   const [loading, setLoading] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [view, setView] = useState<'article' | 'models'>(() => new URLSearchParams(window.location.search).get('view') === 'models' ? 'models' : 'article');
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const metaRef = useRef(meta);
@@ -50,6 +52,21 @@ export default function App() {
   recordIdRef.current = recordId;
 
   useBeforeUnload(dirty);
+
+  useEffect(() => {
+    const onPopState = () => setView(new URLSearchParams(window.location.search).get('view') === 'models' ? 'models' : 'article');
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  const showView = (next: 'article' | 'models') => {
+    if (next === view) return;
+    setView(next);
+    const url = new URL(window.location.href);
+    if (next === 'models') url.searchParams.set('view', 'models');
+    else url.searchParams.delete('view');
+    window.history.pushState(null, '', url.toString());
+  };
 
   // 用户菜单：点击外部或 Esc 关闭
   useEffect(() => {
@@ -191,6 +208,7 @@ export default function App() {
 
   // 快捷键：Cmd/Ctrl+S 存草稿，Cmd/Ctrl+Shift+S 发布
   useEffect(() => {
+    if (view !== 'article') return;
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
@@ -199,7 +217,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [doSave]);
+  }, [doSave, view]);
 
   if (!isLoggedIn) return <LoginDialog />;
   if (loading) return <div className="app-loading">载入中…</div>;
@@ -210,23 +228,27 @@ export default function App() {
         <div className="topbar-left">
           <span className="brand">Monostich</span>
           <span className="doc-title">
-            {meta.title || '未命名'}
-            {dirty && <i className="dirty-dot" title="有未保存改动" />}
+            {view === 'models' ? '厂商接入管理' : (meta.title || '未命名')}
+            {dirty && <i className="dirty-dot" title="文章有未保存改动" />}
           </span>
         </div>
         <div className="topbar-right">
-          <button className="btn ghost" onClick={newArticle}>
-            新建
-          </button>
-          <ArticleListPanel currentId={recordId} dirty={dirty} onOpen={(id) => void loadArticle(id)} onError={onError} />
-          <ProfilePanel push={push} />
-          <ExcerptsPanel push={push} />
-          <button className="btn" disabled={saving} onClick={() => void doSave('draft')}>
-            {saving ? '保存中…' : '存草稿'}
-          </button>
-          <button className="btn primary" disabled={saving} onClick={() => void doSave('published')}>
-            {status === 'published' ? '更新发布' : '立即发布'}
-          </button>
+          <button className={`btn ghost${view === 'article' ? ' active' : ''}`} onClick={() => showView('article')}>文章编辑</button>
+          <button className={`btn ghost${view === 'models' ? ' active' : ''}`} onClick={() => showView('models')}>模型来源</button>
+          {view === 'article' && <>
+            <button className="btn ghost" onClick={newArticle}>
+              新建
+            </button>
+            <ArticleListPanel currentId={recordId} dirty={dirty} onOpen={(id) => void loadArticle(id)} onError={onError} />
+            <ProfilePanel push={push} />
+            <ExcerptsPanel push={push} />
+            <button className="btn" disabled={saving} onClick={() => void doSave('draft')}>
+              {saving ? '保存中…' : '存草稿'}
+            </button>
+            <button className="btn primary" disabled={saving} onClick={() => void doSave('published')}>
+              {status === 'published' ? '更新发布' : '立即发布'}
+            </button>
+          </>}
           <div className="user-menu" ref={userMenuRef}>
             <button
               className={`btn ghost user-chip${userMenuOpen ? ' open' : ''}`}
@@ -253,13 +275,10 @@ export default function App() {
         </div>
       </header>
 
-      <MetaBar meta={meta} recordId={recordId} status={status} slugError={slugError} onChange={patchMeta} />
-
-      <MdEditor
-        value={meta.content}
-        onChange={(v) => patchMeta({ content: v })}
-        uploadImages={uploadImages}
-      />
+      {view === 'models' ? <ModelSourcesPage /> : <>
+        <MetaBar meta={meta} recordId={recordId} status={status} slugError={slugError} onChange={patchMeta} />
+        <MdEditor value={meta.content} onChange={(v) => patchMeta({ content: v })} uploadImages={uploadImages} />
+      </>}
 
       <div className="toast-wrap">
         {toasts.map((t) => (

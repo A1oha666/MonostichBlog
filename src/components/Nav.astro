@@ -3,6 +3,7 @@ import { Sun, Moon, Menu, X, Search, ArrowUpRight } from '@lucide/astro';
 const pathname = Astro.url.pathname.replace(/\/$/, '') || '/';
 const links = [
   { href: '/notes', label: '笔记', darkLabel: 'Notes', base: '/notes' },
+  { href: '/models/', label: '模型', darkLabel: 'Models', base: '/models' },
   { href: '/thinkings', label: '随想', darkLabel: 'Thinkings', base: '/thinkings' },
   { href: '/archive', label: '归档', darkLabel: 'Archive', base: '/archive' },
   { href: '/lab', label: '实验室', darkLabel: 'Lab', base: '/lab' },

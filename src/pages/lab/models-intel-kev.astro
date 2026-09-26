@@ -1,0 +1,792 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  title="模型情报 × Kev 判断实验 — Aloha"
+  description="对照模型公告的规则分类与本地 Kev 的结构化判断。实验性建议不参与公告发布。"
+  bodyClass="lab-models-intel"
+  lang="zh-CN"
+>
+  <section class="container kev-lab" id="models-intel-kev" data-kev-lab>
+    <a class="kev-back" href="/lab/">← 返回实验室</a>
+
+    <header class="kev-hero">
+      <p class="kev-eyebrow"><span>MODEL INTELLIGENCE</span><span>LAB / 01</span></p>
+      <h1>模型公告的结构化判断</h1>
+      <p class="kev-lede">
+        观察 Kev-0.8B 能否从公告标题、摘要、已识别模型名称与官方证据摘录中，判断内容是否与具体模型有关，以及公告的主事件类型。
+      </p>
+      <div class="kev-boundary">
+        <div>
+          <span class="kev-boundary__label">实验边界</span>
+          <p>Kev 的输出是实验建议，不参与公告发布。与规则分类一致也不代表已经人工核实。</p>
+        </div>
+        <div>
+          <span class="kev-boundary__label">模型输入</span>
+          <p>标题、摘要、已识别模型名称和官方来源摘录；来源链接用于追溯出处，不把链接页面全文当作模型输入。</p>
+        </div>
+      </div>
+    </header>
+
+    <section class="kev-feed" aria-labelledby="kev-feed-title">
+      <div class="kev-feed__head">
+        <div>
+          <p class="kev-eyebrow kev-eyebrow--section">LIVE SAMPLE / UP TO 20</p>
+          <h2 id="kev-feed-title">近期公告</h2>
+        </div>
+        <button class="kev-button" id="kev-refresh" type="button" aria-label="重新读取近期公告">
+          <span aria-hidden="true" class="kev-refresh-icon">↻</span>
+          <span>重新读取</span>
+        </button>
+      </div>
+
+      <p class="kev-feed-status" id="kev-feed-status" role="status" aria-live="polite">正在读取近期公告…</p>
+      <p class="kev-error" id="kev-error" role="alert" hidden></p>
+
+      <div class="kev-skeleton" id="kev-skeleton" aria-hidden="true">
+        <div class="kev-skeleton__line kev-skeleton__line--short"></div>
+        <div class="kev-skeleton__line kev-skeleton__line--title"></div>
+        <div class="kev-skeleton__panels"><i></i><i></i></div>
+      </div>
+
+      <p class="kev-empty" id="kev-empty" hidden>当前没有可展示的已发布公告。</p>
+      <div class="kev-list" id="kev-list" aria-label="公告与判断结果"></div>
+      <button class="kev-button kev-button--more" id="kev-load-more" type="button" hidden>
+        载入更早公告
+      </button>
+    </section>
+
+    <footer class="kev-footnote">
+      <span>RESULTS ARE EXPERIMENTAL</span>
+      <p>本页展示的是公告级主事件判断。Kev 的类别、选项概率与自报信心用于观察模型行为，不代表事实、置信校准或准确率。</p>
+    </footer>
+  </section>
+
+  <script>
+    type Evidence = {
+      source_url?: string;
+      excerpt?: string;
+      official?: boolean;
+    };
+
+    type Announcement = {
+      id?: string;
+      vendor_id?: string;
+      vendor_name?: string;
+      title?: string;
+      summary?: string;
+      event_type?: string;
+      announced_at?: string;
+      discovered_at?: string;
+      updated_at?: string;
+      models?: { name?: string }[];
+      evidence?: Evidence[];
+    };
+
+    type Analysis = {
+      status?: "current" | "stale";
+      relevance?: string;
+      event_type?: string;
+      probabilities?: {
+        relevance?: Record<string, number>;
+        event_type?: Record<string, number>;
+      };
+      confidence?: {
+        relevance?: number;
+        event_type?: number;
+      };
+      rubric_version?: string;
+      model_run?: string;
+      model_revision?: string;
+      analyzed_at?: string;
+    } | null;
+
+    type ApiItem = { announcement?: Announcement; analysis?: Analysis };
+    type ApiPage = { items?: unknown; next_cursor?: string | null; generated_at?: string };
+
+    const endpoint = "/models-api/v1/analysis/announcements";
+    const eventLabels: Record<string, string> = {
+      new_model: "新模型",
+      model_update: "模型更新",
+      availability: "开放渠道变化",
+      retirement: "退役",
+      insufficient_evidence: "材料不足",
+    };
+    const relevanceLabels: Record<string, string> = {
+      relevant: "与具体模型公告有关",
+      irrelevant: "与具体模型公告无关",
+      insufficient_evidence: "材料不足，暂不判断",
+    };
+    const relevanceOptionLabels: Record<string, string> = {
+      relevant: "有关",
+      irrelevant: "无关",
+      insufficient_evidence: "材料不足",
+    };
+    const eventOptionOrder = ["new_model", "model_update", "availability", "retirement", "insufficient_evidence"];
+    const relevanceOptionOrder = ["relevant", "irrelevant", "insufficient_evidence"];
+
+    let activeController: AbortController | null = null;
+    let activeRoot: HTMLElement | null = null;
+    const rootRefreshers = new WeakMap<HTMLElement, () => void>();
+
+    function makeElement<K extends keyof HTMLElementTagNameMap>(tag: K, className = "", value = "") {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (value) node.textContent = value;
+      return node;
+    }
+
+    function displayDate(value?: string | null) {
+      if (!value) return "日期未知";
+      const raw = String(value);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+      const parsed = new Date(raw);
+      if (Number.isNaN(parsed.getTime())) return raw;
+      return new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium" }).format(parsed);
+    }
+
+    function displayDateTime(value?: string | null) {
+      if (!value) return "时间未知";
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) return String(value);
+      return new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(parsed);
+    }
+
+    function eventLabel(value?: string | null) {
+      if (!value) return "未提供主事件";
+      return eventLabels[value] || value;
+    }
+
+    function relevanceLabel(value?: string | null) {
+      if (!value) return "未提供相关性判断";
+      return relevanceLabels[value] || value;
+    }
+
+    function safeHttpURL(value?: string | null) {
+      if (!value) return null;
+      try {
+        const url = new URL(value, window.location.origin);
+        return url.protocol === "https:" || url.protocol === "http:" ? url.href : null;
+      } catch {
+        return null;
+      }
+    }
+
+    function appendField(parent: HTMLElement, label: string, value?: string | null) {
+      const field = makeElement("div", "kev-input-field");
+      field.append(makeElement("span", "kev-input-field__label", label));
+      field.append(makeElement("p", "kev-input-field__value", value || "没有提供文本"));
+      parent.append(field);
+    }
+
+    function percent(value: number) {
+      return `${(value * 100).toFixed(1).replace(/\.0$/, "")}%`;
+    }
+
+    function appendProbabilityGroup(parent: HTMLElement, title: string, distribution: Record<string, number> | undefined, order: string[], labels: Record<string, string>) {
+      const section = makeElement("section", "kev-probability");
+      section.append(makeElement("h4", "kev-probability__title", title));
+      const validEntries = order
+        .filter((key) => distribution && Object.prototype.hasOwnProperty.call(distribution, key))
+        .map((key) => [key, distribution?.[key]] as const)
+        .filter((entry): entry is readonly [string, number] => typeof entry[1] === "number" && Number.isFinite(entry[1]) && entry[1] >= 0 && entry[1] <= 1);
+
+      if (validEntries.length === 0) {
+        section.append(makeElement("p", "kev-probability__empty", "没有可展示的有效选项概率。"));
+        parent.append(section);
+        return;
+      }
+
+      for (const [key, value] of validEntries) {
+        const row = makeElement("div", "kev-probability__row");
+        const header = makeElement("div", "kev-probability__header");
+        header.append(makeElement("span", "kev-probability__label", labels[key] || eventLabels[key] || key));
+        header.append(makeElement("span", "kev-probability__value", percent(value)));
+        const track = makeElement("span", "kev-probability__track");
+        track.setAttribute("aria-hidden", "true");
+        const fill = makeElement("span", "kev-probability__fill");
+        fill.style.width = `${Math.max(0, Math.min(value, 1)) * 100}%`;
+        track.append(fill);
+        row.append(header, track);
+        section.append(row);
+      }
+      parent.append(section);
+    }
+
+    function comparisonState(analysis: Analysis | null, ruleType?: string) {
+      if (!analysis) return { label: "未分析", kind: "pending" };
+      if (analysis.status === "stale") return { label: "公告已更新，待重算", kind: "stale" };
+      if (analysis.status !== "current") return { label: "分析状态未知", kind: "pending" };
+      if (analysis.relevance === "insufficient_evidence" || analysis.event_type === "insufficient_evidence") {
+        return { label: "材料不足", kind: "insufficient" };
+      }
+      if (analysis.relevance === "irrelevant") return { label: "相关性分歧", kind: "different" };
+      if (!ruleType || !analysis.event_type) return { label: "结果不完整", kind: "pending" };
+      if (ruleType === analysis.event_type) return { label: "主事件一致 · 尚未人工核实", kind: "same" };
+      return { label: "主事件分歧", kind: "different" };
+    }
+
+    function appendAnalysisMetadata(parent: HTMLElement, analysis: Analysis) {
+      const parts: string[] = [];
+      if (analysis.model_run) parts.push(String(analysis.model_run));
+      if (analysis.model_revision) parts.push(`权重 revision ${analysis.model_revision}`);
+      if (analysis.rubric_version) parts.push(`题目 ${analysis.rubric_version}`);
+      if (analysis.analyzed_at) parts.push(`分析于 ${displayDateTime(analysis.analyzed_at)}`);
+      if (parts.length > 0) parent.append(makeElement("p", "kev-analysis-meta", parts.join(" · ")));
+    }
+
+    function appendEvidenceGroup(parent: HTMLElement, title: string, entries: Evidence[], emptyMessage: string, modelInput: boolean) {
+      parent.append(makeElement("h4", "kev-evidence-heading", title));
+      if (entries.length === 0) {
+        parent.append(makeElement("p", "kev-probability__empty", emptyMessage));
+        return;
+      }
+
+      const list = makeElement("ul", "kev-evidence-list");
+      for (const evidence of entries) {
+        const item = makeElement("li", "kev-evidence-item");
+        const sourceRow = makeElement("div", "kev-evidence-item__source");
+        const url = safeHttpURL(evidence.source_url);
+        if (url) {
+          const link = makeElement("a", "kev-source-link", evidence.official ? "官方来源 ↗" : "来源 ↗") as HTMLAnchorElement;
+          link.href = url;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          sourceRow.append(link);
+        } else {
+          sourceRow.append(makeElement("span", "kev-source-link kev-source-link--plain", evidence.official ? "官方来源" : "来源链接不可用"));
+        }
+        sourceRow.append(makeElement("span", "kev-source-kind", modelInput ? "Kev 输入候选摘录" : "来源参考 · 未送入 Kev"));
+        item.append(sourceRow);
+        if (evidence.excerpt) item.append(makeElement("blockquote", "kev-excerpt", evidence.excerpt));
+        else item.append(makeElement("p", "kev-excerpt kev-excerpt--empty", "没有摘录文本，因此未作为文本输入 Kev。"));
+        list.append(item);
+      }
+      parent.append(list);
+    }
+
+    function appendEvidence(parent: HTMLElement, announcement: Announcement) {
+      const title = makeElement("h3", "kev-detail-heading", "公告字段与来源");
+      parent.append(title);
+      appendField(parent, "标题", announcement.title);
+      appendField(parent, "摘要", announcement.summary);
+      const modelNames = Array.isArray(announcement.models)
+        ? announcement.models.map((model) => typeof model?.name === "string" ? model.name.trim() : "").filter(Boolean).join("、")
+        : "";
+      appendField(parent, "已识别模型名称", modelNames);
+      parent.append(makeElement("p", "kev-input-note", "worker 最多取前 20 个模型名称、前 5 条官方摘录，并可能截断长文本；实际请求以本地审计记录为准。"));
+
+      const evidenceList = Array.isArray(announcement.evidence) ? announcement.evidence : [];
+      const modelInputs = evidenceList.filter((entry) => entry.official === true && Boolean(entry.excerpt?.trim()));
+      const references = evidenceList.filter((entry) => entry.official !== true || !entry.excerpt?.trim());
+      appendEvidenceGroup(parent, "官方证据摘录 · Kev 输入候选", modelInputs, "没有可供 Kev 使用的官方证据摘录。", true);
+      appendEvidenceGroup(parent, "来源参考 · 未送入 Kev", references, "没有其他来源或空摘录需要说明。", false);
+    }
+
+    function appendProbabilities(parent: HTMLElement, analysis: Analysis | null) {
+      parent.append(makeElement("h3", "kev-detail-heading", "Kev 返回的选项概率"));
+      if (!analysis || analysis.status !== "current") {
+        const note = analysis?.status === "stale"
+          ? "公告更新后，旧版本的类别与概率已隐藏，等待重新分析。"
+          : "当前版本尚无 Kev 结果。";
+        parent.append(makeElement("p", "kev-probability__empty", note));
+        return;
+      }
+
+      const groups = makeElement("div", "kev-probability-groups");
+      appendProbabilityGroup(groups, "相关性", analysis.probabilities?.relevance, relevanceOptionOrder, relevanceOptionLabels);
+      appendProbabilityGroup(groups, "公告主事件", analysis.probabilities?.event_type, eventOptionOrder, eventLabels);
+      parent.append(groups);
+
+      const confidence = analysis.confidence;
+      const confidenceParts: string[] = [];
+      if (typeof confidence?.relevance === "number" && Number.isFinite(confidence.relevance) && confidence.relevance >= 0 && confidence.relevance <= 1) {
+        confidenceParts.push(`相关性 ${percent(confidence.relevance)}`);
+      }
+      if (typeof confidence?.event_type === "number" && Number.isFinite(confidence.event_type) && confidence.event_type >= 0 && confidence.event_type <= 1) {
+        confidenceParts.push(`主事件 ${percent(confidence.event_type)}`);
+      }
+      if (confidenceParts.length > 0) {
+        parent.append(makeElement("p", "kev-confidence", `Kev 自报信心：${confidenceParts.join(" · ")}。这不是准确率。`));
+      }
+    }
+
+    function renderAnnouncement(item: ApiItem, index: number) {
+      const announcement = item.announcement || {};
+      const analysis = item.analysis || null;
+      const article = makeElement("article", "kev-entry");
+      const top = makeElement("div", "kev-entry__top");
+      const ordinal = makeElement("span", "kev-entry__ordinal", String(index + 1).padStart(2, "0"));
+      const vendor = makeElement("span", "kev-entry__vendor", announcement.vendor_name || announcement.vendor_id || "未知厂商");
+      const date = makeElement("time", "kev-entry__date", displayDate(announcement.announced_at)) as HTMLTimeElement;
+      if (announcement.announced_at) date.dateTime = announcement.announced_at;
+      top.append(ordinal, vendor, date);
+
+      const state = comparisonState(analysis, announcement.event_type);
+      const badge = makeElement("span", `kev-state kev-state--${state.kind}`, state.label);
+      top.append(badge);
+
+      const heading = makeElement("h3", "kev-entry__title", announcement.title || "未命名公告");
+      const summary = makeElement("p", "kev-entry__summary", announcement.summary || "暂无公告摘要。");
+      const source = (Array.isArray(announcement.evidence) ? announcement.evidence : []).find((entry) => entry.official && safeHttpURL(entry.source_url));
+      if (source) {
+        const sourceLink = makeElement("a", "kev-entry__source", "查看官方来源 ↗") as HTMLAnchorElement;
+        sourceLink.href = safeHttpURL(source.source_url) || "";
+        sourceLink.target = "_blank";
+        sourceLink.rel = "noopener noreferrer";
+        summary.append(" ", sourceLink);
+      }
+
+      const comparison = makeElement("div", "kev-comparison");
+      const rulePanel = makeElement("div", "kev-decision");
+      rulePanel.append(makeElement("span", "kev-decision__label", "公告规则分类"));
+      rulePanel.append(makeElement("strong", "kev-decision__value", eventLabel(announcement.event_type)));
+      const kevPanel = makeElement("div", "kev-decision kev-decision--kev");
+      kevPanel.append(makeElement("span", "kev-decision__label", "Kev 主事件建议"));
+      kevPanel.append(makeElement("strong", "kev-decision__value", analysis?.status === "current" ? eventLabel(analysis.event_type) : analysis?.status === "stale" ? "等待重新分析" : "尚未分析"));
+      comparison.append(rulePanel, kevPanel);
+
+      const relevance = makeElement("div", "kev-relevance");
+      relevance.append(makeElement("span", "kev-relevance__label", "Kev 相关性判断"));
+      const relevanceText = analysis?.status === "current"
+        ? relevanceLabel(analysis.relevance)
+        : analysis?.status === "stale"
+          ? "旧版本判断已隐藏，等待重算"
+          : "尚未分析";
+      relevance.append(makeElement("strong", "kev-relevance__value", relevanceText));
+      article.append(top, heading, summary, comparison, relevance);
+      if (analysis?.status === "current") appendAnalysisMetadata(article, analysis);
+      else if (analysis?.status === "stale" && analysis.analyzed_at) {
+        article.append(makeElement("p", "kev-analysis-meta", `上次分析于 ${displayDateTime(analysis.analyzed_at)}；公告已更新，旧判断不作为当前结果展示。`));
+      }
+
+      const details = makeElement("details", "kev-details");
+      details.append(makeElement("summary", "kev-details__summary", "查看模型输入、证据摘录与概率"));
+      const detailBody = makeElement("div", "kev-details__body");
+      appendEvidence(detailBody, announcement);
+      appendProbabilities(detailBody, analysis);
+      details.append(detailBody);
+
+      article.append(details);
+      return article;
+    }
+
+    function setupKevLab(root: HTMLElement) {
+      const status = root.querySelector<HTMLElement>("#kev-feed-status");
+      const error = root.querySelector<HTMLElement>("#kev-error");
+      const list = root.querySelector<HTMLElement>("#kev-list");
+      const empty = root.querySelector<HTMLElement>("#kev-empty");
+      const skeleton = root.querySelector<HTMLElement>("#kev-skeleton");
+      const refreshButton = root.querySelector<HTMLButtonElement>("#kev-refresh");
+      const moreButton = root.querySelector<HTMLButtonElement>("#kev-load-more");
+      if (!status || !error || !list || !empty || !skeleton || !refreshButton || !moreButton) return;
+
+      let cursor = "";
+      let loadedCount = 0;
+      let busy = false;
+      let reachedEnd = false;
+
+      async function loadPage(reset: boolean) {
+        if (busy || (!reset && reachedEnd)) return;
+        if (reset) {
+          cursor = "";
+          loadedCount = 0;
+          reachedEnd = false;
+          list.replaceChildren();
+          error.hidden = true;
+          empty.hidden = true;
+          skeleton.hidden = false;
+          moreButton.hidden = true;
+        }
+        error.hidden = true;
+        busy = true;
+        status.textContent = reset ? "正在读取近期公告…" : "正在载入更早的公告…";
+        refreshButton.disabled = true;
+        moreButton.disabled = true;
+        const requestedCursor = reset ? "" : cursor;
+        const controller = new AbortController();
+        activeController?.abort();
+        activeController = controller;
+        const timeout = window.setTimeout(() => controller.abort(), 15000);
+        const query = new URLSearchParams({ limit: "20" });
+        if (requestedCursor) query.set("cursor", requestedCursor);
+
+        try {
+          const response = await fetch(`${endpoint}?${query.toString()}`, {
+            method: "GET",
+            headers: { Accept: "application/json" },
+            cache: "no-store",
+            credentials: "same-origin",
+            signal: controller.signal,
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const page = await response.json() as ApiPage;
+          if (!Array.isArray(page.items)) throw new Error("invalid response");
+          const items = page.items as ApiItem[];
+          const validItems = items.filter((item) => item && item.announcement);
+          validItems.forEach((item) => list.append(renderAnnouncement(item, loadedCount++)));
+          cursor = typeof page.next_cursor === "string" ? page.next_cursor : "";
+          reachedEnd = !cursor;
+          moreButton.hidden = reachedEnd;
+          moreButton.textContent = "载入更早公告";
+          skeleton.hidden = true;
+          empty.hidden = loadedCount > 0;
+          const generatedAt = page.generated_at ? ` · 服务端更新于 ${displayDateTime(page.generated_at)}` : "";
+          status.textContent = loadedCount > 0
+            ? `已载入 ${loadedCount} 条公告${generatedAt}`
+            : "当前没有可展示的已发布公告。";
+        } catch (cause) {
+          if (controller.signal.aborted && !root.isConnected) return;
+          skeleton.hidden = true;
+          error.hidden = false;
+          const reason = cause instanceof Error && cause.message.startsWith("HTTP ") ? `（${cause.message}）` : "";
+          error.textContent = `暂时无法读取实验结果${reason}。请检查连接后重试。`;
+          status.textContent = loadedCount > 0 ? `已载入 ${loadedCount} 条；更早的公告暂时无法读取。` : "读取失败。";
+          moreButton.hidden = !cursor;
+          moreButton.textContent = "重试载入更早公告";
+          if (loadedCount === 0) empty.hidden = true;
+        } finally {
+          window.clearTimeout(timeout);
+          busy = false;
+          refreshButton.disabled = false;
+          moreButton.disabled = false;
+          if (activeController === controller) activeController = null;
+        }
+      }
+
+      refreshButton.addEventListener("click", () => void loadPage(true));
+      moreButton.addEventListener("click", () => void loadPage(false));
+      rootRefreshers.set(root, () => void loadPage(true));
+      void loadPage(true);
+    }
+
+    function enterKevLab() {
+      const root = document.querySelector<HTMLElement>("[data-kev-lab]");
+      if (!root) {
+        activeRoot = null;
+        return;
+      }
+      if (activeRoot === root) return;
+      activeRoot = root;
+      const refresh = rootRefreshers.get(root);
+      if (refresh) refresh();
+      else setupKevLab(root);
+    }
+
+    document.addEventListener("astro:before-swap", () => {
+      activeController?.abort();
+      activeController = null;
+      activeRoot = null;
+    });
+    document.addEventListener("astro:page-load", enterKevLab);
+    enterKevLab();
+  </script>
+</BaseLayout>
+
+<style is:global>
+  .lab-models-intel .kev-lab {
+    max-width: 1120px;
+    padding-top: clamp(32px, 6vw, 72px);
+    padding-bottom: clamp(64px, 9vw, 112px);
+  }
+
+  .lab-models-intel .kev-back {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: var(--text-faint);
+    font: 12px var(--mono);
+    text-decoration: none;
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+  .lab-models-intel .kev-back:hover { color: var(--accent); }
+
+  .lab-models-intel .kev-hero { padding: 24px 0 52px; border-bottom: 1px solid var(--border-strong); }
+  .lab-models-intel .kev-eyebrow {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0;
+    color: var(--text-faint);
+    font: 11px var(--mono);
+    letter-spacing: 0.08em;
+  }
+  .lab-models-intel .kev-hero h1 {
+    max-width: 13ch;
+    margin: 22px 0 0;
+    color: var(--text);
+    font: 500 clamp(40px, 7vw, 76px)/1.08 var(--font-heading);
+    letter-spacing: -0.045em;
+  }
+  .lab-models-intel .kev-lede {
+    max-width: 68ch;
+    margin: 22px 0 0;
+    color: var(--text-muted);
+    font-size: 17px;
+    line-height: 1.8;
+  }
+  .lab-models-intel .kev-boundary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 28px;
+    margin-top: 34px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border-subtle);
+  }
+  .lab-models-intel .kev-boundary__label {
+    color: var(--accent);
+    font: 11px var(--mono);
+    letter-spacing: 0.06em;
+  }
+  .lab-models-intel .kev-boundary p {
+    max-width: 52ch;
+    margin: 8px 0 0;
+    color: var(--text-muted);
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  .lab-models-intel .kev-feed { padding-top: 42px; }
+  .lab-models-intel .kev-feed__head {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 18px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border-strong);
+  }
+  .lab-models-intel .kev-eyebrow--section { justify-content: flex-start; }
+  .lab-models-intel .kev-feed__head h2 {
+    margin: 8px 0 0;
+    color: var(--text);
+    font: 500 clamp(24px, 3.8vw, 34px)/1.2 var(--font-heading);
+  }
+  .lab-models-intel .kev-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 132px;
+    min-height: 44px;
+    padding: 8px 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font: 12px var(--mono);
+    cursor: pointer;
+    transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+  }
+  .lab-models-intel .kev-button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .lab-models-intel .kev-button:disabled { cursor: wait; opacity: 0.58; }
+  .lab-models-intel .kev-refresh-icon { font: 19px/1 var(--font-body); }
+  .lab-models-intel .kev-feed-status {
+    min-height: 24px;
+    margin: 12px 0 0;
+    color: var(--text-faint);
+    font: 11px/1.6 var(--mono);
+  }
+  .lab-models-intel .kev-error {
+    margin: 12px 0 0;
+    padding: 12px 14px;
+    border-left: 2px solid #c7473a;
+    background: color-mix(in srgb, #c7473a 7%, var(--surface));
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  .lab-models-intel [hidden] { display: none !important; }
+
+  .lab-models-intel .kev-skeleton {
+    margin-top: 20px;
+    padding: 22px 0 26px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .lab-models-intel .kev-skeleton__line,
+  .lab-models-intel .kev-skeleton__panels i {
+    display: block;
+    border-radius: 3px;
+    background: var(--surface-3);
+    animation: kev-pulse 1.5s ease-in-out infinite alternate;
+  }
+  .lab-models-intel .kev-skeleton__line--short { width: 30%; height: 10px; }
+  .lab-models-intel .kev-skeleton__line--title { width: min(68%, 460px); height: 25px; margin-top: 20px; }
+  .lab-models-intel .kev-skeleton__panels { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 24px; }
+  .lab-models-intel .kev-skeleton__panels i { height: 72px; }
+  @keyframes kev-pulse { from { opacity: 0.42; } to { opacity: 0.9; } }
+  .lab-models-intel .kev-empty {
+    margin: 0;
+    padding: 36px 0;
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-muted);
+    font-size: 15px;
+  }
+
+  .lab-models-intel .kev-entry { padding: 24px 0 30px; border-bottom: 1px solid var(--border-subtle); }
+  .lab-models-intel .kev-entry__top {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 9px 14px;
+    min-height: 24px;
+    color: var(--text-faint);
+    font: 11px var(--mono);
+  }
+  .lab-models-intel .kev-entry__ordinal { color: var(--accent); font-variant-numeric: tabular-nums; }
+  .lab-models-intel .kev-entry__vendor { color: var(--text-muted); }
+  .lab-models-intel .kev-entry__date { margin-left: auto; font-variant-numeric: tabular-nums; }
+  .lab-models-intel .kev-state {
+    padding: 4px 8px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    color: var(--text-muted);
+    font: 10px/1.35 var(--mono);
+  }
+  .lab-models-intel .kev-state--same { border-color: var(--accent-dim); color: var(--accent); }
+  .lab-models-intel .kev-state--different { border-color: #c7473a; color: #c7473a; }
+  .lab-models-intel .kev-state--insufficient,
+  .lab-models-intel .kev-state--stale { border-style: dashed; }
+  .lab-models-intel .kev-entry__title {
+    max-width: 56ch;
+    margin: 14px 0 0;
+    color: var(--text);
+    font-size: clamp(19px, 2.8vw, 24px);
+    font-weight: 500;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+  .lab-models-intel .kev-entry__summary {
+    max-width: 76ch;
+    margin: 8px 0 0;
+    color: var(--text-muted);
+    font-size: 14px;
+    line-height: 1.75;
+    white-space: pre-line;
+  }
+  .lab-models-intel .kev-entry__source {
+    display: inline-block;
+    margin-left: 6px;
+    color: var(--accent);
+    font: 11px var(--mono);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .lab-models-intel .kev-comparison {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 22px;
+  }
+  .lab-models-intel .kev-decision {
+    display: grid;
+    align-content: start;
+    gap: 8px;
+    min-height: 88px;
+    padding: 14px 16px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+  }
+  .lab-models-intel .kev-decision--kev { border-color: var(--border-strong); background: var(--surface); }
+  .lab-models-intel .kev-decision__label,
+  .lab-models-intel .kev-relevance__label {
+    color: var(--text-faint);
+    font: 10px var(--mono);
+    letter-spacing: 0.04em;
+  }
+  .lab-models-intel .kev-decision__value {
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+  .lab-models-intel .kev-decision--kev .kev-decision__value { color: var(--accent); }
+  .lab-models-intel .kev-relevance {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 14px;
+    margin-top: 14px;
+  }
+  .lab-models-intel .kev-relevance__value { color: var(--text-muted); font-size: 13px; font-weight: 500; }
+
+  .lab-models-intel .kev-details { margin-top: 18px; border-top: 1px solid var(--border-subtle); }
+  .lab-models-intel .kev-details__summary {
+    display: flex;
+    align-items: center;
+    min-height: 48px;
+    color: var(--text-muted);
+    font: 11px var(--mono);
+    cursor: pointer;
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+  .lab-models-intel .kev-details__summary:hover { color: var(--accent); }
+  .lab-models-intel .kev-details__summary::marker { color: var(--accent); }
+  .lab-models-intel .kev-details__body { padding: 0 0 10px; }
+  .lab-models-intel .kev-detail-heading { margin: 16px 0 10px; color: var(--text); font-size: 14px; font-weight: 500; }
+  .lab-models-intel .kev-input-field { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 14px; padding: 11px 0; border-top: 1px solid var(--border-subtle); }
+  .lab-models-intel .kev-input-field__label { color: var(--text-faint); font: 10px var(--mono); }
+  .lab-models-intel .kev-input-field__value { margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.7; white-space: pre-line; overflow-wrap: anywhere; }
+  .lab-models-intel .kev-input-note { margin: 10px 0 0; color: var(--text-faint); font-size: 11px; line-height: 1.6; }
+  .lab-models-intel .kev-evidence-heading { margin: 16px 0 8px; color: var(--text-faint); font: 10px var(--mono); letter-spacing: 0.04em; }
+  .lab-models-intel .kev-evidence-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+  .lab-models-intel .kev-evidence-item { padding: 12px 14px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--surface-2); }
+  .lab-models-intel .kev-evidence-item__source { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .lab-models-intel .kev-source-link { color: var(--accent); font: 11px var(--mono); text-decoration: underline; text-underline-offset: 3px; }
+  .lab-models-intel .kev-source-link--plain { text-decoration: none; }
+  .lab-models-intel .kev-source-kind { color: var(--text-faint); font: 10px var(--mono); }
+  .lab-models-intel .kev-excerpt { margin: 10px 0 0; padding-left: 12px; border-left: 1px solid var(--border-strong); color: var(--text-muted); font-size: 13px; line-height: 1.7; white-space: pre-line; overflow-wrap: anywhere; }
+  .lab-models-intel .kev-excerpt--empty { padding-left: 0; border-left: 0; color: var(--text-faint); }
+
+  .lab-models-intel .kev-evidence-heading + .kev-probability__empty { margin-top: 0; }
+  .lab-models-intel .kev-probability-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 28px; }
+  .lab-models-intel .kev-probability { min-width: 0; }
+  .lab-models-intel .kev-probability__title { margin: 0 0 10px; color: var(--text-faint); font: 10px var(--mono); }
+  .lab-models-intel .kev-probability__row + .kev-probability__row { margin-top: 9px; }
+  .lab-models-intel .kev-probability__header { display: flex; justify-content: space-between; gap: 12px; color: var(--text-muted); font: 11px var(--mono); }
+  .lab-models-intel .kev-probability__label { overflow-wrap: anywhere; }
+  .lab-models-intel .kev-probability__value { color: var(--text); font-variant-numeric: tabular-nums; }
+  .lab-models-intel .kev-probability__track { display: block; height: 4px; margin-top: 5px; border-radius: 2px; background: var(--surface-3); overflow: hidden; }
+  .lab-models-intel .kev-probability__fill { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+  .lab-models-intel .kev-probability__empty { margin: 0; color: var(--text-faint); font-size: 12px; line-height: 1.6; }
+  .lab-models-intel .kev-confidence,
+  .lab-models-intel .kev-analysis-meta { margin: 12px 0 0; color: var(--text-faint); font: 10px/1.7 var(--mono); overflow-wrap: anywhere; }
+  .lab-models-intel .kev-button--more { margin-top: 20px; }
+  .lab-models-intel .kev-footnote {
+    display: grid;
+    grid-template-columns: minmax(150px, 0.4fr) minmax(0, 1fr);
+    gap: 18px;
+    margin-top: 38px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-strong);
+  }
+  .lab-models-intel .kev-footnote > span { color: var(--text-faint); font: 10px var(--mono); letter-spacing: 0.05em; }
+  .lab-models-intel .kev-footnote p { max-width: 70ch; margin: 0; color: var(--text-faint); font-size: 12px; line-height: 1.7; }
+
+  @media (max-width: 700px) {
+    .lab-models-intel .kev-hero { padding: 18px 0 36px; }
+    .lab-models-intel .kev-hero h1 { max-width: 10ch; font-size: clamp(38px, 11vw, 56px); }
+    .lab-models-intel .kev-boundary { grid-template-columns: 1fr; gap: 18px; margin-top: 26px; }
+    .lab-models-intel .kev-feed { padding-top: 32px; }
+    .lab-models-intel .kev-feed__head { align-items: center; }
+    .lab-models-intel .kev-feed__head h2 { font-size: 26px; }
+    .lab-models-intel .kev-button { min-width: 44px; padding-inline: 10px; }
+    .lab-models-intel .kev-skeleton__panels,
+    .lab-models-intel .kev-comparison,
+    .lab-models-intel .kev-probability-groups { grid-template-columns: 1fr; }
+    .lab-models-intel .kev-entry__top { gap: 8px 10px; }
+    .lab-models-intel .kev-entry__date { margin-left: 0; }
+    .lab-models-intel .kev-entry__top .kev-state { margin-left: auto; }
+    .lab-models-intel .kev-decision { min-height: 76px; }
+    .lab-models-intel .kev-input-field { grid-template-columns: 1fr; gap: 5px; }
+    .lab-models-intel .kev-footnote { grid-template-columns: 1fr; gap: 8px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lab-models-intel .kev-skeleton__line,
+    .lab-models-intel .kev-skeleton__panels i { animation: none; }
+  }
+</style>

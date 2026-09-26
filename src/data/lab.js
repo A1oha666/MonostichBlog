@@ -7,4 +7,10 @@ export const lab = [
     href: "/lab/sliding-window-max/",
     kind: "算法可视化",
   },
+  {
+    name: "Models Intel × Kev",
+    desc: "模型公告情报 · 对照规则分类与本地 Kev 的结构化判断",
+    href: "/lab/models-intel-kev/",
+    kind: "模型实验",
+  },
 ];

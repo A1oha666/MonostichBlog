@@ -1,0 +1,62 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getModelReleases, releaseDateValue, eventTypeLabel, type ModelRelease } from '../../lib/models';
+
+export const prerender = true;
+export async function getStaticPaths() {
+  const releases = await getModelReleases();
+  return releases.map((release) => ({ params: { id: release.id }, props: { release } }));
+}
+const { release } = Astro.props as { release: ModelRelease };
+const announcementDate = release.announced_at.length === 10 ? release.announced_at : new Date(release.announced_at).toISOString();
+---
+
+<BaseLayout title={`${release.title} — 模型发布动态`} description={release.summary} lang="zh-CN">
+  <article class="container model-detail">
+    <header class="page-head model-detail__head">
+      <a class="back-home" href="/models/">[← 返回模型动态]</a>
+      <p class="eyebrow">/ {release.vendor_name} · {eventTypeLabel(release.event_type)}</p>
+      <h1>{release.title}</h1>
+      <p>{release.summary}</p>
+    </header>
+    <dl class="model-facts">
+      <div><dt>模型</dt><dd>{release.model_family}<span>{release.model_id}</span></dd></div>
+      <div><dt>官方宣布</dt><dd><time datetime={announcementDate}>{releaseDateValue(release.announced_at)}</time></dd></div>
+      <div><dt>本站发现</dt><dd><time datetime={release.discovered_at}>{new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(release.discovered_at))}</time></dd></div>
+      <div><dt>本站发布</dt><dd><time datetime={release.published_at}>{new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(release.published_at))}</time></dd></div>
+      {release.availability.length > 0 && <div><dt>可用渠道</dt><dd>{release.availability.join('、')}</dd></div>}
+    </dl>
+    <section class="model-evidence">
+      <h2>// 官方证据</h2>
+      <ul>
+        {release.evidence.filter((item) => item.official).map((item) => (
+          <li>
+            <a href={item.source_url} target="_blank" rel="noopener noreferrer">查看厂商原始公告 ↗</a>
+            <span>{item.source_kind || '官方公告'} · 收录于 {new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium' }).format(new Date(item.captured_at))}</span>
+            {item.excerpt && <p>{item.excerpt}</p>}
+          </li>
+        ))}
+      </ul>
+    </section>
+  </article>
+</BaseLayout>
+
+<style>
+  .model-detail { max-width: 860px; padding-top: 42px; padding-bottom: 104px; }
+  .model-detail__head { max-width: 720px; }
+  .model-detail__head h1 { margin-top: 22px; }
+  .model-detail__head > p:last-child { margin-top: 18px; color: var(--text-muted); }
+  .model-facts { margin: 42px 0 0; border-top: 1px solid var(--border); }
+  .model-facts > div { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 20px; padding: 16px 0; border-bottom: 1px solid var(--border-subtle); }
+  .model-facts dt { color: var(--text-faint); font: 12px var(--mono); }
+  .model-facts dd { margin: 0; color: var(--text); }
+  .model-facts dd span { margin-left: 12px; color: var(--text-muted); font: 12px var(--mono); }
+  .model-evidence { margin-top: 48px; }
+  .model-evidence h2 { color: var(--text-faint); font: 13px var(--mono); }
+  .model-evidence ul { list-style: none; margin: 16px 0 0; padding: 0; }
+  .model-evidence li { padding: 18px 0; border-top: 1px solid var(--border-subtle); }
+  .model-evidence li > a { color: var(--accent); text-decoration: underline; text-underline-offset: 4px; }
+  .model-evidence li > span { display: block; margin-top: 6px; color: var(--text-faint); font-size: 12px; }
+  .model-evidence li > p { margin-top: 12px; color: var(--text-muted); font-size: 14px; }
+  @media (max-width: 700px) { .model-detail { padding-top: 26px; padding-bottom: 72px; } .model-detail__head h1 { font-size: clamp(32px, 8vw, 44px); } .model-facts > div { grid-template-columns: 96px minmax(0,1fr); gap: 12px; } }
+</style>
